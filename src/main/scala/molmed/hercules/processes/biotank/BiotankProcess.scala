@@ -1,13 +1,13 @@
-package molmed.hercules.processes
+package molmed.hercules.processes.biotank
 
 import java.io.File
 import molmed.hercules.Runfolder
 import molmed.hercules.ProcessingState
+import molmed.hercules.processes.RunfolderProcess
+import molmed.hercules.processes.SSHWrappedProcess
+import scala.sys.process.stringToProcess
 
 trait BiotankProcess extends RunfolderProcess with SSHWrappedProcess {
-
-  val runfolder: Runfolder
-  val command: String
 
   def getBiotankToRunOnFromFolderStructure(file: File): String = {
     val regexp = """(biotank\d+)""".r
@@ -22,8 +22,9 @@ trait BiotankProcess extends RunfolderProcess with SSHWrappedProcess {
     val biotankToRunOn =
       getBiotankToRunOnFromFolderStructure(runfolder.runfolder)
 
-    val commandToRun = sshWrapper(hostname = biotankToRunOn, command = command)
+    //@TODO More graceful error catching here!
 
+    val commandToRun = sshWrapper(hostname = biotankToRunOn, command = command)
     val exitStatus = commandToRun.!
 
     if (exitStatus == 0)

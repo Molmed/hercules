@@ -1,4 +1,4 @@
-package molmed.hercules.processes
+package molmed.hercules.processes.biotank
 
 import molmed.hercules.Runfolder
 

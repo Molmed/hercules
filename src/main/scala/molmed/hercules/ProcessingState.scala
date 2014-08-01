@@ -2,5 +2,6 @@ package molmed.hercules
 
 object ProcessingState extends Enumeration {
   type ProcessingState = Value
-  val Halted, Found, Running, Finished = Value
+  //@TODO Clean up list of possible states
+  val Halted, Found, Running, RunningDemultiplexing, RunningAeacusReport, RunningDelivery, VerifiedArchive, Finished = Value
 }

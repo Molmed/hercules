@@ -7,7 +7,7 @@ import java.io.File
 import collection.JavaConversions._
 import molmed.hercules.messages._
 import molmed.hercules.processes.ListDirectoryProcess
-import molmed.hercules.processes.WriteTestFileToDirectoryProcess
+import molmed.hercules.processes.biotank.WriteTestFileToDirectoryProcess
 
 class RunfolderProcessor extends Actor {
   val log = Logging(context.system, this)
@@ -30,8 +30,7 @@ class RunfolderProcessor extends Actor {
 
       WriteTestFileToDirectoryProcess(runningRunfolder).start()
 
-      // @TODO 
-      // This should be where the real async processing is done,
+      // @TODO This should be where the real async processing is done,
       // and then return the message saying that it's finished!
       system.scheduler.scheduleOnce(5.seconds) {
         val finishedRunfolder =

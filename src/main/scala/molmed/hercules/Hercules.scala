@@ -9,6 +9,7 @@ import molmed.hercules.messages._
 
 class Master() extends Actor with akka.actor.ActorLogging {
 
+  //@TODO Make configurable
   val runfolders = Seq(
     new File("/seqdata/biotank1/runfolders"),
     new File("/seqdata/biotank2/runfolders"))
@@ -17,7 +18,6 @@ class Master() extends Actor with akka.actor.ActorLogging {
   log.info("Master starting")
 
   val runfolderWatcher = context.actorOf(
-    //@TODO Pass paths to places to check here!
     Props(new RunfolderWatcher(runfolders, samplesheets)),
     "RunfolderWatcher")
 
