@@ -70,6 +70,7 @@ mkdir -p /seqdata/biotank1
 mkdir -p /seqdata/biotank2
 
 chown -R vagrant:vagrant /seqdata/*
+chown -R vagrant:vagrant /srv/samplesheet/Processning/
 
 mount biotank1:/seqdata/biotank1 /seqdata/biotank1
 mount biotank2:/seqdata/biotank2 /seqdata/biotank2
