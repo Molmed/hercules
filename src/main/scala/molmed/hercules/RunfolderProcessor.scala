@@ -8,6 +8,7 @@ import collection.JavaConversions._
 import molmed.hercules.messages._
 import molmed.hercules.processes.ListDirectoryProcess
 import molmed.hercules.processes.biotank.WriteTestFileToDirectoryProcess
+import molmed.hercules.processes.biotank.DemultiplexingProcess
 
 class RunfolderProcessor extends Actor {
   val log = Logging(context.system, this)
@@ -17,26 +18,46 @@ class RunfolderProcessor extends Actor {
 
       val master = sender
 
-      log.info("Received test: ProcessRunFolderMessage")
+      log.info("Received: ProcessRunFolderMessage")
 
-      val runningRunfolder =
+      runfolder.state match {
+        case ProcessingState.RunningDemultiplexing => {
+          log.info("Starting demultiplexing on: " +
+            runfolder.runfolder.getName())
+          val demultiplexedRunfolder =
+            RunfolderProcessor.runDemultiplexing(log, runfolder)
+          master ! ProcessRunFolderMessage(demultiplexedRunfolder)
+        }
+      }
+
+    }
+  }
+}
+
+object RunfolderProcessor {
+
+  def runDemultiplexing(
+    log: akka.event.LoggingAdapter,
+    runfolder: Runfolder): Runfolder = {
+
+    val demultiplex = new DemultiplexingProcess(runfolder)
+
+    try {
+      demultiplex.start()
+      val finishedRunfolder =
+        new Runfolder(runfolder.runfolder, runfolder.samplesheet, ProcessingState.FinishedDemultiplexing)
+      log.info("Succesfully demultiplexed " + runfolder.runfolder.getName())
+      finishedRunfolder
+    } catch {
+      case e: Throwable => {
+        log.info("Error while demultiplexing: " + runfolder.runfolder.getName())
         new Runfolder(
           runfolder.runfolder,
           runfolder.samplesheet,
-          ProcessingState.Running)
-      master ! ProcessRunFolderMessage(runningRunfolder)
-
-      import context._
-
-      WriteTestFileToDirectoryProcess(runningRunfolder).start()
-
-      // @TODO This should be where the real async processing is done,
-      // and then return the message saying that it's finished!
-      system.scheduler.scheduleOnce(5.seconds) {
-        val finishedRunfolder =
-          new Runfolder(runfolder.runfolder, runfolder.samplesheet, ProcessingState.Finished)
-        master ! ProcessRunFolderMessage(finishedRunfolder)
+          ProcessingState.Halted)
       }
     }
+
   }
+
 }
