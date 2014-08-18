@@ -29,6 +29,7 @@ echo "10.10.10.4    biotank2" >> /etc/hosts
 # Setup ssh keys
 cp /vagrant/id_rsa* /home/vagrant/.ssh/
 sudo chown vagrant:vagrant /home/vagrant/.ssh/id_rsa*
+sudo chmod go-rwx /home/vagrant/.ssh/id_rsa
 cat /vagrant/id_rsa.pub >> /home/vagrant/.ssh/authorized_keys
 
 # Install hercules prerequisites
@@ -36,7 +37,7 @@ sudo yum install -y java-1.7.0-openjdk-devel
 sudo yum install -y /vagrant/sbt-0.13.5.rpm
 
 # Install the nfs stuff
-yum install -y nfs-utils nfs-utils-lib
+yum install -y nfs-utils nfs-utils-lib git
 chkconfig nfs on 
 service rpcbind start
 service nfs start
@@ -54,6 +55,15 @@ chown -R vagrant:vagrant /seqdata/*
 
 echo "/seqdata/$(hostname) 10.10.10.2(rw,no_root_squash)" > /etc/exports
 sudo exportfs -a
+
+#Install sisyphus requirements
+sudo yum install -y perl-devel perl rsync dos2unix perl-CPAN gcc zlib-devel.x86_64 zlib.x86_64 expat-devel
+curl -L http://cpanmin.us | perl - --sudo App::cpanminus
+
+#Install the perl modules!
+sudo /usr/local/bin/cpanm PerlIO::gzip
+sudo /usr/local/bin/cpanm XML::Simple
+sudo /usr/local/bin/cpanm MD5
 
 SCRIPT
 
