@@ -50,7 +50,7 @@ object RunfolderProcessor {
       finishedRunfolder
     } catch {
       case e: Throwable => {
-        log.info("Error while demultiplexing: " + runfolder.runfolder.getName())
+        log.error("Error while demultiplexing: " + runfolder.runfolder.getName())
         new Runfolder(
           runfolder.runfolder,
           runfolder.samplesheet,
