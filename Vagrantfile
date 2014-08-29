@@ -35,6 +35,7 @@ cat /vagrant/id_rsa.pub >> /home/vagrant/.ssh/authorized_keys
 # Install hercules prerequisites
 sudo yum install -y java-1.7.0-openjdk-devel
 sudo yum install -y /vagrant/sbt-0.13.5.rpm
+sudo yum install -y git
 
 # Install the nfs stuff
 yum install -y nfs-utils nfs-utils-lib git
@@ -60,10 +61,40 @@ sudo exportfs -a
 sudo yum install -y perl-devel perl rsync dos2unix perl-CPAN gcc zlib-devel.x86_64 zlib.x86_64 expat-devel
 curl -L http://cpanmin.us | perl - --sudo App::cpanminus
 
+
 #Install the perl modules!
 sudo /usr/local/bin/cpanm PerlIO::gzip
 sudo /usr/local/bin/cpanm XML::Simple
 sudo /usr/local/bin/cpanm MD5
+
+#Install bcl2fastq
+wget --no-clobber -P /vagrant/ ftp://webdata:webdata@ussd-ftp.illumina.com/Downloads/Software/bcl2fastq/bcl2fastq-1.8.4.tar.bz2
+
+# Install the prerequisite software libraries
+sudo yum install -y make libxslt libxslt-devel libxslt libxslt-devel ImageMagick bzip2 bzip2-devel zlib zlib-devel gcc-c++.x86_64 patc patch 
+
+# Install bcl2fastq from source according to Illuminas instructions
+export TMP=/tmp
+export SOURCE=${TMP}/bcl2fastq
+export BUILD=${TMP}/bcl2fastq-1.8.4-build
+export INSTALL=/usr/local/bcl2fastq-1.8.4
+
+#Download and install it
+cd ${TMP}
+cp /vagrant/bcl2fastq-1.8.4.tar.bz2 ${TMP}/
+tar xjf bcl2fastq-1.8.4.tar.bz2
+
+mkdir ${BUILD}
+cd ${BUILD}
+${SOURCE}/src/configure --prefix=${INSTALL}
+
+make
+sudo make install
+
+#Patch it with our custom changes
+cd /usr/local/bcl2fastq-1.8.4/
+patch -p1 --dry-run < /vagrant/CASAVA/bcl2fastq.patch && \
+    patch -p1 < /vagrant/CASAVA/bcl2fastq.patch
 
 SCRIPT
 
