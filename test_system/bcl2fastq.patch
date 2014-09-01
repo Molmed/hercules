@@ -1,0 +1,86 @@
+diff --git a/lib/bcl2fastq-1.8.4/perl/Casava/Demultiplex.pm b/lib/bcl2fastq-1.8.4/perl/Casava/Demultiplex.pm
+index 8c87f2c..a51ee1a 100644
+--- a/lib/bcl2fastq-1.8.4/perl/Casava/Demultiplex.pm
++++ b/lib/bcl2fastq-1.8.4/perl/Casava/Demultiplex.pm
+@@ -540,16 +540,23 @@ sub loadSampleSheet($;$)
+     $self->flowCellId($flowCellId);
+     $self->{SampleSheet}->flowCellId($flowCellId);
+ 
+-    # check that the barcodes have the expected length
+-    my $expectedBarcodeLength = $self->mask =~ tr/iI//;
++    # check that all barcodes from the same lane have the same length
+     foreach my $lane ($self->{SampleSheet}->lanes)
+     {
++	#my $expectedBarcodeLength = $self->mask =~ tr/iI//;
++	my $expectedBarcodeLength;
++	$self->{BARCODELENGTH}->{$lane} = $self->mask =~ tr/iI//;
+         foreach my $barcode ($self->{SampleSheet}->barcodes($lane))
+         {
+             $barcode =~ s/$Casava::Demultiplex::SampleSheet::barcodeComponentSeparator//g;
+             next unless $barcode and length($barcode) > 0;
+             next if 'Undetermined' eq $barcode;
+             next if 'NoIndex' eq $barcode;
++	    # Set the expected length to the length of the first barcode
++	    unless(defined $expectedBarcodeLength){
++		$expectedBarcodeLength = length($barcode);
++		$self->{BARCODELENGTH}->{$lane} = length($barcode);
++	    }
+             errorExit("ERROR: barcode $barcode for lane $lane has length " .
+                       length($barcode) .
+                       ": expected barcode lenth (including delimiters) is $expectedBarcodeLength") if length($barcode) != $expectedBarcodeLength;
+@@ -724,6 +731,7 @@ include \$(MAKEFILES_DIR)/Log.mk
+ EOF
+     # this needs to be changed accordingly, once BF-363 is in
+     #print $handle "DEMUX_READS:=1".(($self->mask =~ /y/) ? " 2\n" : "\n");
++    foreach my $lane (@lanes){
+     my $barcodeCycles = $self->{BaseCalls}->barcodeCycles($self->{MASK});
+     unless (defined $barcodeCycles)
+     {
+@@ -731,7 +739,16 @@ EOF
+         my @emptyArray;
+         $barcodeCycles = \@emptyArray;
+     }
+-    print $handle "BARCODE_CYCLES:=". join(' ',@{$barcodeCycles}) ."\n";
++	print $handle "BARCODE_CYCLES_L$lane:=". join(' ',@{$barcodeCycles}[0..$self->{BARCODELENGTH}->{$lane}-1]) ."\n";
++    }
++
++    # Expect a single value or one value per lane, separated with :
++    my @mismatches = split /:/, $self->errorDetection();
++    # Set default if array is empty
++    @mismatches=(0) unless(@mismatches);
++    foreach my $lane (@lanes){
++      print $handle "MISMATCHES_L$lane:=" . (@mismatches==1 ? $mismatches[0] : $mismatches[$lane-1]) . "\n";
++    }
+ 
+     my $readCycles = $self->{BaseCalls}->readCycles($self->{MASK}, 0);
+     my $readDemuxCycles = $self->{BaseCalls}->readCycles($self->{MASK}, 1);
+@@ -793,7 +810,7 @@ EOF
+                   ($self->positionsFormat() ? " --positions-format=" . $self->positionsFormat() : "" ).
+                   (defined $self->fastqClusterCount() ? " --fastq-cluster-count=" . $self->fastqClusterCount() : "" ).
+                   ($self->gzLevel() ? " --gz-level=" . $self->gzLevel() : "" ).
+-                  (" --mismatches='" . $self->errorDetection()."'") .
++#                  (" --mismatches='" . $self->errorDetection()."'") .
+                   (" --instrument-name='" . $self->{BaseCalls}->instrumentName()).
+                   ("' --run-number='" . $self->{BaseCalls}->runNumber()).
+                   "'\n\n";
+diff --git a/share/bcl2fastq-1.8.4/makefiles/DemultiplexLaneRead.mk b/share/bcl2fastq-1.8.4/makefiles/DemultiplexLaneRead.mk
+index a1e6b96..9d42d46 100644
+--- a/share/bcl2fastq-1.8.4/makefiles/DemultiplexLaneRead.mk
++++ b/share/bcl2fastq-1.8.4/makefiles/DemultiplexLaneRead.mk
+@@ -33,7 +33,7 @@ includedOriginalReadsList := $(wordlist 2, $(words $(includedOriginalReadsList))
+ 
+ ANY_BARCODE:=NoIndex
+ UNKNOWN_BARCODE:=Undetermined
+-BARCODE_CYCLES_PARAM:=--barcode-cycles "$(BARCODE_CYCLES)"
++BARCODE_CYCLES_PARAM:=--barcode-cycles "$(BARCODE_CYCLES_L$(lane))"
+ 
+ COMPRESSED_FASTQ_SUFFIX:=$(FASTQ_SUFFIX)$(COMPRESSIONSUFFIX)
+ 
+@@ -96,6 +96,7 @@ $(l$(lane)_r$(demux_read)_pattern_targets): \
+   $(foreach lsd, $(sort $(l$(lane)_SUBDIRS)), $(l$(lane)_r$(demux_read)_temp_dir)/$(lsd)/.sentinel)
+ 	$(CMDPREFIX) $(LIBEXEC_DIR)/demultiplexBcls \
+         $(DEMUX_OPTIONS) \
++        --mismatches=$(MISMATCHES_L$(lane)) \
+         --basecalls-dir $(BASECALLS_DIR) \
+         --intensities-dir $(INTENSITIES_DIR) \
+         --output-dir $(CURDIR) \

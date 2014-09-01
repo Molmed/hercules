@@ -33,10 +33,10 @@ echo "10.10.10.4    biotank2" >> /etc/hosts
 echo "10.10.10.5    milou-b.uppmax.uu.se" >> /etc/hosts
 
 # Setup ssh keys
-cp /vagrant/id_rsa* /home/vagrant/.ssh/
+cp /vagrant/test_system/id_rsa* /home/vagrant/.ssh/
 sudo chown vagrant:vagrant /home/vagrant/.ssh/id_rsa*
 sudo chmod go-rwx /home/vagrant/.ssh/id_rsa
-cat /vagrant/id_rsa.pub >> /home/vagrant/.ssh/authorized_keys
+cat /vagrant/test_system/id_rsa.pub >> /home/vagrant/.ssh/authorized_keys
 
 # Start by making yum faster
 sudo yum install yum-plugin-fastestmirror
@@ -44,7 +44,7 @@ sudo yum upgrade
 
 # Install hercules prerequisites
 sudo yum install -y java-1.7.0-openjdk-devel
-sudo yum install -y /vagrant/sbt-0.13.5.rpm
+sudo yum install -y /vagrant/test_system/sbt-0.13.5.rpm
 sudo yum install -y git
 
 # Install the nfs stuff
@@ -72,7 +72,7 @@ sudo yum -y groupinstall "Development tools"
 
 sudo yum install -y emacs-nox samba gnuplot PyXML ImageMagick libxslt-devel libxml2-devel ncurses-devel libtiff-devel bzip2-devel zlib-devel perl-XML-LibXML perl-XML-LibXML-Common perl-XML-NamespaceSupport perl-XML-SAX perl-XML-Simple
 
-wget --no-clobber -P /vagrant/  http://download.fedoraproject.org/pub/epel/6/x86_64/epel-release-6-8.noarch.rpm
+wget --no-clobber -P /vagrant/test_system/  http://download.fedoraproject.org/pub/epel/6/x86_64/epel-release-6-8.noarch.rpm
 sudo rpm -ivh epel-release-6-8.noarch.rpm
 
 sudo yum install -y perl-PDL perl-PerlIO-gzip
@@ -86,7 +86,7 @@ sudo /usr/local/bin/cpanm XML::Simple
 sudo /usr/local/bin/cpanm MD5
 
 #Install bcl2fastq
-wget --no-clobber -P /vagrant/ ftp://webdata:webdata@ussd-ftp.illumina.com/Downloads/Software/bcl2fastq/bcl2fastq-1.8.4.tar.bz2
+wget --no-clobber -P /vagrant/test_system/ ftp://webdata:webdata@ussd-ftp.illumina.com/Downloads/Software/bcl2fastq/bcl2fastq-1.8.4.tar.bz2
 
 # Install the prerequisite software libraries
 sudo yum install -y make libxslt libxslt-devel libxslt libxslt-devel ImageMagick bzip2 bzip2-devel zlib zlib-devel gcc-c++.x86_64 patc patch 
@@ -99,7 +99,7 @@ export INSTALL=/opt/CASAVA/1.8.4
 
 #Download and install it
 cd ${TMP}
-cp /vagrant/bcl2fastq-1.8.4.tar.bz2 ${TMP}/
+cp /vagrant/test_system/bcl2fastq-1.8.4.tar.bz2 ${TMP}/
 tar xjf bcl2fastq-1.8.4.tar.bz2
 
 mkdir ${BUILD}
@@ -111,8 +111,8 @@ sudo make install
 
 #Patch it with our custom changes
 cd $INSTALL
-sudo patch -p1 --dry-run < /vagrant/CASAVA/bcl2fastq.patch && \
-    sudo patch -p1 < /vagrant/CASAVA/bcl2fastq.patch
+sudo patch -p1 --dry-run < /vagrant/test_system/bcl2fastq.patch && \
+    sudo patch -p1 < /vagrant/test_system/bcl2fastq.patch
 
 SCRIPT
 
@@ -149,7 +149,7 @@ sudo yum -y groupinstall "Development tools"
 
 sudo yum install -y emacs-nox samba gnuplot PyXML ImageMagick libxslt-devel libxml2-devel ncurses-devel libtiff-devel bzip2-devel zlib-devel perl-XML-LibXML perl-XML-LibXML-Common perl-XML-NamespaceSupport perl-XML-SAX perl-XML-Simple
 
-wget --no-clobber -P /vagrant/  http://download.fedoraproject.org/pub/epel/6/x86_64/epel-release-6-8.noarch.rpm
+wget --no-clobber -P /vagrant/test_system/  http://download.fedoraproject.org/pub/epel/6/x86_64/epel-release-6-8.noarch.rpm
 sudo rpm -ivh epel-release-6-8.noarch.rpm
 
 sudo yum install -y perl-PDL perl-PerlIO-gzip
@@ -165,20 +165,22 @@ sudo /usr/local/bin/cpanm MD5
 #Install slurm
 
 # First all the munge stuff
-wget --no-clobber -P /vagrant/ https://munge.googlecode.com/files/munge-0.5.11.tar.bz2
+sudo yum install -y openssl-devel
+wget --no-clobber -P /vagrant/test_system https://munge.googlecode.com/files/munge-0.5.11.tar.bz2
+cd /vagrant/test_system
 rpmbuild -tb --clean munge-0.5.11.tar.bz2
 sudo rpm -ivh /home/vagrant/rpmbuild/RPMS/x86_64/munge-*
-dd if=/dev/urandom bs=1 count=1024 > munge.key 
-sudo cp munge.key /etc/munge/munge.key
+dd if=/dev/urandom bs=1 count=1024 > /vagrant/test_system/munge.key 
+sudo cp /vagrant/test_system/munge.key /etc/munge/munge.key
 sudo service munge start
 
-
+cd /vagrant/test_system/
 tar --bzip -x -f slurm*tar.bz2
-cd slurm-14.03.7/
+cd /vagrant/test_system/slurm-14.03.7/
 ./configure --enable-multiple-slurmd --enable-front-end
 make
 sudo make install
-sudo cp slurm.conf /usr/local/etc/
+sudo cp /vagrant/test_system/slurm.conf /usr/local/etc/
 
 slurmctld -c
 sudo /usr/local/sbin/slurmd -c
