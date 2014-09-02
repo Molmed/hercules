@@ -169,14 +169,16 @@ sudo yum install -y openssl-devel
 wget --no-clobber -P /vagrant/test_system https://munge.googlecode.com/files/munge-0.5.11.tar.bz2
 cd /vagrant/test_system
 rpmbuild -tb --clean munge-0.5.11.tar.bz2
-sudo rpm -ivh /home/vagrant/rpmbuild/RPMS/x86_64/munge-*
+sudo rpm -ivh /root/rpmbuild/RPMS/x86_64/munge-*
 dd if=/dev/urandom bs=1 count=1024 > /vagrant/test_system/munge.key 
 sudo cp /vagrant/test_system/munge.key /etc/munge/munge.key
 sudo service munge start
 
+# Download the slurm source
+wget --no-clobber -P /vagrant/test_system https://github.com/SchedMD/slurm/archive/slurm-14-03-7-1.tar.gz
 cd /vagrant/test_system/
-tar --bzip -x -f slurm*tar.bz2
-cd /vagrant/test_system/slurm-14.03.7/
+tar -z -x -f slurm-*
+cd /vagrant/test_system/slurm-*/
 ./configure --enable-multiple-slurmd --enable-front-end
 make
 sudo make install
