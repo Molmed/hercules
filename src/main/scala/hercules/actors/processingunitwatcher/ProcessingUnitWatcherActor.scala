@@ -9,8 +9,9 @@ import hercules.entities.ProcessingUnit
  * This class will watch for new runfolders and return send them of to
  * the master once they are ready to start processing.
  */
-abstract class ProcessingUnitWatcherActor(config: ProcessingUnitWatcherConfig) extends HerculesActor {
+trait ProcessingUnitWatcherActor extends HerculesActor {
   
+  val config: ProcessingUnitWatcherConfig
   def isDone(unit: ProcessingUnit): Boolean
   
 }

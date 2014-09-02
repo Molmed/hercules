@@ -5,9 +5,9 @@ import java.io.File
 /**
  * Provides the configuration files for a IlluminaProcessingUnit
  */
-class IlluminaProcessingUnitConfig(
+case class IlluminaProcessingUnitConfig(
     sampleSheet: File,
     QCConfig: File,
-    programConfig: Option[File]) {
+    programConfig: Option[File]) extends ProcessingUnitConfig {
 
 }

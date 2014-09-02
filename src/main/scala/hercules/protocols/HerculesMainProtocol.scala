@@ -18,25 +18,25 @@ object HerculesMainProtocol {
   case object Start extends HerculesMessage
   case object Stop extends HerculesMessage
   case object Restart extends HerculesMessage
-  
+
   /**
-   * The base class for the messages encapsulating the state of the
+   * The base trait for the messages encapsulating the state of the
    * ProcessingUnit, which in turn defines what is to be done with it.
    */
-  abstract class ProcessingUnitMessage(unit: ProcessingUnit) extends HerculesMessage
+  trait ProcessingUnitMessage extends HerculesMessage {
+    val unit: ProcessingUnit
+  }
 
-  case class FoundProcessingUnitMessage(unit: ProcessingUnit) extends ProcessingUnitMessage(unit)
+  case class FoundProcessingUnitMessage(unit: ProcessingUnit) extends ProcessingUnitMessage
 
-  case class StartDemultiplexingProcessingUnitMessage(unit: ProcessingUnit) extends ProcessingUnitMessage(unit)
-  case class FinishedDemultiplexingProcessingUnitMessage(unit: ProcessingUnit) extends ProcessingUnitMessage(unit)
-  case class FailedDemultiplexingProcessingUnitMessage(unit: ProcessingUnit) extends ProcessingUnitMessage(unit)
+  case class StartDemultiplexingProcessingUnitMessage(unit: ProcessingUnit) extends ProcessingUnitMessage
+  case class FinishedDemultiplexingProcessingUnitMessage(unit: ProcessingUnit) extends ProcessingUnitMessage
+  case class FailedDemultiplexingProcessingUnitMessage(unit: ProcessingUnit) extends ProcessingUnitMessage
 
-  case class StartQCProcessingUnitMessage(unit: ProcessingUnit) extends ProcessingUnitMessage(unit)
-  case class FinishedQCProcessingUnitMessage(unit: ProcessingUnit) extends ProcessingUnitMessage(unit)
-  case class FailedQCProcessingUnitMessage(unit: ProcessingUnit) extends ProcessingUnitMessage(unit)
+  case class StartQCProcessingUnitMessage(unit: ProcessingUnit) extends ProcessingUnitMessage
+  case class FinishedQCProcessingUnitMessage(unit: ProcessingUnit) extends ProcessingUnitMessage
+  case class FailedQCProcessingUnitMessage(unit: ProcessingUnit) extends ProcessingUnitMessage
 
-  //@TODO Extend this with all messages that we cant to be able to send!
-  
-  
-  
+  //@TODO Extend this with all messages that we should to be able to send!
+
 }

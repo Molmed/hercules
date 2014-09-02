@@ -8,7 +8,7 @@ import hercules.entities.ProcessingUnit
  * Abstract base class for any actor providing quality controll checking 
  * functionality
  */
-abstract class QualityControllerActor extends HerculesActor {
+trait QualityControllerActor extends HerculesActor {
 
   def passesQualityControl(processingUnit: ProcessingUnit)
   

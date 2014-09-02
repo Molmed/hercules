@@ -1,5 +1,7 @@
 package hercules.actors.qualitycontrol
 
+import hercules.entities.ProcessingUnit
+
 
 /**
  * Concrete implementation for doing quality control on a Illumina
@@ -7,6 +9,7 @@ package hercules.actors.qualitycontrol
  */
 class MiSeqQualityControllerActor extends IlluminaQualityControllerActor {
   
+  def passesQualityControl(processingUnit: ProcessingUnit) = ???
   def receive = ???
 
 }

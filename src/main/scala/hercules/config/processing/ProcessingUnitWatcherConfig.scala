@@ -1,8 +1,8 @@
 package hercules.config.processing
 
 /**
- * Configure a PRocessingUnit watcher
+ * Configure a ProcessingUnit watcher
  */
-class ProcessingUnitWatcherConfig {
+case class ProcessingUnitWatcherConfig() {
 
 }
