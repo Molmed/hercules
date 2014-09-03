@@ -128,8 +128,8 @@ mkdir -p /srv/samplesheet/processning/
 mkdir -p /seqdata/biotank1
 mkdir -p /seqdata/biotank2
 
-chown -r vagrant:vagrant /seqdata/*
-chown -r vagrant:vagrant /srv/samplesheet/processning/
+chown -R vagrant:vagrant /seqdata/*
+chown -R vagrant:vagrant /srv/samplesheet/processning/
 
 mount biotank1:/seqdata/biotank1 /seqdata/biotank1
 mount biotank2:/seqdata/biotank2 /seqdata/biotank2
@@ -199,6 +199,7 @@ Vagrant.configure("2") do |global_config|
             config.vm.box = "chef/centos-6.5"
             config.vm.hostname = "#{name}"
             config.vm.network :private_network, ip: options[:ipaddress]
+            config.vm.synced_folder ".", "/vagrant", type: "nfs"
 
             #VM specifications
             config.vm.provider :virtualbox do |v|
