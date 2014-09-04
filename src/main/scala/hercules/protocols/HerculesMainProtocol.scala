@@ -19,6 +19,8 @@ object HerculesMainProtocol {
   case object Stop extends HerculesMessage
   case object Restart extends HerculesMessage
 
+  case class StringMessage(s: String) extends HerculesMessage
+  
   /**
    * The base trait for the messages encapsulating the state of the
    * ProcessingUnit, which in turn defines what is to be done with it.

@@ -18,6 +18,6 @@ class IlluminaProcessingUnitWatcherActor(
     extends ProcessingUnitWatcherActor {
 
  def receive = ??? 
- def isDone(unit: ProcessingUnit): Boolean = ???
+ def isReadyForProcessing(unit: ProcessingUnit): Boolean = ???
   
 }
