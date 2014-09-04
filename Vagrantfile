@@ -48,7 +48,7 @@ sudo yum install -y /vagrant/test_system/sbt-0.13.5.rpm
 sudo yum install -y git
 
 # Install the nfs stuff
-yum install -y nfs-utils nfs-utils-lib git
+sudo yum install -y nfs-utils nfs-utils-lib git
 chkconfig nfs on 
 service rpcbind start
 service nfs start
@@ -84,6 +84,10 @@ curl -L http://cpanmin.us | perl - --sudo App::cpanminus
 sudo /usr/local/bin/cpanm PerlIO::gzip
 sudo /usr/local/bin/cpanm XML::Simple
 sudo /usr/local/bin/cpanm MD5
+sudo /usr/local/bin/cpanm ExtUtils::MakeMaker
+sudo /usr/local/bin/cpanm --force Module::Compile
+sudo /usr/local/bin/cpanm PDL
+
 
 #Install bcl2fastq
 wget --no-clobber -P /vagrant/test_system/ ftp://webdata:webdata@ussd-ftp.illumina.com/Downloads/Software/bcl2fastq/bcl2fastq-1.8.4.tar.bz2
@@ -161,6 +165,9 @@ curl -L http://cpanmin.us | perl - --sudo App::cpanminus
 sudo /usr/local/bin/cpanm PerlIO::gzip
 sudo /usr/local/bin/cpanm XML::Simple
 sudo /usr/local/bin/cpanm MD5
+sudo /usr/local/bin/cpanm ExtUtils::MakeMaker
+sudo /usr/local/bin/cpanm --force Module::Compile
+sudo /usr/local/bin/cpanm PDL
 
 #Install slurm
 
@@ -183,9 +190,14 @@ cd /vagrant/test_system/slurm-*/
 make
 sudo make install
 sudo cp /vagrant/test_system/slurm.conf /usr/local/etc/
+# Symlink the slurm executables to /usr/bin for compability with sisyphus
+ln -s /usr/local/bin/* /usr/bin/
 
 slurmctld -c
 sudo /usr/local/sbin/slurmd -c
+
+# Add environment variable expected by sisyphus
+echo "export SNIC_RESOURCE=milou" >> /home/vagrant/.bash_profile
 
 SCRIPT
 
