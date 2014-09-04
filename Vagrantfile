@@ -45,7 +45,7 @@ sudo yum upgrade
 # Install hercules prerequisites
 sudo yum install -y java-1.7.0-openjdk-devel
 sudo yum install -y /vagrant/test_system/sbt-0.13.5.rpm
-sudo yum install -y git
+sudo yum install -y git nano
 
 # Install the nfs stuff
 sudo yum install -y nfs-utils nfs-utils-lib git
@@ -73,7 +73,7 @@ sudo yum -y groupinstall "Development tools"
 sudo yum install -y emacs-nox samba gnuplot PyXML ImageMagick libxslt-devel libxml2-devel ncurses-devel libtiff-devel bzip2-devel zlib-devel perl-XML-LibXML perl-XML-LibXML-Common perl-XML-NamespaceSupport perl-XML-SAX perl-XML-Simple
 
 wget --no-clobber -P /vagrant/test_system/  http://download.fedoraproject.org/pub/epel/6/x86_64/epel-release-6-8.noarch.rpm
-sudo rpm -ivh epel-release-6-8.noarch.rpm
+sudo rpm -ivh /vagrant/test_system/epel-release-6-8.noarch.rpm
 
 sudo yum install -y perl-PDL perl-PerlIO-gzip
 
@@ -174,24 +174,31 @@ sudo /usr/local/bin/cpanm PDL
 # First all the munge stuff
 sudo yum install -y openssl-devel
 wget --no-clobber -P /vagrant/test_system https://munge.googlecode.com/files/munge-0.5.11.tar.bz2
-cd /vagrant/test_system
+cp /vagrant/test_system/munge-*.tar.bz2 /tmp/
+cd /tmp
 rpmbuild -tb --clean munge-0.5.11.tar.bz2
 sudo rpm -ivh /root/rpmbuild/RPMS/x86_64/munge-*
-dd if=/dev/urandom bs=1 count=1024 > /vagrant/test_system/munge.key 
-sudo cp /vagrant/test_system/munge.key /etc/munge/munge.key
+dd if=/dev/urandom bs=1 count=1024 > /tmp/munge.key 
+sudo cp /tmp/munge.key /etc/munge/munge.key
 sudo service munge start
 
 # Download the slurm source
 wget --no-clobber -P /vagrant/test_system https://github.com/SchedMD/slurm/archive/slurm-14-03-7-1.tar.gz
-cd /vagrant/test_system/
+cp /vagrant/test_system/slurm-* /tmp/
+cd /tmp
 tar -z -x -f slurm-*
-cd /vagrant/test_system/slurm-*/
+cd slurm-*/
 ./configure --enable-multiple-slurmd --enable-front-end
 make
 sudo make install
 sudo cp /vagrant/test_system/slurm.conf /usr/local/etc/
+
 # Symlink the slurm executables to /usr/bin for compability with sisyphus
 ln -s /usr/local/bin/* /usr/bin/
+# Setup the path for job accounting to mimic the Uppmax path so that sisyohus will find it
+sudo mkdir -p /sw/share/slurm/milou/accounting/
+sudo chgrp -R vagrant /sw
+sudo chmod -R g+rwX /sw
 
 slurmctld -c
 sudo /usr/local/sbin/slurmd -c
