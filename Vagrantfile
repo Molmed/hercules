@@ -206,6 +206,14 @@ sudo /usr/local/sbin/slurmd -c
 # Add environment variable expected by sisyphus
 echo "export SNIC_RESOURCE=milou" >> /home/vagrant/.bash_profile
 
+# Install the icommands
+wget --no-clobber -P /tmp/ ftp://ftp.renci.org/pub/irods/releases/4.0.3//irods-icommands-4.0.3-64bit-centos6.rpm
+cd /tmp
+sudo yum install -y irods-icommands-4.0.3-64bit-centos6.rpm
+mkdir ~/.irods
+cp /vagrant/test_system/irodsEnv ~/.irods/.irodsEnv
+iinit `cat /vagrant/test_system/irodspass`
+
 SCRIPT
 
 #--------------------------------------
@@ -233,6 +241,7 @@ Vagrant.configure("2") do |global_config|
                 config.vm.provision :shell,
                     :inline => $node_script
             elsif options[:type] == "uppmax"
+              config.vm.provision "docker"
                 config.vm.provision :shell,
                     :inline => $uppmax_script
             else
