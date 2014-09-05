@@ -53,9 +53,9 @@ object Hercules extends App {
     // do stuff
     config.applicationType match {
       case Some(RunMaster) =>
-        IlluminaDemultiplexingActor.startIlluminaDemultiplexingActor()
-      case Some(RunDemultiplexter) =>
         SisyphusMasterActor.startSisyphusMasterActor()
+      case Some(RunDemultiplexter) =>
+        IlluminaDemultiplexingActor.startIlluminaDemultiplexingActor()
       case None => parser.showUsageAsError
     }
   } getOrElse {
