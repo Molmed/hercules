@@ -212,7 +212,10 @@ cd /tmp
 sudo yum install -y irods-icommands-4.0.3-64bit-centos6.rpm
 mkdir ~/.irods
 cp /vagrant/test_system/irodsEnv ~/.irods/.irodsEnv
-iinit `cat /vagrant/test_system/irodspass`
+iinit rods
+# Create a path to mimic Uppnex setup and configure the default directory
+imkdir -p /ssUppnexZone/proj/a2009002
+sed -r -i 's/home\/rods/proj\/a2009002/' ~/.irods/.irodsEnv
 
 SCRIPT
 
