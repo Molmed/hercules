@@ -203,19 +203,29 @@ sudo chmod -R g+rwX /sw
 slurmctld -c
 sudo /usr/local/sbin/slurmd -c
 
-# Add environment variable expected by sisyphus
-echo "export SNIC_RESOURCE=milou" >> /home/vagrant/.bash_profile
-
 # Install the icommands
 wget --no-clobber -P /tmp/ ftp://ftp.renci.org/pub/irods/releases/4.0.3//irods-icommands-4.0.3-64bit-centos6.rpm
 cd /tmp
 sudo yum install -y irods-icommands-4.0.3-64bit-centos6.rpm
-mkdir ~/.irods
-cp /vagrant/test_system/irodsEnv ~/.irods/.irodsEnv
-iinit rods
+mkdir /home/vagrant/.irods
+cp /vagrant/test_system/irodsEnv /home/vagrant/.irods/.irodsEnv
+chown -R vagrant:vagrant /home/vagrant/.irods
+chmod -R go-rwX /home/vagrant/.irods
+
+# Add environment variable expected by sisyphus
+echo "export SNIC_RESOURCE=milou" >> /home/vagrant/.bash_profile
+
+SCRIPT
+
+#--------------------------------------
+# irods provisioning inline script
+#--------------------------------------
+$irods_script = <<SCRIPT
+
 # Create a path to mimic Uppnex setup and configure the default directory
+iinit rods
 imkdir -p /ssUppnexZone/proj/a2009002
-sed -r -i 's/home\/rods/proj\/a2009002/' ~/.irods/.irodsEnv
+sed -r -i 's/home\\/rods/proj\\/a2009002/' /home/vagrant/.irods/.irodsEnv
 
 SCRIPT
 
@@ -247,6 +257,9 @@ Vagrant.configure("2") do |global_config|
               config.vm.provision "docker"
                 config.vm.provision :shell,
                     :inline => $uppmax_script
+                config.vm.provision :shell,
+                    :inline => $irods_script,
+                    :privileged => false
             else
                 config.vm.provision :shell,
                     :inline => $biotank_script
