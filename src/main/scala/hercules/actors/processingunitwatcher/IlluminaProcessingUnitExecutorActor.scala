@@ -11,19 +11,31 @@ import hercules.config.processingunit.IlluminaProcessingUnitConfig
 
 object IlluminaProcessingUnitExecutorActor {
 
-  def props(): Props = {
+  /**
+   * Factory method for creating a IlluminaProcessingUnitExecutorActor
+   * Loads it's configuration from the IlluminaProcessingUnitExecutorActor.conf
+   * @param configFile the configFile to load
+   * @returns a Props of IlluminaProcessingUnitExecutorActor
+   */
+  def props(configFile: String = "IlluminaProcessingUnitExecutorActor"): Props = {
 
-    val conf = ConfigFactory.load("IlluminaProcessingUnitExecutorActor")
+    val conf = ConfigFactory.load(configFile)
     val runfolderPath = conf.getString("runFolderPath")
     val samplesheetPath = conf.getString("samplesheetPath")
+
     val customQCConfigurationRoot = conf.getString("customQCConfigurationFilesRoot")
     val defaultQCConfigFile = conf.getString("defaultQCConfigFile")
+
+    val customProgamConfigurationRoot = conf.getString("defaultQCConfigFile")
+    val defaultProgramConfigurationFile = conf.getString("defaultProgramConfigFile")
 
     Props(new IlluminaProcessingUnitExecutorActor(
       runfolderPath,
       samplesheetPath,
       customQCConfigurationRoot,
-      defaultQCConfigFile))
+      defaultQCConfigFile,
+      customProgamConfigurationRoot,
+      defaultProgramConfigurationFile))
   }
 
   /**
@@ -34,21 +46,47 @@ object IlluminaProcessingUnitExecutorActor {
    * @param unit The processing unit check
    * @return if the processing unit is ready to be processed or not.
    */
-  private def isReadyForProcessing(unit: ProcessingUnit): Boolean = ???
+  private def isReadyForProcessing(unit: ProcessingUnit): Boolean = {
+
+    val runfolderPath = new File(unit.uri)
+
+    val filesInRunFolder = runfolderPath.listFiles()
+
+    val hasNoFoundFile =
+      filesInRunFolder.forall(file => {
+        !(file.getName() == "found")
+      })
+
+    val hasRTAComplete =
+      filesInRunFolder.exists(x => x.getName() == "RTAComplete.txt")
+
+    hasNoFoundFile && hasRTAComplete
+  }
 
   /**
-   * @TODO Write documentation here!
+   * Checks runfolders (IlluminaProcessingUnits) which are ready to be processed
+   * @param runfolderRoot
+   * @param sampleSheetRoot
+   * @param customQCConfigRoot
+   * @param defaultQCConfigFile
+   * @param customProgramConfigRoot
+   * @param defaultProgramConfigFile
+   * @param log
+   * @return A sequence of Illumina processingUnit which are ready to be
+   * processed
+   *
    */
   def checkReadyForRunfolders(
-    root: File,
+    runfolderRoot: File,
     sampleSheetRoot: File,
     customQCConfigRoot: File,
-    defaultConfigFile: File,
+    defaultQCConfigFile: File,
+    customProgramConfigRoot: File,
+    defaultProgramConfigFile: File,
     log: akka.event.LoggingAdapter): Seq[IlluminaProcessingUnit] = {
+
     /**
      * List all of the subdirectories of dir.
-     * @TODO Might want to make sure that this only locks at folders which
-     * match the runfolder pattern.
      */
     def listSubDirectories(dir: File): Seq[File] = {
       require(dir.isDirectory(), dir + " was not a directory!")
@@ -60,33 +98,10 @@ object IlluminaProcessingUnitExecutorActor {
      * ready to be processed.
      */
     def searchForRunfolders(): Seq[File] = {
-
-      /**
-       * Find the runfolders which are ready for processing.
-       * That is, the do not have a found file in them (they are already being
-       *  processed), or that have been modified less than a time x ago, and
-       *  finally the RTAComplete.txt nees to be in place.
-       */
-      def filterOutReadyForProcessing(runfolders: Seq[File]): Seq[File] =
-        {
-          runfolders.filter(runfolder => {
-            val filesInRunFolder = runfolder.listFiles()
-
-            val criterias =
-              filesInRunFolder.forall(file => {
-                !(file.getName() == "found")
-              })
-            val hasRTAComplete =
-              filesInRunFolder.exists(x => x.getName() == "RTAComplete.txt")
-            criterias && hasRTAComplete
-          })
-        }
-
       // Make sure to only get folders which begin with a date (or six digits
       // to be precise)
-      filterOutReadyForProcessing(
-        listSubDirectories(root).filter(p =>
-          p.getName.matches("""^\d{6}.*$""")))
+      listSubDirectories(runfolderRoot).filter(p =>
+        p.getName.matches("""^\d{6}.*$"""))
     }
 
     /**
@@ -122,50 +137,79 @@ object IlluminaProcessingUnitExecutorActor {
      * so there is really only on type of default file to get.
      *
      * @param runfolder The runfolder to get the quality control definition file for
-     * @return the QC control config file.
+     * @return the QC control config file or None
      */
-    def getQCConfig(runfolder: File): File = {
-      customQCConfigRoot.listFiles().
-        find(qcFile =>
-          qcFile.getName().startsWith(runfolder.getName() + "_qc.xml")).
-        getOrElse(defaultConfigFile)
+    def getQCConfig(runfolder: File): Option[File] = {
+      val customFile =
+        customQCConfigRoot.listFiles().
+          find(qcFile =>
+            qcFile.getName().startsWith(runfolder.getName() + "_qc.xml"))
 
+      if (customFile.isDefined)
+        customFile
+      else {
+        Some(defaultQCConfigFile)
+      }
     }
 
-    val allRunfolders = searchForRunfolders()
+    /**
+     * Gets a special program config if there is one. If there is not returns the
+     * default one based on the type of run.
+     *
+     * Right now we use Sisyphus and than always wants the same file,
+     * so there is really only on type of default file to get.
+     *
+     * @param runfolder The runfolder to get the quality control definition file for
+     * @return the program control config file or None
+     */
+    def getProgramConfig(runfolder: File): Option[File] = {
+      val customFile =
+        customProgramConfigRoot.listFiles().
+          find(programFile =>
+            programFile.getName().startsWith(runfolder.getName() + "_sisyphus.yml"))
 
-    //@TODO If a runfolder does not have a matching sample sheet
-    // we will want a notification about that!
-    val onlyRunfoldersWithSampleSheets = allRunfolders.filter(
-      runfolder => searchForSamplesheet(runfolder).isDefined)
+      if (customFile.isDefined)
+        customFile
+      else {
+        Some(defaultProgramConfigFile)
+      }
+    }
 
-    onlyRunfoldersWithSampleSheets.
-      map(runfolder => {
-        val sampleSheet = searchForSamplesheet(runfolder).get
-        val qcConfig: File = getQCConfig(runfolder)
-        //@TODO Get program config here!
-        val programConfig: Option[File] = ???
-        val unitConfig = new IlluminaProcessingUnitConfig(sampleSheet, qcConfig, programConfig)
-        new IlluminaProcessingUnit(unitConfig, runfolder.toURI())
-      })
-
+    for {
+      runfolder <- searchForRunfolders()
+      samplesheet <- searchForSamplesheet(runfolder)
+      qcConfig <- getQCConfig(runfolder)
+      programConfig <- getProgramConfig(runfolder)
+      illuminaProcessingUnit <- {
+        val unitConfig =
+          new IlluminaProcessingUnitConfig(samplesheet, qcConfig, Some(programConfig))
+        Some(new IlluminaProcessingUnit(unitConfig, runfolder.toURI()))
+      }
+      if isReadyForProcessing(illuminaProcessingUnit)
+    } yield {
+      illuminaProcessingUnit
+    }
   }
 
 }
 
 class IlluminaProcessingUnitExecutorActor(
-    runfolderRootPath: String,
-    samplesheetPath: String,
-    qcControlConfigPath: String,
-    defaultQCConfigFile: String) extends HerculesActor with ProcessingUnitWatcherActor {
+    val runfolderRootPath: String,
+    val samplesheetPath: String,
+    val qcControlConfigPath: String,
+    val defaultQCConfigFile: String,
+    val programConfigPath: String,
+    val defaultProgramConfigFile: String) extends HerculesActor with ProcessingUnitWatcherActor {
 
-  val runfolders = IlluminaProcessingUnitExecutorActor.
-    checkReadyForRunfolders(
-      new File(runfolderRootPath),
-      new File(samplesheetPath),
-      new File(qcControlConfigPath),
-      new File(defaultQCConfigFile),
-      log)
+//  val runfolders = IlluminaProcessingUnitExecutorActor.
+//    checkReadyForRunfolders(
+//      new File(runfolderRootPath),
+//      new File(samplesheetPath),
+//      new File(qcControlConfigPath),
+//      new File(defaultQCConfigFile),
+//      new File(programConfigPath),
+//      new File(defaultProgramConfigFile),
+//      log)
 
   def receive = ???
 

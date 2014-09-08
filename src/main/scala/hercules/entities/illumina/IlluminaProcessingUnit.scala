@@ -8,7 +8,7 @@ import hercules.config.processingunit.ProcessingUnitConfig
 /**
  * Provides a base for representing a Illumina runfolder.
  */
-class IlluminaProcessingUnit(
+case class IlluminaProcessingUnit(
   processingUnitConfig: ProcessingUnitConfig,
   uri: URI) extends ProcessingUnit {
 
