@@ -183,8 +183,7 @@ sudo cp /tmp/munge.key /etc/munge/munge.key
 sudo service munge start
 
 # Download the slurm source
-wget --no-clobber -P /vagrant/test_system https://github.com/SchedMD/slurm/archive/slurm-14-03-7-1.tar.gz
-cp /vagrant/test_system/slurm-* /tmp/
+wget --no-clobber -P /tmp https://github.com/SchedMD/slurm/archive/slurm-14-03-7-1.tar.gz
 cd /tmp
 tar -z -x -f slurm-*
 cd slurm-*/
@@ -254,7 +253,12 @@ Vagrant.configure("2") do |global_config|
                 config.vm.provision :shell,
                     :inline => $node_script
             elsif options[:type] == "uppmax"
-              config.vm.provision "docker"
+              config.vm.provision "docker" do |d|
+                d.pull_images "molmed/irods-docker"
+                d.run "molmed/irods-docker",
+                  args: "-h localhost -p 2222:22 -p 1247:1247",
+                  daemonize: true
+                end
                 config.vm.provision :shell,
                     :inline => $uppmax_script
                 config.vm.provision :shell,
