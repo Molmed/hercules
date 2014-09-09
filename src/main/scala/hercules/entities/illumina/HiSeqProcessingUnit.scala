@@ -7,7 +7,7 @@ import hercules.config.processingunit.ProcessingUnitConfig
 /**
  * Represent a HiSeq runfolder
  */
-class HiSeqProcessingUnit(
+case class HiSeqProcessingUnit(
   processingUnitConfig: ProcessingUnitConfig,
   uri: URI)
     extends IlluminaProcessingUnit(processingUnitConfig, uri) {
