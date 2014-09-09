@@ -183,8 +183,7 @@ sudo cp /tmp/munge.key /etc/munge/munge.key
 sudo service munge start
 
 # Download the slurm source
-wget --no-clobber -P /vagrant/test_system https://github.com/SchedMD/slurm/archive/slurm-14-03-7-1.tar.gz
-cp /vagrant/test_system/slurm-* /tmp/
+wget --no-clobber -P /tmp https://github.com/SchedMD/slurm/archive/slurm-14-03-7-1.tar.gz
 cd /tmp
 tar -z -x -f slurm-*
 cd slurm-*/
@@ -203,8 +202,29 @@ sudo chmod -R g+rwX /sw
 slurmctld -c
 sudo /usr/local/sbin/slurmd -c
 
+# Install the icommands
+wget --no-clobber -P /tmp/ ftp://ftp.renci.org/pub/irods/releases/4.0.3//irods-icommands-4.0.3-64bit-centos6.rpm
+cd /tmp
+sudo yum install -y irods-icommands-4.0.3-64bit-centos6.rpm
+mkdir /home/vagrant/.irods
+cp /vagrant/test_system/irodsEnv /home/vagrant/.irods/.irodsEnv
+chown -R vagrant:vagrant /home/vagrant/.irods
+chmod -R go-rwX /home/vagrant/.irods
+
 # Add environment variable expected by sisyphus
 echo "export SNIC_RESOURCE=milou" >> /home/vagrant/.bash_profile
+
+SCRIPT
+
+#--------------------------------------
+# irods provisioning inline script
+#--------------------------------------
+$irods_script = <<SCRIPT
+
+# Create a path to mimic Uppnex setup and configure the default directory
+iinit rods
+imkdir -p /ssUppnexZone/proj/a2009002
+sed -r -i 's/home\\/rods/proj\\/a2009002/' /home/vagrant/.irods/.irodsEnv
 
 SCRIPT
 
@@ -233,8 +253,17 @@ Vagrant.configure("2") do |global_config|
                 config.vm.provision :shell,
                     :inline => $node_script
             elsif options[:type] == "uppmax"
+              config.vm.provision "docker" do |d|
+                d.pull_images "molmed/irods-docker"
+                d.run "molmed/irods-docker",
+                  args: "-h localhost -p 2222:22 -p 1247:1247",
+                  daemonize: true
+                end
                 config.vm.provision :shell,
                     :inline => $uppmax_script
+                config.vm.provision :shell,
+                    :inline => $irods_script,
+                    :privileged => false
             else
                 config.vm.provision :shell,
                     :inline => $biotank_script

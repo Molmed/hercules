@@ -1,0 +1,6 @@
+irodsHost localhost
+irodsPort 1247
+irodsUserName rods
+irodsZone ssUppnexZone
+irodsHome /ssUppnexZone/home/rods
+irodsCwd /ssUppnexZone/home/rods
