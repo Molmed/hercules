@@ -115,6 +115,7 @@ object IlluminaProcessingUnit {
      * @return the QC control config file or None
      */
     def getQCConfig(runfolder: File): Option[File] = {
+      
       val customFile =
         customQCConfigRoot.listFiles().
           find(qcFile =>
@@ -143,7 +144,7 @@ object IlluminaProcessingUnit {
       val customFile =
         customProgramConfigRoot.listFiles().
           find(programFile =>
-            programFile.getName().startsWith(runfolder.getName() + "_sisyphus.yml"))
+            programFile.getName().startsWith(runfolder.getName() + "_sisyphus.xml"))
 
       if (customFile.isDefined) {
         log.info("Found custom program config file for: " + runfolder.getName())
