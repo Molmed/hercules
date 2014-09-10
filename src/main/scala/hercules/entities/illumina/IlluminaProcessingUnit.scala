@@ -115,7 +115,7 @@ object IlluminaProcessingUnit {
      * @return the QC control config file or None
      */
     def getQCConfig(runfolder: File): Option[File] = {
-      
+
       val customFile =
         customQCConfigRoot.listFiles().
           find(qcFile =>
@@ -160,10 +160,10 @@ object IlluminaProcessingUnit {
      * file. This should correspond to the instrument type used for Illumina
      * instruments
      * @param runfolder
-     * @return The application name used, should only be: "HiSeq Control Software" 
+     * @return The application name used, should only be: "HiSeq Control Software"
      * or "MiSeq Control Software" otherwise something has gone wrong.
      */
-    def getMachineTypeFromRunInfoXML(runfolder: File): String = {
+    def getMachineTypeFromRunParametersXML(runfolder: File): String = {
       val runInfoXML =
         runfolder.listFiles().
           find(x => x.getName() == "runParameters.xml").
@@ -172,7 +172,12 @@ object IlluminaProcessingUnit {
               runfolder.getAbsolutePath()))
 
       val xml = scala.xml.XML.loadFile(runInfoXML)
-      val applicationName = xml \\ "RunParameters" \\ "Setup" \\ "ApplicationName"      
+      val applicationName = xml \\ "ApplicationName"
+
+      assert(applicationName.length == 1,
+        """Didn't find exactly one instance of "ApplicationName" in """ +
+          """runParameters.xml in runfolder: """ + runfolder.getName())
+
       applicationName.text
     }
 
@@ -195,10 +200,10 @@ object IlluminaProcessingUnit {
         new IlluminaProcessingUnitConfig(samplesheet, qcConfig, Some(programConfig))
 
       //@TODO Some nicer solution for picking up if it's a HiSeq or MiSeq
-      getMachineTypeFromRunInfoXML(runfolder) match {
-        case "MiSeq Control Software"   => Some(new MiSeqProcessingUnit(unitConfig, runfolder.toURI()))
-        case "HiSeq Control Software"   => Some(new HiSeqProcessingUnit(unitConfig, runfolder.toURI()))
-        case s: String => throw new Exception(s"Unrecognized type string:  $s")
+      getMachineTypeFromRunParametersXML(runfolder) match {
+        case "MiSeq Control Software" => Some(new MiSeqProcessingUnit(unitConfig, runfolder.toURI()))
+        case "HiSeq Control Software" => Some(new HiSeqProcessingUnit(unitConfig, runfolder.toURI()))
+        case s: String                => throw new Exception(s"Unrecognized type string:  $s")
       }
 
     }
