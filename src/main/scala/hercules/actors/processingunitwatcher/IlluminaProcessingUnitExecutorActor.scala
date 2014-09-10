@@ -1,17 +1,12 @@
 package hercules.actors.processingunitwatcher
 
-import hercules.actors.HerculesActor
-import hercules.entities.ProcessingUnit
-import akka.actor.Props
-import com.typesafe.config.ConfigFactory
 import java.io.File
+import com.typesafe.config.ConfigFactory
+import akka.actor.Props
+import hercules.actors.HerculesActor
 import hercules.entities.illumina.IlluminaProcessingUnit
-import hercules.config.processingunit.ProcessingUnitConfig
-import hercules.config.processingunit.IlluminaProcessingUnitConfig
-import hercules.entities.illumina.IlluminaProcessingUnit
-import hercules.entities.illumina.IlluminaProcessingUnit
-import hercules.entities.illumina.MiSeqProcessingUnit
-import hercules.entities.illumina.HiSeqProcessingUnit
+import scala.concurrent.duration._
+import hercules.protocols.HerculesMainProtocol
 
 object IlluminaProcessingUnitExecutorActor {
 
@@ -51,17 +46,33 @@ class IlluminaProcessingUnitExecutorActor(
     val programConfigPath: String,
     val defaultProgramConfigFile: String) extends HerculesActor with ProcessingUnitWatcherActor {
 
-  //@TODO to pick up the processing units, us the function.
-  // It will delagate and pick up the correct sub type.
-    val result = IlluminaProcessingUnit.checkForReadyProcessingUnits(
-      new File(runfolderRootPath),
-      new File(samplesheetPath),
-      new File(qcControlConfigPath),
-      new File(defaultQCConfigFile),
-      new File(programConfigPath),
-      new File(defaultProgramConfigFile),
-      log)
+  import context.dispatcher
 
-  def receive = ???
+  //@Make time span configurable
+  val checkForRunfolder =
+    context.system.scheduler.schedule(0.seconds, 30.seconds, self, {
+      val results = IlluminaProcessingUnit.checkForReadyProcessingUnits(
+        new File(runfolderRootPath),
+        new File(samplesheetPath),
+        new File(qcControlConfigPath),
+        new File(defaultQCConfigFile),
+        new File(programConfigPath),
+        new File(defaultProgramConfigFile),
+        log)
+
+      for (result <- results) {
+        HerculesMainProtocol.FoundProcessingUnitMessage(result)
+      }
+
+    })
+
+  // Make sure that the scheduled event stops if the actors does.
+  override def postStop() = checkForRunfolder.cancel()
+
+  // Just pass the message on to the parent (the IlluminaProcessingUnitWatcherActor)
+  def receive = {
+    case message: HerculesMainProtocol.FoundProcessingUnitMessage =>
+      context.parent ! message
+  }
 
 }

@@ -10,27 +10,17 @@ import akka.contrib.pattern.ClusterClient
 import akka.actor.ActorRef
 import akka.contrib.pattern.ClusterClient.SendToAll
 import java.net.InetAddress
+import hercules.actors.utils.MasterLookup
 
-object IlluminaDemultiplexingActor {
+object IlluminaDemultiplexingActor extends MasterLookup {
 
   /**
    * Initiate all the stuff needed to start a IlluminaDemultiplexingActor
    * including initiating the system.
    */
   def startIlluminaDemultiplexingActor(): Unit = {
-
-    val hostname = InetAddress.getLocalHost().getHostName()
-
-    val conf = ConfigFactory.parseString(s"akka.remote.netty.tcp.hostname=$hostname").
-      withFallback(ConfigFactory.load("IlluminaDemultiplexingActor"))
-
-    val system = ActorSystem("IlluminaDemultiplexingSystem", conf)
-    val initialContacts = immutableSeq(conf.getStringList("contact-points")).map {
-      case AddressFromURIString(addr) ⇒ system.actorSelection(RootActorPath(addr) / "user" / "receptionist")
-    }.toSet
-
-    val clusterClient = system.actorOf(ClusterClient.props(initialContacts), "clusterClient")
-    val props = IlluminaDemultiplexingActor.props(clusterClient)
+    val (clusterClient, system) = getMasterClusterClientAndSystem()
+    val props = IlluminaDemultiplexingActor.props(clusterClient)    
     system.actorOf(props, "demultiplexer")
   }
 
