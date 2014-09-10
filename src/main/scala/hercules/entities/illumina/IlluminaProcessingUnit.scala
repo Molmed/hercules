@@ -144,7 +144,7 @@ object IlluminaProcessingUnit {
       val customFile =
         customProgramConfigRoot.listFiles().
           find(programFile =>
-            programFile.getName().startsWith(runfolder.getName() + "_sisyphus.xml"))
+            programFile.getName().startsWith(runfolder.getName() + "_sisyphus.yml"))
 
       if (customFile.isDefined) {
         log.info("Found custom program config file for: " + runfolder.getName())

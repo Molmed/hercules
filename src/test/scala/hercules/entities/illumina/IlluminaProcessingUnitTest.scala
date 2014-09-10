@@ -195,7 +195,7 @@ class IlluminaProcessingUnitTest extends FlatSpec with Matchers with BeforeAndAf
     val expected = createdRunfolder.map(x => {
 
       val runfolderName = new File(x.uri).getName()
-      val sisyphusFile = new File(customProgramConfigRoot + "/" + runfolderName + "_sisyphus.xml")
+      val sisyphusFile = new File(customProgramConfigRoot + "/" + runfolderName + "_sisyphus.yml")
       sisyphusFile.createNewFile()
       val qcFile = new File(customQCConfigRoot + "/" + runfolderName + "_qc.xml")
       qcFile.createNewFile()
