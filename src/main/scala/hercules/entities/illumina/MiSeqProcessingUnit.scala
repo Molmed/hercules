@@ -1,8 +1,7 @@
 package hercules.entities.illumina
 
-import java.io.File
 import java.net.URI
-import hercules.config.processingunit.ProcessingUnitConfig
+
 import hercules.config.processingunit.IlluminaProcessingUnitConfig
 
 /**

@@ -1,14 +1,14 @@
 package hercules.entities.illumina
 
 import java.io.File
-import java.net.URI
-import hercules.entities.ProcessingUnit
-import hercules.config.processingunit.ProcessingUnitConfig
-import hercules.config.processingunit.IlluminaProcessingUnitConfig
-import akka.event.LoggingAdapter
 import java.io.FileNotFoundException
-import scala.io.Source
+import java.net.URI
+
+import scala.Option.option2Iterable
+
+import akka.event.LoggingAdapter
 import hercules.config.processingunit.IlluminaProcessingUnitConfig
+import hercules.entities.ProcessingUnit
 
 object IlluminaProcessingUnit {
 
