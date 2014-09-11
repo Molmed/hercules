@@ -45,7 +45,7 @@ object SisyphusMasterActor {
 
 /**
  * Defines the logic for running the Sisyphus workflow
- * 
+ *
  * The other actors in the system will register to the master,
  * and request work from it. If the master has work for the actor it will
  * send it.
@@ -55,11 +55,13 @@ class SisyphusMasterActor extends HerculesMasterActor {
   // The master will register it self to the cluster receptionist.
   ClusterReceptionistExtension(context.system).registerService(self)
 
-    //@TODO Implement some real code here!
-  
+  //@TODO Implement some real code here!
+
   def receive = {
-    case HerculesMainProtocol.StringMessage(s) => log.info(s"I got this message: $s")
-    case _                                     => log.info("Sisyphus master got a message!")
+    case HerculesMainProtocol.StringMessage(s) =>
+      log.info(s"I got this message: $s")
+    case s: HerculesMainProtocol.FoundProcessingUnitMessage =>
+      log.info("Sisyphus master got a FoundProcessingUnitMessage: " + s)
   }
 
 }

@@ -1,20 +1,12 @@
 package hercules.actors.processingunitwatcher
 
-import hercules.config.processing.ProcessingUnitWatcherConfig
-import akka.actor.Props
-import hercules.config.processing.ProcessingUnitWatcherConfig
-import hercules.entities.ProcessingUnit
-import hercules.actors.HerculesActor
-import hercules.protocols.HerculesMainProtocol
 import akka.actor.ActorRef
-import java.net.InetAddress
-import com.typesafe.config.ConfigFactory
-import akka.actor.ActorSystem
-import akka.japi.Util.immutableSeq
-import akka.actor.AddressFromURIString
-import akka.actor.RootActorPath
-import akka.contrib.pattern.ClusterClient
+import akka.actor.Props
+import akka.actor.actorRef2Scala
+import akka.contrib.pattern.ClusterClient.SendToAll
 import hercules.actors.utils.MasterLookup
+import hercules.protocols.HerculesMainProtocol
+import akka.actor.ActorSystem
 
 object IlluminaProcessingUnitWatcherActor extends MasterLookup {
 
@@ -36,13 +28,14 @@ object IlluminaProcessingUnitWatcherActor extends MasterLookup {
  */
 class IlluminaProcessingUnitWatcherActor(clusterClient: ActorRef)
     extends ProcessingUnitWatcherActor {
-
-  context.system.actorOf(
-    IlluminaProcessingUnitExecutorActor.props(),
+ 
+  context.actorOf(
+    IlluminaProcessingUnitWatcherExecutorActor.props(),
     "IlluminaProcessingUnitExecutor")
 
   def receive = {
-    case message: HerculesMainProtocol.FoundProcessingUnitMessage =>
-
+    case message: HerculesMainProtocol.FoundProcessingUnitMessage => {
+      clusterClient ! SendToAll("/user/master/active", message)
+    }
   }
 }

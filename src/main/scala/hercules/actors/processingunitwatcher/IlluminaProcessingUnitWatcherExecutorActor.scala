@@ -8,7 +8,7 @@ import hercules.entities.illumina.IlluminaProcessingUnit
 import scala.concurrent.duration._
 import hercules.protocols.HerculesMainProtocol
 
-object IlluminaProcessingUnitExecutorActor {
+object IlluminaProcessingUnitWatcherExecutorActor {
 
   /**
    * Factory method for creating a IlluminaProcessingUnitExecutorActor
@@ -25,10 +25,10 @@ object IlluminaProcessingUnitExecutorActor {
     val customQCConfigurationRoot = conf.getString("customQCConfigurationFilesRoot")
     val defaultQCConfigFile = conf.getString("defaultQCConfigFile")
 
-    val customProgamConfigurationRoot = conf.getString("defaultQCConfigFile")
+    val customProgamConfigurationRoot = conf.getString("customProgramConfigFilesRoot")
     val defaultProgramConfigurationFile = conf.getString("defaultProgramConfigFile")
 
-    Props(new IlluminaProcessingUnitExecutorActor(
+    Props(new IlluminaProcessingUnitWatcherExecutorActor(
       runfolderPath,
       samplesheetPath,
       customQCConfigurationRoot,
@@ -36,9 +36,14 @@ object IlluminaProcessingUnitExecutorActor {
       customProgamConfigurationRoot,
       defaultProgramConfigurationFile))
   }
+
+  object IlluminaProcessingUnitWatcherExecutorActorProtocol {
+    case class ProcessingUnitSequenceMessage(seq: Seq[IlluminaProcessingUnit])
+    case object CheckForRunfolders
+  }
 }
 
-class IlluminaProcessingUnitExecutorActor(
+class IlluminaProcessingUnitWatcherExecutorActor(
     val runfolderRootPath: String,
     val samplesheetPath: String,
     val qcControlConfigPath: String,
@@ -46,33 +51,42 @@ class IlluminaProcessingUnitExecutorActor(
     val programConfigPath: String,
     val defaultProgramConfigFile: String) extends HerculesActor with ProcessingUnitWatcherActor {
 
+  import IlluminaProcessingUnitWatcherExecutorActor.IlluminaProcessingUnitWatcherExecutorActorProtocol._
+
   import context.dispatcher
 
   //@Make time span configurable
   val checkForRunfolder =
-    context.system.scheduler.schedule(0.seconds, 30.seconds, self, {
-      val results = IlluminaProcessingUnit.checkForReadyProcessingUnits(
-        new File(runfolderRootPath),
-        new File(samplesheetPath),
-        new File(qcControlConfigPath),
-        new File(defaultQCConfigFile),
-        new File(programConfigPath),
-        new File(defaultProgramConfigFile),
-        log)
-
-      for (result <- results) {
-        HerculesMainProtocol.FoundProcessingUnitMessage(result)
-      }
-
+    context.system.scheduler.schedule(10.seconds, 5.seconds, self, {
+      log.info("Looking for new runfolders!")
+      CheckForRunfolders      
     })
 
   // Make sure that the scheduled event stops if the actors does.
-  override def postStop() = checkForRunfolder.cancel()
+  override def postStop() = {
+    checkForRunfolder.cancel()
+  }
 
   // Just pass the message on to the parent (the IlluminaProcessingUnitWatcherActor)
   def receive = {
-    case message: HerculesMainProtocol.FoundProcessingUnitMessage =>
-      context.parent ! message
+    
+    case CheckForRunfolders => {
+      def result =
+        IlluminaProcessingUnit.checkForReadyProcessingUnits(
+          new File(runfolderRootPath),
+          new File(samplesheetPath),
+          new File(qcControlConfigPath),
+          new File(defaultQCConfigFile),
+          new File(programConfigPath),
+          new File(defaultProgramConfigFile),
+          log)
+
+      self ! ProcessingUnitSequenceMessage(result)
+    }
+    case ProcessingUnitSequenceMessage(seq) => {
+      for (unit <- seq)
+        context.parent ! HerculesMainProtocol.FoundProcessingUnitMessage(unit)
+    }
   }
 
 }
