@@ -7,6 +7,9 @@ import hercules.actors.HerculesActor
 import hercules.entities.illumina.IlluminaProcessingUnit
 import scala.concurrent.duration._
 import hercules.protocols.HerculesMainProtocol
+import hercules.config.processingunit.ProcessingUnitConfig
+import hercules.config.processingunit.IlluminaProcessingUnitConfig
+import hercules.config.processing.IlluminaProcessingUnitWatcherConfig
 
 object IlluminaProcessingUnitWatcherExecutorActor {
 
@@ -27,14 +30,17 @@ object IlluminaProcessingUnitWatcherExecutorActor {
 
     val customProgamConfigurationRoot = conf.getString("customProgramConfigFilesRoot")
     val defaultProgramConfigurationFile = conf.getString("defaultProgramConfigFile")
+    val interval = conf.getInt("checkForRunfoldersInterval")
 
-    Props(new IlluminaProcessingUnitWatcherExecutorActor(
-      runfolderPath,
+    val config = new IlluminaProcessingUnitWatcherConfig(runfolderPath,
       samplesheetPath,
       customQCConfigurationRoot,
       defaultQCConfigFile,
       customProgamConfigurationRoot,
-      defaultProgramConfigurationFile))
+      defaultProgramConfigurationFile,
+      interval)
+
+    Props(new IlluminaProcessingUnitWatcherExecutorActor(config))
   }
 
   object IlluminaProcessingUnitWatcherExecutorActorProtocol {
@@ -43,13 +49,8 @@ object IlluminaProcessingUnitWatcherExecutorActor {
   }
 }
 
-class IlluminaProcessingUnitWatcherExecutorActor(
-    val runfolderRootPath: String,
-    val samplesheetPath: String,
-    val qcControlConfigPath: String,
-    val defaultQCConfigFile: String,
-    val programConfigPath: String,
-    val defaultProgramConfigFile: String) extends HerculesActor with ProcessingUnitWatcherActor {
+class IlluminaProcessingUnitWatcherExecutorActor(config: IlluminaProcessingUnitWatcherConfig)
+    extends HerculesActor with ProcessingUnitWatcherActor {
 
   import IlluminaProcessingUnitWatcherExecutorActor.IlluminaProcessingUnitWatcherExecutorActorProtocol._
 
@@ -57,9 +58,9 @@ class IlluminaProcessingUnitWatcherExecutorActor(
 
   //@Make time span configurable
   val checkForRunfolder =
-    context.system.scheduler.schedule(10.seconds, 5.seconds, self, {
+    context.system.scheduler.schedule(10.seconds, config.checkForRunfoldersInterval.seconds, self, {
       log.info("Looking for new runfolders!")
-      CheckForRunfolders      
+      CheckForRunfolders
     })
 
   // Make sure that the scheduled event stops if the actors does.
@@ -69,16 +70,16 @@ class IlluminaProcessingUnitWatcherExecutorActor(
 
   // Just pass the message on to the parent (the IlluminaProcessingUnitWatcherActor)
   def receive = {
-    
+
     case CheckForRunfolders => {
       def result =
         IlluminaProcessingUnit.checkForReadyProcessingUnits(
-          new File(runfolderRootPath),
-          new File(samplesheetPath),
-          new File(qcControlConfigPath),
-          new File(defaultQCConfigFile),
-          new File(programConfigPath),
-          new File(defaultProgramConfigFile),
+          new File(config.runfolderRootPath),
+          new File(config.samplesheetPath),
+          new File(config.qcControlConfigPath),
+          new File(config.defaultQCConfigFile),
+          new File(config.programConfigPath),
+          new File(config.defaultProgramConfigFile),
           log)
 
       self ! ProcessingUnitSequenceMessage(result)
