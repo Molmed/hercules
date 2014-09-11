@@ -19,6 +19,9 @@ object HerculesMainProtocol {
   case object Stop extends HerculesMessage
   case object Restart extends HerculesMessage
 
+  case object Acknowledge
+  case object Reject
+  
   case class StringMessage(s: String) extends HerculesMessage
   
   /**
@@ -31,9 +34,10 @@ object HerculesMainProtocol {
 
   case class FoundProcessingUnitMessage(unit: ProcessingUnit) extends ProcessingUnitMessage
 
+  case class RequestDemultiplexingProcessingUnitMessage extends HerculesMessage
   case class StartDemultiplexingProcessingUnitMessage(unit: ProcessingUnit) extends ProcessingUnitMessage
   case class FinishedDemultiplexingProcessingUnitMessage(unit: ProcessingUnit) extends ProcessingUnitMessage
-  case class FailedDemultiplexingProcessingUnitMessage(unit: ProcessingUnit) extends ProcessingUnitMessage
+  case class FailedDemultiplexingProcessingUnitMessage(unit: ProcessingUnit, reason: String) extends ProcessingUnitMessage
 
   case class StartQCProcessingUnitMessage(unit: ProcessingUnit) extends ProcessingUnitMessage
   case class FinishedQCProcessingUnitMessage(unit: ProcessingUnit) extends ProcessingUnitMessage

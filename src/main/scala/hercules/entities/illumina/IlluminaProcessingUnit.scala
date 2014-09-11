@@ -3,12 +3,11 @@ package hercules.entities.illumina
 import java.io.File
 import java.io.FileNotFoundException
 import java.net.URI
-
 import scala.Option.option2Iterable
-
 import akka.event.LoggingAdapter
 import hercules.config.processingunit.IlluminaProcessingUnitConfig
 import hercules.entities.ProcessingUnit
+import java.net.InetAddress
 
 object IlluminaProcessingUnit {
 
@@ -89,9 +88,9 @@ object IlluminaProcessingUnit {
         find(p => p.getName() == runfolderName + "_samplesheet.csv")
 
       if (samplesheet.isDefined)
-        log.info("Found matching samplesheet for: " + runfolder.getName())
+        log.debug("Found matching samplesheet for: " + runfolder.getName())
       else
-        log.info("Did not find matching samplesheet for: " +
+        log.debug("Did not find matching samplesheet for: " +
           runfolder.getName() + " in : " + sampleSheetRoot)
 
       samplesheet
@@ -101,7 +100,7 @@ object IlluminaProcessingUnit {
      * Add a found file, in the runfolder.
      */
     def markAsFound(runfolder: File): Boolean = {
-      log.info("Marking: " + runfolder.getName() + " as found.")
+      log.debug("Marking: " + runfolder.getName() + " as found.")
       (new File(runfolder + "/found")).createNewFile()
     }
 
@@ -128,10 +127,10 @@ object IlluminaProcessingUnit {
             qcFile.getName().startsWith(runfolder.getName() + "_qc.xml"))
 
       if (customFile.isDefined) {
-        log.info("Found custom qc config file for: " + runfolder.getName())
+        log.debug("Found custom qc config file for: " + runfolder.getName())
         customFile
       } else {
-        log.info("Using default qc config file for: " + runfolder.getName())
+        log.debug("Using default qc config file for: " + runfolder.getName())
 
         if (defaultQCConfigFile.exists())
           Some(defaultQCConfigFile)
@@ -165,10 +164,10 @@ object IlluminaProcessingUnit {
             programFile.getName().startsWith(runfolder.getName() + "_sisyphus.yml"))
 
       if (customFile.isDefined) {
-        log.info("Found custom program config file for: " + runfolder.getName())
+        log.debug("Found custom program config file for: " + runfolder.getName())
         customFile
       } else {
-        log.info("Using default program config file for: " + runfolder.getName())
+        log.debug("Using default program config file for: " + runfolder.getName())
 
         if (defaultProgramConfigFile.exists())
           Some(defaultProgramConfigFile)
@@ -220,9 +219,11 @@ object IlluminaProcessingUnit {
       qcConfig: File,
       programConfig: File): Option[IlluminaProcessingUnit] = {
 
+      import hercules.utils.Conversions.file2URI
+      
       val unitConfig =
-        new IlluminaProcessingUnitConfig(samplesheet, qcConfig, Some(programConfig))
-
+        new IlluminaProcessingUnitConfig(samplesheet, qcConfig, Some(programConfig))     
+      
       //@TODO Some nicer solution for picking up if it's a HiSeq or MiSeq
       getMachineTypeFromRunParametersXML(runfolder) match {
         case "MiSeq Control Software" => Some(new MiSeqProcessingUnit(unitConfig, runfolder.toURI()))

@@ -58,7 +58,6 @@ class IlluminaProcessingUnitWatcherExecutorActor(config: IlluminaProcessingUnitW
 
   val checkForRunfolder =
     context.system.scheduler.schedule(10.seconds, config.checkForRunfoldersInterval.seconds, self, {
-      log.info("Looking for new runfolders!")
       CheckForRunfolders
     })
 
@@ -71,6 +70,8 @@ class IlluminaProcessingUnitWatcherExecutorActor(config: IlluminaProcessingUnitW
   def receive = {
 
     case CheckForRunfolders => {
+      log.info("Looking for new runfolders!")
+      
       def result =
         IlluminaProcessingUnit.checkForReadyProcessingUnits(
           new File(config.runfolderRootPath),
