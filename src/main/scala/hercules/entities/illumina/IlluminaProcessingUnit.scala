@@ -59,7 +59,7 @@ object IlluminaProcessingUnit {
     customProgramConfigRoot: File,
     defaultProgramConfigFile: File,
     log: LoggingAdapter): Seq[IlluminaProcessingUnit] = {
-
+    
     /**
      * List all of the subdirectories of dir.
      */
@@ -91,13 +91,14 @@ object IlluminaProcessingUnit {
       if (samplesheet.isDefined)
         log.info("Found matching samplesheet for: " + runfolder.getName())
       else
-        log.info("Did not find matching samplesheet for: " + runfolder.getName())
+        log.info("Did not find matching samplesheet for: " +
+          runfolder.getName() + " in : " + sampleSheetRoot)
 
       samplesheet
     }
 
     /**
-     * Add a hidden .found file, in the runfolder.
+     * Add a found file, in the runfolder.
      */
     def markAsFound(runfolder: File): Boolean = {
       log.info("Marking: " + runfolder.getName() + " as found.")
@@ -111,10 +112,15 @@ object IlluminaProcessingUnit {
      * Right now we use Sisyphus and than always wants the same file,
      * so there is really only on type of default file to get.
      *
+     * It will throw a FileNotFoundException if the default file is missing.
+     *
      * @param runfolder The runfolder to get the quality control definition file for
-     * @return the QC control config file or None
+     * @return the QC control config file
      */
     def getQCConfig(runfolder: File): Option[File] = {
+
+      assert(customQCConfigRoot.exists() && customQCConfigRoot.isDirectory(),
+        customQCConfigRoot.getAbsolutePath() + " does not exist!")
 
       val customFile =
         customQCConfigRoot.listFiles().
@@ -126,7 +132,13 @@ object IlluminaProcessingUnit {
         customFile
       } else {
         log.info("Using default qc config file for: " + runfolder.getName())
-        Some(defaultQCConfigFile)
+
+        if (defaultQCConfigFile.exists())
+          Some(defaultQCConfigFile)
+        else
+          throw new FileNotFoundException(
+            "Didn't find default qc config file: " +
+              defaultQCConfigFile.getAbsolutePath())
       }
     }
 
@@ -137,10 +149,16 @@ object IlluminaProcessingUnit {
      * Right now we use Sisyphus and than always wants the same file,
      * so there is really only on type of default file to get.
      *
+     * It will throw a FileNotFoundException if the default file is missing.
+     *
      * @param runfolder The runfolder to get the quality control definition file for
      * @return the program control config file or None
      */
     def getProgramConfig(runfolder: File): Option[File] = {
+
+      assert(customProgramConfigRoot.exists() && customProgramConfigRoot.isDirectory(),
+        customProgramConfigRoot.getAbsolutePath() + " does not exist!")
+
       val customFile =
         customProgramConfigRoot.listFiles().
           find(programFile =>
@@ -151,12 +169,18 @@ object IlluminaProcessingUnit {
         customFile
       } else {
         log.info("Using default program config file for: " + runfolder.getName())
-        Some(defaultProgramConfigFile)
+
+        if (defaultProgramConfigFile.exists())
+          Some(defaultProgramConfigFile)
+        else
+          throw new FileNotFoundException(
+            "Didn't find default qc config file: " +
+              defaultQCConfigFile.getAbsolutePath())
       }
     }
 
     /**
-     * Fetch the Application name from a runfolder from the runParameters.xml
+     * Fetch the Application name from a runfolder from the RunParameters.xml
      * file. This should correspond to the instrument type used for Illumina
      * instruments
      * @param runfolder
@@ -166,9 +190,9 @@ object IlluminaProcessingUnit {
     def getMachineTypeFromRunParametersXML(runfolder: File): String = {
       val runInfoXML =
         runfolder.listFiles().
-          find(x => x.getName() == "runParameters.xml").
+          find(x => x.getName() == "RunParameters.xml").
           getOrElse(throw new FileNotFoundException(
-            "Did not find runParameters.xml in runfolder: " +
+            "Did not find RunParameters.xml in runfolder: " +
               runfolder.getAbsolutePath()))
 
       val xml = scala.xml.XML.loadFile(runInfoXML)
@@ -176,7 +200,7 @@ object IlluminaProcessingUnit {
 
       assert(applicationName.length == 1,
         """Didn't find exactly one instance of "ApplicationName" in """ +
-          """runParameters.xml in runfolder: """ + runfolder.getName())
+          """RunParameters.xml in runfolder: """ + runfolder.getName())
 
       applicationName.text
     }
@@ -225,7 +249,8 @@ object IlluminaProcessingUnit {
 /**
  * Provides a base for representing a Illumina runfolder.
  */
-abstract class IlluminaProcessingUnit(
-    val processingUnitConfig: IlluminaProcessingUnitConfig,
-    val uri: URI) extends ProcessingUnit {
+abstract class IlluminaProcessingUnit() extends ProcessingUnit {
+  
+  val processingUnitConfig: IlluminaProcessingUnitConfig
+  val uri: URI
 }
