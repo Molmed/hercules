@@ -53,14 +53,14 @@ class IlluminaProcessingUnitExecutorActor(
 
   //@TODO to pick up the processing units, us the function.
   // It will delagate and pick up the correct sub type.
-  //  val result = IlluminaProcessingUnit.checkForReadyProcessingUnits(
-  //    new File(runfolderRootPath),
-  //    new File(samplesheetPath),
-  //    new File(qcControlConfigPath),
-  //    new File(defaultQCConfigFile),
-  //    new File(programConfigPath),
-  //    new File(defaultProgramConfigFile),
-  //    log)
+    val result = IlluminaProcessingUnit.checkForReadyProcessingUnits(
+      new File(runfolderRootPath),
+      new File(samplesheetPath),
+      new File(qcControlConfigPath),
+      new File(defaultQCConfigFile),
+      new File(programConfigPath),
+      new File(defaultProgramConfigFile),
+      log)
 
   def receive = ???
 
