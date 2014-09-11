@@ -19,12 +19,15 @@ class SisyphusDemultiplexingExecutorActor extends HerculesActor {
   def receive = {
     case StartDemultiplexingProcessingUnitMessage(unit) => {
 
+      log.info("Starting a sisyphus instance!")
+      
       val sisyphusInstance = new Sisyphus()
-      val (exitStatus, log) = sisyphusInstance.run(unit)
+      val (exitStatus, logFile) = sisyphusInstance.run(unit)
       if (exitStatus == 0)
         sender ! FinishedDemultiplexingProcessingUnitMessage(unit)
       else {
-        val logText = Source.fromFile(log).getLines.mkString
+        sisyphusInstance.cleanup(unit)
+        val logText = Source.fromFile(logFile).getLines.mkString
         sender ! FailedDemultiplexingProcessingUnitMessage(unit, logText)
       }
 
