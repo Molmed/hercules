@@ -1,5 +1,29 @@
 package hercules
 
+import scala.concurrent.duration._
+import com.typesafe.config.ConfigFactory
+import akka.actor.ActorSystem
+import akka.actor.Address
+import akka.actor.PoisonPill
+import akka.actor.Props
+import akka.actor.RootActorPath
+import akka.cluster.Cluster
+import akka.contrib.pattern.ClusterClient
+import akka.contrib.pattern.ClusterSingletonManager
+import akka.japi.Util.immutableSeq
+import akka.actor.AddressFromURIString
+import akka.actor.ActorPath
+import akka.persistence.journal.leveldb.SharedLeveldbStore
+import akka.util.Timeout
+import akka.pattern.ask
+import akka.actor.Identify
+import akka.actor.ActorIdentity
+import akka.persistence.journal.leveldb.SharedLeveldbJournal
+import hercules.actors.masters.SisyphusMasterActor
+import hercules.actors.notifiers.EmailNotifierActor
+import scala.collection.JavaConversions._
+import hercules.protocols.HerculesMainProtocol
+import akka.contrib.pattern.ClusterClient.SendToAll
 import hercules.actors.demultiplexing.IlluminaDemultiplexingActor
 import hercules.actors.masters.SisyphusMasterActor
 import hercules.actors.processingunitwatcher.IlluminaProcessingUnitWatcherActor
@@ -20,6 +44,7 @@ object Hercules extends App {
   case object RunDemultiplexter extends Command
   case object RunRunfolderWatcher extends Command
   case object RunInteractive extends Command
+  case object RunNotifier extends Command
 
   case class CommandLineOptions(
     applicationType: Option[Command] = None,
@@ -47,6 +72,11 @@ object Hercules extends App {
         arg[String]("unit") required () action { (x, c) =>
           c.copy(unitName = Some(x))
         }))
+        
+    cmd("notifier") action { (_, c) =>
+      c.copy(applicationType = Some(RunNotifier))
+    }
+    
   }
 
   parser.parse(args, CommandLineOptions()) map { config =>
@@ -54,6 +84,8 @@ object Hercules extends App {
     config.applicationType match {
       case Some(RunMaster) =>
         SisyphusMasterActor.startSisyphusMasterActor()
+      case Some(RunNotifier) => 
+        EmailNotifierActor.startEmailNotifierActor()
       case Some(RunDemultiplexter) =>
         IlluminaDemultiplexingActor.startIlluminaDemultiplexingActor()
       case Some(RunRunfolderWatcher) =>
