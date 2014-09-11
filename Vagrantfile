@@ -151,7 +151,7 @@ sudo chown -R vagrant:vagrant /proj
 
 sudo yum -y groupinstall "Development tools"
 
-sudo yum install -y emacs-nox samba gnuplot PyXML ImageMagick libxslt-devel libxml2-devel ncurses-devel libtiff-devel bzip2-devel zlib-devel perl-XML-LibXML perl-XML-LibXML-Common perl-XML-NamespaceSupport perl-XML-SAX perl-XML-Simple
+sudo yum install -y emacs-nox samba gnuplot PyXML ImageMagick libxslt-devel libxml2-devel ncurses-devel libtiff-devel bzip2-devel zlib-devel perl-XML-LibXML perl-XML-LibXML-Common perl-XML-NamespaceSupport perl-XML-SAX perl-XML-Simple pigz
 
 wget --no-clobber -P /vagrant/test_system/  http://download.fedoraproject.org/pub/epel/6/x86_64/epel-release-6-8.noarch.rpm
 sudo rpm -ivh epel-release-6-8.noarch.rpm
@@ -162,12 +162,16 @@ sudo yum install -y perl-devel perl rsync dos2unix perl-CPAN gcc zlib-devel.x86_
 curl -L http://cpanmin.us | perl - --sudo App::cpanminus
 
 #Install the perl modules!
+sudo /usr/local/bin/cpanm Archive::Zip
 sudo /usr/local/bin/cpanm PerlIO::gzip
 sudo /usr/local/bin/cpanm XML::Simple
 sudo /usr/local/bin/cpanm MD5
 sudo /usr/local/bin/cpanm ExtUtils::MakeMaker
 sudo /usr/local/bin/cpanm --force Module::Compile
+sudo /usr/local/bin/cpanm XML::LibXSLT
 sudo /usr/local/bin/cpanm PDL
+
+sudo ln -s /bin/echo /bin/module
 
 #Install slurm
 
