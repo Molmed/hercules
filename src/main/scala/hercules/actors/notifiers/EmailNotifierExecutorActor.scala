@@ -1,42 +1,46 @@
 package hercules.actors.notifiers
 
 import akka.actor.Props
-import akka.actor.ActorSystem
-import com.typesafe.config.ConfigFactory
-import com.typesafe.config.Config
-import com.typesafe.config.ConfigException
-import java.util.Hashtable
-import java.util.ArrayList
-import java.net.InetAddress
 import hercules.actors.HerculesActor
-
+import hercules.config.notification.EmailNotificationConfig
+import hercules.entities.notification.EmailNotificationUnit
+import hercules.protocols.HerculesMainProtocol
 
 object EmailNotifierExecutorActor {
   
-  def startEmailNotifierExecutorActor(conf: Config): Props = {
-    EmailNotifierExecutorActor.props(conf)
-  }
-  
-  def props(conf: Config): Props = {
-    Props(new EmailNotifierExecutorActor(conf))
-  }
-  
-  def sendMessage(emailMsg: String, emailRecipients: java.util.List[String], emailSender: String) {
-    println("To: " + emailRecipients.toString() + ", From: " + emailSender + ", Msg: " + emailMsg)
+  def props(emailConfig: EmailNotificationConfig): Props = {
+    Props(new EmailNotifierExecutorActor(emailConfig))
   }
   
 }
 
 class EmailNotifierExecutorActor(
-  conf: Config) extends HerculesActor {
+  emailConfig: EmailNotificationConfig) extends HerculesActor {
   
-  val emailRecipients = conf.getStringList("recipients")  
-  val emailSender = conf.getString("sender")
-  val emailSmtpHost = conf.getString("smtp_host")
-  val emailSmtpPort = conf.getInt("smtp_port")
-  val emailPrefix = conf.getString("prefix")
-  
+  import HerculesMainProtocol._
+    
   def receive = {
-    case message => EmailNotifierExecutorActor.sendMessage(message.toString(),emailRecipients,emailSender)
+    case message: SendNotificationUnitMessage => {
+      log.info(self.getClass().getName() + " received a " + message.getClass().getName() + " with a " + message.unit.getClass().getName())
+      message.unit match {
+        case unit: EmailNotificationUnit => {
+          // If we manage to send the message, send a confirmation
+          if (EmailNotificationUnit.sendNotification(unit)) {
+            sender ! SentNotificationUnitMessage(unit)
+          }
+          // Else, increase the attempts counter and send a failure message
+          else {
+            unit.attempts = unit.attempts + 1
+            sender ! FailedNotificationUnitMessage(unit,"Just failed")
+          }
+        }
+        case message => {
+          log.info(self.getClass().getName() + " received a " + message.getClass().getName() + " message: " + message.toString() + " and ignores it")
+        }
+      } 
+    }
+    case message => {
+      log.info(self.getClass().getName() + " received a " + message.getClass().getName() + " message: " + message.toString() + " and ignores it")
+    }
   }
 } 

@@ -61,6 +61,10 @@ object Hercules extends App {
       c.copy(applicationType = Some(RunDemultiplexter))
     }
 
+    cmd("notifier") action { (_, c) =>
+      c.copy(applicationType = Some(RunNotifier))
+    }
+
     cmd("watcher") action { (_, c) =>
       c.copy(applicationType = Some(RunRunfolderWatcher))
     }

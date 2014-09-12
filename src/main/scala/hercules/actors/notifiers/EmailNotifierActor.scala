@@ -1,64 +1,35 @@
 package hercules.actors.notifiers
 
-import com.typesafe.config.ConfigFactory
-import com.typesafe.config.Config
-import akka.actor.ActorSystem
-import akka.japi.Util.immutableSeq
 import akka.actor.Props
-import akka.actor.AddressFromURIString
-import akka.actor.RootActorPath
-import akka.contrib.pattern.ClusterClient
 import akka.actor.ActorRef
 import akka.contrib.pattern.ClusterClient.SendToAll
-import java.net.InetAddress
+import akka.routing.RoundRobinRouter
 import scala.concurrent.duration._
+import hercules.config.notification.EmailNotificationConfig
+import hercules.entities.notification.EmailNotificationUnit
+import hercules.actors.utils.MasterLookup
+import hercules.protocols.HerculesMainProtocol
 
-
-object EmailNotifierActor {
+object EmailNotifierActor extends MasterLookup {
 
   /**
    * Initiate all the stuff needed to start a EmailNotifierActor
    * including initiating the system.
    */
 
-  def startEmailNotifierActor(): Unit = {
+  def startEmailNotifierActor(): ActorRef = {
 
-    val hostname = InetAddress.getLocalHost().getHostName()
+    val (clusterClient, system) = getMasterClusterClientAndSystem("EmailNotifierActor")
 
-    val conf = ConfigFactory.parseString(s"akka.remote.netty.tcp.hostname=$hostname").
-      withFallback(ConfigFactory.load("EmailNotifierActor").withFallback(defaults))
-
-    println(conf.root().render())
-    val system = ActorSystem("NotificationSystem", conf)
-    val initialContacts = immutableSeq(conf.getStringList("contact-points")).map {
-      case AddressFromURIString(addr) ⇒ system.actorSelection(RootActorPath(addr) / "user" / "receptionist")
-    }.toSet
-
-    val clusterClient = system.actorOf(ClusterClient.props(initialContacts), "clusterClient")
-    val props = EmailNotifierActor.props(clusterClient)
-    system.actorOf(props, "email_notifier")
-    val executor = system.actorOf(
-      EmailNotifierExecutorActor.startEmailNotifierExecutorActor(
-        conf.getConfig("email")
-      ), "email_notifier_executor")
+    val selfref = system.actorOf(
+      props(clusterClient), 
+      "EmailNotifierActor"
+    )
     
-      executor ! "***Executor started***"
+    selfref ! "EmailNotifierActor started"
+    selfref
   }
 
-  /** 
-    * Return a ConfigFactory.Config object with default email settings which can be 
-    * overridden with settings from the config file
-  */
-  def defaults(): Config = {
-    val defaultSettings = new java.util.Hashtable[String,Object]()
-    defaultSettings.put("email.recipients",new java.util.ArrayList[String]().subList(0,0))
-    defaultSettings.put("email.smtp_host","localhost")
-    defaultSettings.put("email.smtp_port",new java.lang.Integer(25))
-    defaultSettings.put("email.sender",this.getClass.getName + "@" + java.net.InetAddress.getLocalHost.getHostName)
-    defaultSettings.put("email.prefix","[Hercules]")
-    ConfigFactory.parseMap(defaultSettings,"default email settings")
-  }
-  
   /**
    * Create a new EmailNotifierActor
    * @param clusterClient A reference to a cluster client thorough which the
@@ -70,13 +41,77 @@ object EmailNotifierActor {
   
 }
 
-class EmailNotifierActor(clusterClient: ActorRef) extends NotifierActor {
-  
-  clusterClient ! SendToAll("/user/master/active", "I'm alive")
-  
+class EmailNotifierActor(
+  clusterClient: ActorRef) extends NotifierActor {
+
+  import HerculesMainProtocol._
+
+  // Get a EmailNotifierConfig object
+  val emailConfig = EmailNotificationConfig.getEmailNotificationConfig(
+    context.system.settings.config.getConfig("email")
+  )
+  // Spawn an executor object that will do the work for us
+  val notifierRouter = context.actorOf(
+    EmailNotifierExecutorActor.props(
+      emailConfig).withRouter(
+        RoundRobinRouter(nrOfInstances = 1)
+    ),
+    "EmailNotifierExecutorActor"
+  )
+
+  import context.dispatcher
+
+  // Request new work periodically
+  val requestWork =
+    context.system.scheduler.schedule(
+      10.seconds, 
+      10.seconds, 
+      self,
+      RequestNotificationUnitMessage()
+    )
+
+  // Make sure that the scheduled event stops if the actors does.
+  override def postStop() = {
+    requestWork.cancel()
+  }
   
   def receive = {
-    case _ => log.info("EmailNotifierActor got a message!")
+    
+    // We've received a request to send a notification
+    case message: SendNotificationUnitMessage => {
+      // Check if the notification unit is an email
+      message.unit match {
+        case unit: EmailNotificationUnit => {
+          log.info(self.getClass().getName() + " will attempt for the " + unit.attempts + " time to deliver " + unit.getClass().getName() + " message: " + unit.message)
+          // Acknowledge to sender that we will take this
+          sender ! Acknowledge
+          // Pass the message to the executor
+          notifierRouter ! message
+        }
+        // If message unit is not an EmailNotificationUnit, we'll reject it 
+        case unit => {  
+          log.info(self.getClass().getName() + " will not process NotificationUnit of type " + unit.getClass().getName() + ", rejecting")
+          sender ! Reject
+        }
+      }
+    }
+    // If we receive a failure message, pass it on to the master
+    case message: FailedNotificationUnitMessage => {
+      log.info(self.getClass().getName() + " passes failed  " + message.unit.getClass().getName() + " on up to master")
+      clusterClient ! SendToAll("/user/master/active",message)
+    }
+    // If we receive a send confirmation message, pass it on to master
+    case message: SentNotificationUnitMessage => {
+      log.info(self.getClass().getName() + " passes sent  " + message.unit.getClass().getName() + " on up to master")
+      clusterClient ! SendToAll("/user/master/active",message)
+    }
+    // If we receive a request for messages to send, pass it on to master
+    case message: RequestNotificationUnitMessage => {
+      log.info(self.getClass().getName() + " passes " + message.getClass().getName() + " on up to master")
+      clusterClient ! SendToAll("/user/master/active",message)
+    }
+    case message => {
+      log.info(self.getClass().getName() + " received a " + message.getClass().getName() + " message: " + message.toString() + " and ignores it")
+    }
   }
-
 }

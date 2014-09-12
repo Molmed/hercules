@@ -137,6 +137,6 @@ class SisyphusMasterActor extends HerculesMasterActor {
 
     }
 
+    case message => log.info(self.getClass().getName() + " received a " + message.getClass().getName() + " message which will be ignored")
   }
-
 }
