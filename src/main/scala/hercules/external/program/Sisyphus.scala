@@ -52,7 +52,8 @@ class Sisyphus() extends ExternalProgram {
       "/data/scratch/" + runfolderName,
       "Unaligned",
       "Excluded",
-      "quickReport.xml")
+      "quickReport.xml",
+      "setupBclToFastq.err")
 
     filesAndDirsToDelete.map(x => new File(runfolder + "/" + x)).foreach(x => {
       if (x.exists())
