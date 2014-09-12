@@ -1,20 +1,20 @@
 package hercules.actors.demultiplexing
 
-import com.typesafe.config.ConfigFactory
-import akka.actor.ActorSystem
-import akka.japi.Util.immutableSeq
-import akka.actor.Props
-import akka.actor.AddressFromURIString
-import akka.actor.RootActorPath
-import akka.contrib.pattern.ClusterClient
-import akka.actor.ActorRef
-import akka.contrib.pattern.ClusterClient.SendToAll
-import java.net.InetAddress
-import hercules.actors.utils.MasterLookup
-import akka.routing.RoundRobinRouter
-import scala.concurrent.duration._
-import hercules.protocols.HerculesMainProtocol
 import java.io.File
+
+import scala.concurrent.duration.DurationInt
+
+import akka.actor.ActorRef
+import akka.actor.Props
+import akka.actor.actorRef2Scala
+import akka.contrib.pattern.ClusterClient.SendToAll
+import akka.routing.RoundRobinRouter
+import hercules.actors.utils.MasterLookup
+import hercules.protocols.HerculesMainProtocol
+import hercules.protocols.HerculesMainProtocol.Acknowledge
+import hercules.protocols.HerculesMainProtocol.FinishedDemultiplexingProcessingUnitMessage
+import hercules.protocols.HerculesMainProtocol.Reject
+import hercules.protocols.HerculesMainProtocol.StringMessage
 
 object IlluminaDemultiplexingActor extends MasterLookup {
 
@@ -23,7 +23,7 @@ object IlluminaDemultiplexingActor extends MasterLookup {
    * including initiating the system.
    */
   def startIlluminaDemultiplexingActor(): Unit = {
-    val (clusterClient, system) = getMasterClusterClientAndSystem(config = "IlluminaDemultiplexingActor")
+    val (clusterClient, system) = getMasterClusterClientAndSystem()
     val props = IlluminaDemultiplexingActor.props(clusterClient)
     system.actorOf(props, "demultiplexer")
   }

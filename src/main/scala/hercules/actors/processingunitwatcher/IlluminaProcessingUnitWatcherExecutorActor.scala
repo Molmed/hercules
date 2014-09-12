@@ -19,18 +19,18 @@ object IlluminaProcessingUnitWatcherExecutorActor {
    * @param configFile the configFile to load
    * @returns a Props of IlluminaProcessingUnitExecutorActor
    */
-  def props(configFile: String = "IlluminaProcessingUnitExecutorActor"): Props = {
+  def props(): Props = {
 
-    val conf = ConfigFactory.load(configFile)
-    val runfolderPath = conf.getString("runFolderPath")
-    val samplesheetPath = conf.getString("samplesheetPath")
+    val conf = ConfigFactory.load()
+    val runfolderPath = conf.getString("programs.runFolderPath")
+    val samplesheetPath = conf.getString("programs.samplesheetPath")
 
-    val customQCConfigurationRoot = conf.getString("customQCConfigurationFilesRoot")
-    val defaultQCConfigFile = conf.getString("defaultQCConfigFile")
+    val customQCConfigurationRoot = conf.getString("programs.customQCConfigurationFilesRoot")
+    val defaultQCConfigFile = conf.getString("programs.defaultQCConfigFile")
 
-    val customProgamConfigurationRoot = conf.getString("customProgramConfigFilesRoot")
-    val defaultProgramConfigurationFile = conf.getString("defaultProgramConfigFile")
-    val interval = conf.getInt("checkForRunfoldersInterval")
+    val customProgamConfigurationRoot = conf.getString("programs.customProgramConfigFilesRoot")
+    val defaultProgramConfigurationFile = conf.getString("programs.defaultProgramConfigFile")
+    val interval = conf.getInt("programs.checkForRunfoldersInterval")
 
     val config = new IlluminaProcessingUnitWatcherConfig(runfolderPath,
       samplesheetPath,
