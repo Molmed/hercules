@@ -20,10 +20,10 @@ object HerculesMainProtocol {
   case object Restart extends HerculesMessage
 
   case object Acknowledge
-  case object Reject
-  
+  case class Reject(reason: Option[String] = None)
+
   case class StringMessage(s: String) extends HerculesMessage
-  
+
   /**
    * The base trait for the messages encapsulating the state of the
    * ProcessingUnit, which in turn defines what is to be done with it.
@@ -38,6 +38,7 @@ object HerculesMainProtocol {
   case class StartDemultiplexingProcessingUnitMessage(unit: ProcessingUnit) extends ProcessingUnitMessage
   case class FinishedDemultiplexingProcessingUnitMessage(unit: ProcessingUnit) extends ProcessingUnitMessage
   case class FailedDemultiplexingProcessingUnitMessage(unit: ProcessingUnit, reason: String) extends ProcessingUnitMessage
+  case class RestartDemultiplexingProcessingUnitMessage(unitName: String) extends HerculesMessage
 
   case class StartQCProcessingUnitMessage(unit: ProcessingUnit) extends ProcessingUnitMessage
   case class FinishedQCProcessingUnitMessage(unit: ProcessingUnit) extends ProcessingUnitMessage

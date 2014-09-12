@@ -75,12 +75,12 @@ class IlluminaDemultiplexingActor(clusterClient: ActorRef) extends Demultiplexin
 
   def receive = {
 
-    case HerculesMainProtocol.RequestDemultiplexingProcessingUnitMessage =>
+    case RequestDemultiplexingProcessingUnitMessage =>
       log.info("Received a RequestDemultiplexingProcessingUnitMessage and passing it on to the master.")
       clusterClient ! SendToAll("/user/master/active",
         HerculesMainProtocol.RequestDemultiplexingProcessingUnitMessage)
 
-    case message: HerculesMainProtocol.StartDemultiplexingProcessingUnitMessage => {
+    case message: StartDemultiplexingProcessingUnitMessage => {
 
       //@TODO It is probably reasonable to have some other mechanism than checking if it
       // can spot the file if it can spot the file or not. But for now, this will have to do.
