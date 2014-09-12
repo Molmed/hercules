@@ -6,12 +6,13 @@ import java.io.PrintWriter
 import scala.sys.process.ProcessIO
 import java.io.ByteArrayOutputStream
 import org.apache.commons.io.FileUtils
+import com.typesafe.config.ConfigFactory
 
 class Sisyphus() extends ExternalProgram {
 
-  //@TODO Make this configurable!
-  val sisyphusInstallLocation = "/vagrant/test_system/sisyphus/"
-  val sisyphusLogLocation = "/vagrant/test_system/sislogs/"
+  val config = ConfigFactory.load()
+  val sisyphusInstallLocation = config.getString("paths.sisyphusInstallLocation")
+  val sisyphusLogLocation = config.getString("paths.sisyphusLogLocation")
 
   def run(unit: ProcessingUnit): (Boolean, File) = {
 
