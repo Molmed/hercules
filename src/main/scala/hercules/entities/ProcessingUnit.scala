@@ -8,5 +8,6 @@ import java.net.URI
 trait ProcessingUnit {
   
   val uri: URI
+  def name: String
   
 }

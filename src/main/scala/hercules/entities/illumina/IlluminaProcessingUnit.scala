@@ -58,7 +58,7 @@ object IlluminaProcessingUnit {
     customProgramConfigRoot: File,
     defaultProgramConfigFile: File,
     log: LoggingAdapter): Seq[IlluminaProcessingUnit] = {
-    
+
     /**
      * List all of the subdirectories of dir.
      */
@@ -220,10 +220,10 @@ object IlluminaProcessingUnit {
       programConfig: File): Option[IlluminaProcessingUnit] = {
 
       import hercules.utils.Conversions.file2URI
-      
+
       val unitConfig =
-        new IlluminaProcessingUnitConfig(samplesheet, qcConfig, Some(programConfig))     
-      
+        new IlluminaProcessingUnitConfig(samplesheet, qcConfig, Some(programConfig))
+
       //@TODO Some nicer solution for picking up if it's a HiSeq or MiSeq
       getMachineTypeFromRunParametersXML(runfolder) match {
         case "MiSeq Control Software" => Some(new MiSeqProcessingUnit(unitConfig, runfolder.toURI()))
@@ -251,7 +251,9 @@ object IlluminaProcessingUnit {
  * Provides a base for representing a Illumina runfolder.
  */
 abstract class IlluminaProcessingUnit() extends ProcessingUnit {
-  
+
   val processingUnitConfig: IlluminaProcessingUnitConfig
   val uri: URI
+
+  def name: String = new File(uri).getName()
 }

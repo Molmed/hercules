@@ -11,5 +11,5 @@ case class HiSeqProcessingUnit(
   val processingUnitConfig: IlluminaProcessingUnitConfig,
   val uri: URI)
     extends IlluminaProcessingUnit() {
-
+  
 }

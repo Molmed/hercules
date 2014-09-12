@@ -47,12 +47,12 @@ object SisyphusMasterActor {
   def props(): Props = Props(new SisyphusMasterActor())
 
   /**
-   * Filter out the messages with conform to type A from a list of 
+   * Filter out the messages with conform to type A from a list of
    * messages.
    * @param messageSeq
    * @return All messages of type A
    */
-  def findMessagesOfType[A <: HerculesMessage](messageSeq: Set[HerculesMessage]): Set[A] = {
+  def findMessagesOfType[A <: ProcessingUnitMessage](messageSeq: Set[ProcessingUnitMessage]): Set[A] = {
     messageSeq.filter(p => p.isInstanceOf[A]).map(p => p.asInstanceOf[A])
   }
 }
@@ -69,7 +69,8 @@ class SisyphusMasterActor extends HerculesMasterActor {
   // The master will register it self to the cluster receptionist.
   ClusterReceptionistExtension(context.system).registerService(self)
 
-  var messagesNotYetProcessed: Set[HerculesMessage] = Set()
+  var messagesNotYetProcessed: Set[ProcessingUnitMessage] = Set()
+  var failedMessages: Set[ProcessingUnitMessage] = Set()
 
   def receive = {
 
@@ -106,8 +107,34 @@ class SisyphusMasterActor extends HerculesMasterActor {
     case FinishedDemultiplexingProcessingUnitMessage(unit) => {
       //@TODO Later more behaviour downstream of demultiplexing should
       // be added here!
-      log.info("Noted that " + new File(unit.uri).getName() + " has finished " +
+      log.info("Noted that " + unit.name + " has finished " +
         " demultiplexing. Right now I'll do nothing about.")
+    }
+
+    case message: FailedDemultiplexingProcessingUnitMessage => {
+      //@TODO This would be a perfect place to run send a notification :D
+      log.warning("Noted that " + message.unit.name + " has failed " +
+        " demultiplexing. Will move it into the list of failed jobs.")
+      failedMessages = failedMessages + message
+    }
+
+    case message: RestartDemultiplexingProcessingUnitMessage => {
+      if (failedMessages.exists(p => p.unit.name == message.unitName)) {
+        log.info(
+          "For a message to restart " + message.unitName +
+            " moving it into the messages to process list.")
+            
+        val matchingMessage = failedMessages.find(x => x.unit.name == message.unitName).get    
+        val startDemultiplexingMessage = new StartDemultiplexingProcessingUnitMessage(matchingMessage.unit)    
+        messagesNotYetProcessed = messagesNotYetProcessed + startDemultiplexingMessage
+        failedMessages = failedMessages - matchingMessage
+        sender ! Acknowledge
+      }
+      else {
+        log.info("Couldn't find unit " + message.unitName + " requested to restart.")
+        sender ! Reject(Some("Couldn't find unit " + message.unitName + " requested to restart."))
+      }
+
     }
 
   }
