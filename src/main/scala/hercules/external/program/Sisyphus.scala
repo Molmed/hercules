@@ -11,8 +11,8 @@ import com.typesafe.config.ConfigFactory
 class Sisyphus() extends ExternalProgram {
 
   val config = ConfigFactory.load()
-  val sisyphusInstallLocation = config.getString("paths.sisyphusInstallLocation")
-  val sisyphusLogLocation = config.getString("paths.sisyphusLogLocation")
+  val sisyphusInstallLocation = config.getString("general.sisyphusInstallLocation")
+  val sisyphusLogLocation = config.getString("general.sisyphusLogLocation")
 
   def run(unit: ProcessingUnit): (Boolean, File) = {
 

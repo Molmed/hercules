@@ -18,17 +18,20 @@ trait MasterLookup {
    * Looks up the cluster receptionist for the master
    */
   def getMasterClusterClientAndSystem(): (ActorRef, ActorSystem) = {
+
     val systemIdentifier = "ClusterSystem"
 
     val hostname = InetAddress.getLocalHost().getHostName()
+
+    val generalConfig = ConfigFactory.load()
     val conf =
-      ConfigFactory.
-        parseString(s"akka.remote.netty.tcp.hostname=$hostname").
-        withFallback(ConfigFactory.load("akka.remote.actors.remote.netty.tcp.port")).
-        withFallback(ConfigFactory.load())
+      generalConfig.
+        getConfig("remote.actors").
+        withFallback(ConfigFactory.parseString(s"akka.remote.netty.tcp.hostname=$hostname")).
+        withFallback(generalConfig)
 
     val system = ActorSystem(systemIdentifier, conf)
-    val initialContacts = immutableSeq(conf.getStringList("akka.contact-points")).map {
+    val initialContacts = immutableSeq(conf.getStringList("master.contact-points")).map {
       case AddressFromURIString(addr) ⇒ system.actorSelection(RootActorPath(addr) / "user" / "receptionist")
     }.toSet
 

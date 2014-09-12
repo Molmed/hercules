@@ -15,6 +15,7 @@ import akka.pattern.ask
 import akka.util.Timeout
 import scala.concurrent.duration._
 import scala.concurrent.Await
+import scala.collection.JavaConversions._
 
 object SisyphusMasterActor {
 
@@ -23,22 +24,21 @@ object SisyphusMasterActor {
    * including initiating the system.
    */
   def startSisyphusMasterActor(): Unit = {
-    val role = "master"
 
-    val conf = ConfigFactory.parseString(s"akka.cluster.roles=[$role]").
-      withFallback(ConfigFactory.load())
+    val generalConfig = ConfigFactory.load()
+    val conf = generalConfig.getConfig("master").withFallback(generalConfig)     
 
     val system = ActorSystem("ClusterSystem", conf)
 
-    val primarySeedNode = conf.getStringList("akka.cluster.seed-nodes").head
-
+    val primarySeedNode = conf.getStringList("master.akka.cluster.seed-nodes").head
+    
     system.actorOf(
       ClusterSingletonManager.props(
         SisyphusMasterActor.props(),
         "active",
         PoisonPill,
-        Some(role)),
-      role)
+        Some("master")),
+      "master")
   }
 
   /**
