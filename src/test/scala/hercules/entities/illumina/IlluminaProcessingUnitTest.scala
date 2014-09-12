@@ -187,8 +187,13 @@ class IlluminaProcessingUnitTest extends FlatSpec with Matchers with BeforeAndAf
       defaultProgramConfigFile,
       log)
 
-    assert(actual(0).isInstanceOf[MiSeqProcessingUnit],
-      "actual=" + actual)
+    assert(
+      actual.
+        filter(x => {
+          val asFile = new File(x.uri)
+          asFile.getName().contains("M00485")
+        }).
+        forall(p => p.isInstanceOf[MiSeqProcessingUnit]))
   }
 
   it should " return a HiSeqProcessingUnit for HiSeq runs" in {
@@ -204,10 +209,13 @@ class IlluminaProcessingUnitTest extends FlatSpec with Matchers with BeforeAndAf
       defaultProgramConfigFile,
       log)
 
-    assert(actual.forall(x => x match {
-      case x: HiSeqProcessingUnit => true
-      case _                      => false
-    }))
+    assert(
+      actual.
+        filter(x => {
+          val asFile = new File(x.uri)
+          !asFile.getName().contains("M00485")
+        }).
+        forall(p => p.isInstanceOf[HiSeqProcessingUnit]))
   }
 
   it should " load the custom config files if custom ones are available" in {

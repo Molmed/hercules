@@ -6,12 +6,13 @@ import java.io.PrintWriter
 import scala.sys.process.ProcessIO
 import java.io.ByteArrayOutputStream
 import org.apache.commons.io.FileUtils
+import com.typesafe.config.ConfigFactory
 
 class Sisyphus() extends ExternalProgram {
 
-  //@TODO Make this configurable!
-  val sisyphusInstallLocation = "/vagrant/test_system/sisyphus/"
-  val sisyphusLogLocation = "/vagrant/test_system/sislogs/"
+  val config = ConfigFactory.load()
+  val sisyphusInstallLocation = config.getString("general.sisyphusInstallLocation")
+  val sisyphusLogLocation = config.getString("general.sisyphusLogLocation")
 
   def run(unit: ProcessingUnit): (Boolean, File) = {
 
@@ -52,7 +53,8 @@ class Sisyphus() extends ExternalProgram {
       "/data/scratch/" + runfolderName,
       "Unaligned",
       "Excluded",
-      "quickReport.xml")
+      "quickReport.xml",
+      "setupBclToFastq.err")
 
     filesAndDirsToDelete.map(x => new File(runfolder + "/" + x)).foreach(x => {
       if (x.exists())

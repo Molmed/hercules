@@ -19,18 +19,20 @@ object IlluminaProcessingUnitWatcherExecutorActor {
    * @param configFile the configFile to load
    * @returns a Props of IlluminaProcessingUnitExecutorActor
    */
-  def props(configFile: String = "IlluminaProcessingUnitExecutorActor"): Props = {
+  def props(): Props = {
 
-    val conf = ConfigFactory.load(configFile)
-    val runfolderPath = conf.getString("runFolderPath")
-    val samplesheetPath = conf.getString("samplesheetPath")
+    val generalConfig = ConfigFactory.load()
+    val conf = generalConfig.getConfig("remote.actors").withFallback(generalConfig)
+    
+    val runfolderPath = conf.getString("general.runFolderPath")
+    val samplesheetPath = conf.getString("general.samplesheetPath")
 
-    val customQCConfigurationRoot = conf.getString("customQCConfigurationFilesRoot")
-    val defaultQCConfigFile = conf.getString("defaultQCConfigFile")
+    val customQCConfigurationRoot = conf.getString("general.customQCConfigurationFilesRoot")
+    val defaultQCConfigFile = conf.getString("general.defaultQCConfigFile")
 
-    val customProgamConfigurationRoot = conf.getString("customProgramConfigFilesRoot")
-    val defaultProgramConfigurationFile = conf.getString("defaultProgramConfigFile")
-    val interval = conf.getInt("checkForRunfoldersInterval")
+    val customProgamConfigurationRoot = conf.getString("general.customProgramConfigFilesRoot")
+    val defaultProgramConfigurationFile = conf.getString("general.defaultProgramConfigFile")
+    val interval = conf.getInt("general.checkForRunfoldersInterval")
 
     val config = new IlluminaProcessingUnitWatcherConfig(runfolderPath,
       samplesheetPath,
@@ -71,7 +73,7 @@ class IlluminaProcessingUnitWatcherExecutorActor(config: IlluminaProcessingUnitW
 
     case CheckForRunfolders => {
       log.info("Looking for new runfolders!")
-      
+
       def result =
         IlluminaProcessingUnit.checkForReadyProcessingUnits(
           new File(config.runfolderRootPath),

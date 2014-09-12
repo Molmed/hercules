@@ -9,24 +9,29 @@ import akka.contrib.pattern.ClusterClient
 import akka.japi.Util.immutableSeq
 import akka.actor.ActorRef
 
-
 /**
  * Provides a method to get a cluster client which point to the Master node
  */
 trait MasterLookup {
-  
+
   /**
    * Looks up the cluster receptionist for the master
    */
-  def getMasterClusterClientAndSystem(config: String): (ActorRef, ActorSystem) = {
+  def getMasterClusterClientAndSystem(): (ActorRef, ActorSystem) = {
+
     val systemIdentifier = "ClusterSystem"
-      
+
     val hostname = InetAddress.getLocalHost().getHostName()
-    val conf = ConfigFactory.parseString(s"akka.remote.netty.tcp.hostname=$hostname").
-      withFallback(ConfigFactory.load(config))
+
+    val generalConfig = ConfigFactory.load()
+    val conf =
+      generalConfig.
+        getConfig("remote.actors").
+        withFallback(ConfigFactory.parseString(s"akka.remote.netty.tcp.hostname=$hostname")).
+        withFallback(generalConfig)
 
     val system = ActorSystem(systemIdentifier, conf)
-    val initialContacts = immutableSeq(conf.getStringList("contact-points")).map {
+    val initialContacts = immutableSeq(conf.getStringList("master.contact-points")).map {
       case AddressFromURIString(addr) ⇒ system.actorSelection(RootActorPath(addr) / "user" / "receptionist")
     }.toSet
 
