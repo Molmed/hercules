@@ -3,12 +3,11 @@ package hercules.entities.illumina
 import java.io.File
 import java.io.FileNotFoundException
 import java.net.URI
-
 import scala.Option.option2Iterable
-
 import akka.event.LoggingAdapter
 import hercules.config.processingunit.IlluminaProcessingUnitConfig
 import hercules.entities.ProcessingUnit
+import java.net.InetAddress
 
 object IlluminaProcessingUnit {
 
@@ -59,7 +58,7 @@ object IlluminaProcessingUnit {
     customProgramConfigRoot: File,
     defaultProgramConfigFile: File,
     log: LoggingAdapter): Seq[IlluminaProcessingUnit] = {
-
+    
     /**
      * List all of the subdirectories of dir.
      */
@@ -89,18 +88,19 @@ object IlluminaProcessingUnit {
         find(p => p.getName() == runfolderName + "_samplesheet.csv")
 
       if (samplesheet.isDefined)
-        log.info("Found matching samplesheet for: " + runfolder.getName())
+        log.debug("Found matching samplesheet for: " + runfolder.getName())
       else
-        log.info("Did not find matching samplesheet for: " + runfolder.getName())
+        log.debug("Did not find matching samplesheet for: " +
+          runfolder.getName() + " in : " + sampleSheetRoot)
 
       samplesheet
     }
 
     /**
-     * Add a hidden .found file, in the runfolder.
+     * Add a found file, in the runfolder.
      */
     def markAsFound(runfolder: File): Boolean = {
-      log.info("Marking: " + runfolder.getName() + " as found.")
+      log.debug("Marking: " + runfolder.getName() + " as found.")
       (new File(runfolder + "/found")).createNewFile()
     }
 
@@ -111,10 +111,15 @@ object IlluminaProcessingUnit {
      * Right now we use Sisyphus and than always wants the same file,
      * so there is really only on type of default file to get.
      *
+     * It will throw a FileNotFoundException if the default file is missing.
+     *
      * @param runfolder The runfolder to get the quality control definition file for
-     * @return the QC control config file or None
+     * @return the QC control config file
      */
     def getQCConfig(runfolder: File): Option[File] = {
+
+      assert(customQCConfigRoot.exists() && customQCConfigRoot.isDirectory(),
+        customQCConfigRoot.getAbsolutePath() + " does not exist!")
 
       val customFile =
         customQCConfigRoot.listFiles().
@@ -122,11 +127,17 @@ object IlluminaProcessingUnit {
             qcFile.getName().startsWith(runfolder.getName() + "_qc.xml"))
 
       if (customFile.isDefined) {
-        log.info("Found custom qc config file for: " + runfolder.getName())
+        log.debug("Found custom qc config file for: " + runfolder.getName())
         customFile
       } else {
-        log.info("Using default qc config file for: " + runfolder.getName())
-        Some(defaultQCConfigFile)
+        log.debug("Using default qc config file for: " + runfolder.getName())
+
+        if (defaultQCConfigFile.exists())
+          Some(defaultQCConfigFile)
+        else
+          throw new FileNotFoundException(
+            "Didn't find default qc config file: " +
+              defaultQCConfigFile.getAbsolutePath())
       }
     }
 
@@ -137,26 +148,38 @@ object IlluminaProcessingUnit {
      * Right now we use Sisyphus and than always wants the same file,
      * so there is really only on type of default file to get.
      *
+     * It will throw a FileNotFoundException if the default file is missing.
+     *
      * @param runfolder The runfolder to get the quality control definition file for
      * @return the program control config file or None
      */
     def getProgramConfig(runfolder: File): Option[File] = {
+
+      assert(customProgramConfigRoot.exists() && customProgramConfigRoot.isDirectory(),
+        customProgramConfigRoot.getAbsolutePath() + " does not exist!")
+
       val customFile =
         customProgramConfigRoot.listFiles().
           find(programFile =>
             programFile.getName().startsWith(runfolder.getName() + "_sisyphus.yml"))
 
       if (customFile.isDefined) {
-        log.info("Found custom program config file for: " + runfolder.getName())
+        log.debug("Found custom program config file for: " + runfolder.getName())
         customFile
       } else {
-        log.info("Using default program config file for: " + runfolder.getName())
-        Some(defaultProgramConfigFile)
+        log.debug("Using default program config file for: " + runfolder.getName())
+
+        if (defaultProgramConfigFile.exists())
+          Some(defaultProgramConfigFile)
+        else
+          throw new FileNotFoundException(
+            "Didn't find default qc config file: " +
+              defaultQCConfigFile.getAbsolutePath())
       }
     }
 
     /**
-     * Fetch the Application name from a runfolder from the runParameters.xml
+     * Fetch the Application name from a runfolder from the RunParameters.xml
      * file. This should correspond to the instrument type used for Illumina
      * instruments
      * @param runfolder
@@ -166,9 +189,9 @@ object IlluminaProcessingUnit {
     def getMachineTypeFromRunParametersXML(runfolder: File): String = {
       val runInfoXML =
         runfolder.listFiles().
-          find(x => x.getName() == "runParameters.xml").
+          find(x => x.getName() == "RunParameters.xml").
           getOrElse(throw new FileNotFoundException(
-            "Did not find runParameters.xml in runfolder: " +
+            "Did not find RunParameters.xml in runfolder: " +
               runfolder.getAbsolutePath()))
 
       val xml = scala.xml.XML.loadFile(runInfoXML)
@@ -176,7 +199,7 @@ object IlluminaProcessingUnit {
 
       assert(applicationName.length == 1,
         """Didn't find exactly one instance of "ApplicationName" in """ +
-          """runParameters.xml in runfolder: """ + runfolder.getName())
+          """RunParameters.xml in runfolder: """ + runfolder.getName())
 
       applicationName.text
     }
@@ -196,9 +219,11 @@ object IlluminaProcessingUnit {
       qcConfig: File,
       programConfig: File): Option[IlluminaProcessingUnit] = {
 
+      import hercules.utils.Conversions.file2URI
+      
       val unitConfig =
-        new IlluminaProcessingUnitConfig(samplesheet, qcConfig, Some(programConfig))
-
+        new IlluminaProcessingUnitConfig(samplesheet, qcConfig, Some(programConfig))     
+      
       //@TODO Some nicer solution for picking up if it's a HiSeq or MiSeq
       getMachineTypeFromRunParametersXML(runfolder) match {
         case "MiSeq Control Software" => Some(new MiSeqProcessingUnit(unitConfig, runfolder.toURI()))
@@ -225,7 +250,8 @@ object IlluminaProcessingUnit {
 /**
  * Provides a base for representing a Illumina runfolder.
  */
-abstract class IlluminaProcessingUnit(
-    val processingUnitConfig: IlluminaProcessingUnitConfig,
-    val uri: URI) extends ProcessingUnit {
+abstract class IlluminaProcessingUnit() extends ProcessingUnit {
+  
+  val processingUnitConfig: IlluminaProcessingUnitConfig
+  val uri: URI
 }

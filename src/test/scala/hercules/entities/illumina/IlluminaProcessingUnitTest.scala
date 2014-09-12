@@ -44,7 +44,7 @@ class IlluminaProcessingUnitTest extends FlatSpec with Matchers with BeforeAndAf
     map(x => new File(runfolderRoot + "/" + x))
 
   def createMinimalRunParametersXml(runfolder: File) = {
-    val runParameters = new File(runfolder + "/runParameters.xml")
+    val runParameters = new File(runfolder + "/RunParameters.xml")
 
     val controlSoftwareType = if (runfolder.getName().contains("M00485"))
       "MiSeq Control Software"
@@ -66,6 +66,9 @@ class IlluminaProcessingUnitTest extends FlatSpec with Matchers with BeforeAndAf
   }
 
   def createRunFolders(takeXFirst: Int = 2): Seq[File] = {
+
+    defaultQCConfigFile.createNewFile()
+    defaultProgramConfigFile.createNewFile()
 
     val created = runfolders.take(takeXFirst).map(x => {
       x.mkdirs()
@@ -125,6 +128,29 @@ class IlluminaProcessingUnitTest extends FlatSpec with Matchers with BeforeAndAf
       assert(path.listFiles().exists(p => p.getName() == "found"))
     }
 
+  }
+
+  it should " skip runfolder which have already been found" in {
+
+    val firstCreateTwoRunfolders: Seq[IlluminaProcessingUnit] = generateExpectedRunfolders(runfolders, 2)
+
+    val pathToFoundFolder = new File(firstCreateTwoRunfolders(1).uri)
+    val foundFile = new File(pathToFoundFolder + "/found")
+    foundFile.createNewFile()
+
+    val expected = firstCreateTwoRunfolders(0)
+
+    val actual = IlluminaProcessingUnit.checkForReadyProcessingUnits(
+      runfolderRoot,
+      sampleSheetRoot,
+      customQCConfigRoot,
+      defaultQCConfigFile,
+      customProgramConfigRoot,
+      defaultProgramConfigFile,
+      log)
+
+    assert(actual.size == 1)
+    assert(expected === actual(0))
   }
 
   it should " disregard runfolders which have already be found" in {
@@ -217,11 +243,11 @@ class IlluminaProcessingUnitTest extends FlatSpec with Matchers with BeforeAndAf
     assert(actual === expected, "\n\n" + "actual = " + actual + "\n\n" + "expected=" + expected)
   }
 
-  it should " throw a FileNotFoundException exception if there is no runParameters.xml file available in the runfolder" in {
+  it should " throw a FileNotFoundException exception if there is no RunParameters.xml file available in the runfolder" in {
 
-    // remove all the runParameters.xml
+    // remove all the RunParameters.xml
     runfolderRoot.listFiles().flatMap(x => x.listFiles()).
-      find(p => p.getName() == "runParameters.xml").
+      find(p => p.getName() == "RunParameters.xml").
       foreach(f => f.delete())
 
     intercept[FileNotFoundException] {

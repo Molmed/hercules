@@ -10,26 +10,20 @@ import akka.contrib.pattern.ClusterClient
 import akka.actor.ActorRef
 import akka.contrib.pattern.ClusterClient.SendToAll
 import java.net.InetAddress
+import hercules.actors.utils.MasterLookup
+import akka.routing.RoundRobinRouter
+import scala.concurrent.duration._
+import hercules.protocols.HerculesMainProtocol
+import java.io.File
 
-object IlluminaDemultiplexingActor {
+object IlluminaDemultiplexingActor extends MasterLookup {
 
   /**
    * Initiate all the stuff needed to start a IlluminaDemultiplexingActor
    * including initiating the system.
    */
   def startIlluminaDemultiplexingActor(): Unit = {
-
-    val hostname = InetAddress.getLocalHost().getHostName()
-
-    val conf = ConfigFactory.parseString(s"akka.remote.netty.tcp.hostname=$hostname").
-      withFallback(ConfigFactory.load("IlluminaDemultiplexingActor"))
-
-    val system = ActorSystem("IlluminaDemultiplexingSystem", conf)
-    val initialContacts = immutableSeq(conf.getStringList("contact-points")).map {
-      case AddressFromURIString(addr) ⇒ system.actorSelection(RootActorPath(addr) / "user" / "receptionist")
-    }.toSet
-
-    val clusterClient = system.actorOf(ClusterClient.props(initialContacts), "clusterClient")
+    val (clusterClient, system) = getMasterClusterClientAndSystem(config = "IlluminaDemultiplexingActor")
     val props = IlluminaDemultiplexingActor.props(clusterClient)
     system.actorOf(props, "demultiplexer")
   }
@@ -53,11 +47,64 @@ object IlluminaDemultiplexingActor {
  */
 class IlluminaDemultiplexingActor(clusterClient: ActorRef) extends DemultiplexingActor {
 
-  //@TODO Implement some real code here!
-  
-  clusterClient ! SendToAll("/user/master/active", "I'm alive")
+  import HerculesMainProtocol._
+
+  //@TODO Make the number of demultiplexing instances started configurable.
+
+  //@TODO Make it possible to switch executor implementation
+  // Right now I'll just fix the sisyphus one. /JD 11/9 2014
+  val demultiplexingRouter =
+    context.actorOf(
+      SisyphusDemultiplexingExecutorActor.props().
+        withRouter(RoundRobinRouter(nrOfInstances = 2)),
+      "SisyphusDemultiplexingExecutor")
+
+  import context.dispatcher
+
+  //@TODO Make request new work period configurable.
+  // Request new work periodically
+  val requestWork =
+    context.system.scheduler.schedule(10.seconds, 10.seconds, self, {
+      HerculesMainProtocol.RequestDemultiplexingProcessingUnitMessage
+    })
+
+  // Make sure that the scheduled event stops if the actors does.
+  override def postStop() = {
+    requestWork.cancel()
+  }
 
   def receive = {
+
+    case HerculesMainProtocol.RequestDemultiplexingProcessingUnitMessage =>
+      log.info("Received a RequestDemultiplexingProcessingUnitMessage and passing it on to the master.")
+      clusterClient ! SendToAll("/user/master/active",
+        HerculesMainProtocol.RequestDemultiplexingProcessingUnitMessage)
+
+    case message: HerculesMainProtocol.StartDemultiplexingProcessingUnitMessage => {
+
+      //@TODO It is probably reasonable to have some other mechanism than checking if it
+      // can spot the file if it can spot the file or not. But for now, this will have to do.
+      log.info("Received a StartDemultiplexingProcessingUnitMessage.")
+
+      val pathToTheRunfolder = new File(message.unit.uri)
+      if (pathToTheRunfolder.exists()) {
+        log.info("Found the runfolder and will acknowlede message.")
+        sender ! Acknowledge
+        demultiplexingRouter ! message
+      }
+      else
+        sender ! Reject
+
+    }
+
+    case message: FinishedDemultiplexingProcessingUnitMessage =>
+      clusterClient ! SendToAll("/user/master/active",
+        message)
+
+    case StringMessage(s) => {
+      log.info("Got a StringMessage: " + s)
+    }
+
     case _ => log.info("IlluminaDemultiplexingActor got a message!")
   }
 

@@ -2,7 +2,7 @@ package hercules.actors.processingunitwatcher
 
 import akka.actor.ActorContext
 import hercules.actors.HerculesActor
-import hercules.config.processing.ProcessingUnitWatcherConfig
+import hercules.config.processing.IlluminaProcessingUnitWatcherConfig
 import hercules.entities.ProcessingUnit
 
 /**
