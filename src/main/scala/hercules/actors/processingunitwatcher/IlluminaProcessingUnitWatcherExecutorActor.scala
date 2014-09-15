@@ -10,20 +10,24 @@ import hercules.protocols.HerculesMainProtocol
 import hercules.config.processingunit.ProcessingUnitConfig
 import hercules.config.processingunit.IlluminaProcessingUnitConfig
 import hercules.config.processing.IlluminaProcessingUnitWatcherConfig
+import hercules.entities.illumina.IlluminaProcessingUnitFetcher
+import hercules.config.processingunit.IlluminaProcessingUnitFetcherConfig
+import hercules.entities.ProcessingUnitFetcher
+import hercules.entities.ProcessingUnitFetcher
+import hercules.config.processingunit.ProcessingUnitFetcherConfig
 
 object IlluminaProcessingUnitWatcherExecutorActor {
 
   /**
    * Factory method for creating a IlluminaProcessingUnitExecutorActor
    * Loads it's configuration from the IlluminaProcessingUnitExecutorActor.conf
-   * @param configFile the configFile to load
    * @returns a Props of IlluminaProcessingUnitExecutorActor
    */
   def props(): Props = {
 
     val generalConfig = ConfigFactory.load()
     val conf = generalConfig.getConfig("remote.actors").withFallback(generalConfig)
-    
+
     val runfolderPath = conf.getString("general.runFolderPath")
     val samplesheetPath = conf.getString("general.samplesheetPath")
 
@@ -41,8 +45,10 @@ object IlluminaProcessingUnitWatcherExecutorActor {
       customProgamConfigurationRoot,
       defaultProgramConfigurationFile,
       interval)
-
-    Props(new IlluminaProcessingUnitWatcherExecutorActor(config))
+    
+    val fetcher = new IlluminaProcessingUnitFetcher()
+    
+    Props(new IlluminaProcessingUnitWatcherExecutorActor(config, fetcher))
   }
 
   object IlluminaProcessingUnitWatcherExecutorActorProtocol {
@@ -51,7 +57,15 @@ object IlluminaProcessingUnitWatcherExecutorActor {
   }
 }
 
-class IlluminaProcessingUnitWatcherExecutorActor(config: IlluminaProcessingUnitWatcherConfig)
+/**
+ * @TODO Write docs!
+ * 
+ * @param config
+ * @param fetcher
+ */
+class IlluminaProcessingUnitWatcherExecutorActor(
+    config: IlluminaProcessingUnitWatcherConfig,
+    fetcher: IlluminaProcessingUnitFetcher)
     extends HerculesActor with ProcessingUnitWatcherActor {
 
   import IlluminaProcessingUnitWatcherExecutorActor.IlluminaProcessingUnitWatcherExecutorActorProtocol._
@@ -74,15 +88,17 @@ class IlluminaProcessingUnitWatcherExecutorActor(config: IlluminaProcessingUnitW
     case CheckForRunfolders => {
       log.info("Looking for new runfolders!")
 
+      val fetcherConfig = new IlluminaProcessingUnitFetcherConfig(
+        new File(config.runfolderRootPath),
+        new File(config.samplesheetPath),
+        new File(config.qcControlConfigPath),
+        new File(config.defaultQCConfigFile),
+        new File(config.programConfigPath),
+        new File(config.defaultProgramConfigFile),
+        log)
+
       def result =
-        IlluminaProcessingUnit.checkForReadyProcessingUnits(
-          new File(config.runfolderRootPath),
-          new File(config.samplesheetPath),
-          new File(config.qcControlConfigPath),
-          new File(config.defaultQCConfigFile),
-          new File(config.programConfigPath),
-          new File(config.defaultProgramConfigFile),
-          log)
+        IlluminaProcessingUnitFetcher.checkForReadyProcessingUnits(fetcherConfig)
 
       self ! ProcessingUnitSequenceMessage(result)
     }

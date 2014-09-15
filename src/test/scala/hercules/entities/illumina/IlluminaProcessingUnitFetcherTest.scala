@@ -13,8 +13,11 @@ import java.net.URI
 import java.io.PrintWriter
 import hercules.config.processingunit.IlluminaProcessingUnitConfig
 import java.io.FileNotFoundException
+import hercules.config.processingunit.IlluminaProcessingUnitFetcherConfig
+import hercules.config.processingunit.IlluminaProcessingUnitConfig
+import hercules.config.processingunit.IlluminaProcessingUnitConfig
 
-class IlluminaProcessingUnitTest extends FlatSpec with Matchers with BeforeAndAfterEach {
+class IlluminaProcessingUnitFetcherTest extends FlatSpec with Matchers with BeforeAndAfterEach {
 
   val system = ActorSystem("testsystem",
     ConfigFactory.parseString("""akka.loggers = ["akka.testkit.TestEventListener"]"""))
@@ -27,7 +30,16 @@ class IlluminaProcessingUnitTest extends FlatSpec with Matchers with BeforeAndAf
   val defaultQCConfigFile = new File("default_qc_config")
 
   val customProgramConfigRoot = new File("test_custom_program_configs")
-  val defaultProgramConfigFile = new File("defaul_program_config")
+  val defaultProgramConfigFile = new File("default_program_config")
+
+  val fetcherConfig = new IlluminaProcessingUnitFetcherConfig(
+    runfolderRoot,
+    sampleSheetRoot,
+    customQCConfigRoot,
+    defaultQCConfigFile,
+    customProgramConfigRoot,
+    defaultProgramConfigFile,
+    log)
 
   val listOfDirsThatNeedSetupAndTeardown =
     List(runfolderRoot,
@@ -72,8 +84,8 @@ class IlluminaProcessingUnitTest extends FlatSpec with Matchers with BeforeAndAf
 
     val created = runfolders.take(takeXFirst).map(x => {
       x.mkdirs()
-      new File(sampleSheetRoot + "/" + x.getName() + "_samplesheet.csv").createNewFile()
-      new File(x + "/RTAComplete.txt").createNewFile()
+      (new File(sampleSheetRoot + "/" + x.getName() + "_samplesheet.csv")).createNewFile()
+      (new File(x + "/RTAComplete.txt")).createNewFile()
       createMinimalRunParametersXml(x)
       x
     })
@@ -82,11 +94,17 @@ class IlluminaProcessingUnitTest extends FlatSpec with Matchers with BeforeAndAf
   }
 
   def generateExpectedRunfolders(runfolders: Seq[File], takeXFirst: Int): Seq[IlluminaProcessingUnit] = {
+    
     runfolders.take(takeXFirst).map(f => {
-      val expectedConfig = new IlluminaProcessingUnitConfig(
-        sampleSheet = new File(sampleSheetRoot + "/" + f.getName() + "_samplesheet.csv"),
-        QCConfig = defaultQCConfigFile,
-        programConfig = Some(defaultProgramConfigFile))
+      
+      
+      val expectedConfig = 
+        new IlluminaProcessingUnitConfig(
+          sampleSheet = new File(sampleSheetRoot + "/" + f.getName() + "_samplesheet.csv"),
+          QCConfig = defaultQCConfigFile,
+          programConfig = Some(defaultProgramConfigFile))      
+
+      
       if (f.getName().contains("M00485"))
         new MiSeqProcessingUnit(expectedConfig, new URI("file:" + f.getAbsolutePath() + "/"))
       else
@@ -108,17 +126,10 @@ class IlluminaProcessingUnitTest extends FlatSpec with Matchers with BeforeAndAf
     tearDownRunfolders()
   }
 
-  "A IlluminaProcessingUnit" should "be able to find new runfolders" in {
+  "A IlluminaProcessingUnitFetcher" should "be able to find new runfolders" in {
     val expected: Seq[IlluminaProcessingUnit] = generateExpectedRunfolders(runfolders, 2)
 
-    val actual = IlluminaProcessingUnit.checkForReadyProcessingUnits(
-      runfolderRoot,
-      sampleSheetRoot,
-      customQCConfigRoot,
-      defaultQCConfigFile,
-      customProgramConfigRoot,
-      defaultProgramConfigFile,
-      log)
+    val actual = IlluminaProcessingUnitFetcher.checkForReadyProcessingUnits(fetcherConfig)
 
     assert(expected.toList === actual.toList)
 
@@ -140,14 +151,7 @@ class IlluminaProcessingUnitTest extends FlatSpec with Matchers with BeforeAndAf
 
     val expected = firstCreateTwoRunfolders(0)
 
-    val actual = IlluminaProcessingUnit.checkForReadyProcessingUnits(
-      runfolderRoot,
-      sampleSheetRoot,
-      customQCConfigRoot,
-      defaultQCConfigFile,
-      customProgramConfigRoot,
-      defaultProgramConfigFile,
-      log)
+    val actual = IlluminaProcessingUnitFetcher.checkForReadyProcessingUnits(fetcherConfig)
 
     assert(actual.size == 1)
     assert(expected === actual(0))
@@ -161,14 +165,7 @@ class IlluminaProcessingUnitTest extends FlatSpec with Matchers with BeforeAndAf
     // which means that only the first runfolder should be found
     new File(runfolders(1) + "/found").createNewFile()
 
-    val actual = IlluminaProcessingUnit.checkForReadyProcessingUnits(
-      runfolderRoot,
-      sampleSheetRoot,
-      customQCConfigRoot,
-      defaultQCConfigFile,
-      customProgramConfigRoot,
-      defaultProgramConfigFile,
-      log)
+    val actual = IlluminaProcessingUnitFetcher.checkForReadyProcessingUnits(fetcherConfig)
 
     assert(expected.toList === actual.toList)
   }
@@ -178,14 +175,7 @@ class IlluminaProcessingUnitTest extends FlatSpec with Matchers with BeforeAndAf
     createRunFolders(4)
     val expected: Seq[IlluminaProcessingUnit] = generateExpectedRunfolders(runfolders, 4)
 
-    val actual = IlluminaProcessingUnit.checkForReadyProcessingUnits(
-      runfolderRoot,
-      sampleSheetRoot,
-      customQCConfigRoot,
-      defaultQCConfigFile,
-      customProgramConfigRoot,
-      defaultProgramConfigFile,
-      log)
+    val actual = IlluminaProcessingUnitFetcher.checkForReadyProcessingUnits(fetcherConfig)
 
     assert(
       actual.
@@ -200,14 +190,7 @@ class IlluminaProcessingUnitTest extends FlatSpec with Matchers with BeforeAndAf
 
     val expected: Seq[IlluminaProcessingUnit] = generateExpectedRunfolders(runfolders, 1)
 
-    val actual = IlluminaProcessingUnit.checkForReadyProcessingUnits(
-      runfolderRoot,
-      sampleSheetRoot,
-      customQCConfigRoot,
-      defaultQCConfigFile,
-      customProgramConfigRoot,
-      defaultProgramConfigFile,
-      log)
+    val actual = IlluminaProcessingUnitFetcher.checkForReadyProcessingUnits(fetcherConfig)
 
     assert(
       actual.
@@ -239,14 +222,7 @@ class IlluminaProcessingUnitTest extends FlatSpec with Matchers with BeforeAndAf
 
     })
 
-    val actual = IlluminaProcessingUnit.checkForReadyProcessingUnits(
-      runfolderRoot,
-      sampleSheetRoot,
-      customQCConfigRoot,
-      defaultQCConfigFile,
-      customProgramConfigRoot,
-      defaultProgramConfigFile,
-      log)
+    val actual = IlluminaProcessingUnitFetcher.checkForReadyProcessingUnits(fetcherConfig)
 
     assert(actual === expected, "\n\n" + "actual = " + actual + "\n\n" + "expected=" + expected)
   }
@@ -259,14 +235,7 @@ class IlluminaProcessingUnitTest extends FlatSpec with Matchers with BeforeAndAf
       foreach(f => f.delete())
 
     intercept[FileNotFoundException] {
-      val actual = IlluminaProcessingUnit.checkForReadyProcessingUnits(
-        runfolderRoot,
-        sampleSheetRoot,
-        customQCConfigRoot,
-        defaultQCConfigFile,
-        customProgramConfigRoot,
-        defaultProgramConfigFile,
-        log)
+      val actual = IlluminaProcessingUnitFetcher.checkForReadyProcessingUnits(fetcherConfig)
     }
   }
 

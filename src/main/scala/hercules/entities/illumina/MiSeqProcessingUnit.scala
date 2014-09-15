@@ -10,4 +10,4 @@ import hercules.config.processingunit.IlluminaProcessingUnitConfig
 case class MiSeqProcessingUnit(
   val processingUnitConfig: IlluminaProcessingUnitConfig,
   val uri: URI)
-    extends IlluminaProcessingUnit() {}
+    extends IlluminaProcessingUnit {}
