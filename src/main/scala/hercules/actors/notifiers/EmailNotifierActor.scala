@@ -19,7 +19,7 @@ object EmailNotifierActor extends MasterLookup {
 
   def startEmailNotifierActor(): ActorRef = {
 
-    val (clusterClient, system) = getMasterClusterClientAndSystem("EmailNotifierActor")
+    val (clusterClient, system) = getMasterClusterClientAndSystem()
 
     val selfref = system.actorOf(
       props(clusterClient), 
