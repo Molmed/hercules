@@ -94,17 +94,15 @@ class IlluminaProcessingUnitFetcherTest extends FlatSpec with Matchers with Befo
   }
 
   def generateExpectedRunfolders(runfolders: Seq[File], takeXFirst: Int): Seq[IlluminaProcessingUnit] = {
-    
+
     runfolders.take(takeXFirst).map(f => {
-      
-      
-      val expectedConfig = 
+
+      val expectedConfig =
         new IlluminaProcessingUnitConfig(
           sampleSheet = new File(sampleSheetRoot + "/" + f.getName() + "_samplesheet.csv"),
           QCConfig = defaultQCConfigFile,
-          programConfig = Some(defaultProgramConfigFile))      
+          programConfig = Some(defaultProgramConfigFile))
 
-      
       if (f.getName().contains("M00485"))
         new MiSeqProcessingUnit(expectedConfig, new URI("file:" + f.getAbsolutePath() + "/"))
       else
@@ -129,7 +127,8 @@ class IlluminaProcessingUnitFetcherTest extends FlatSpec with Matchers with Befo
   "A IlluminaProcessingUnitFetcher" should "be able to find new runfolders" in {
     val expected: Seq[IlluminaProcessingUnit] = generateExpectedRunfolders(runfolders, 2)
 
-    val actual = IlluminaProcessingUnitFetcher.checkForReadyProcessingUnits(fetcherConfig)
+    val fetcher = new IlluminaProcessingUnitFetcher()
+    val actual = fetcher.checkForReadyProcessingUnits(fetcherConfig)
 
     assert(expected.toList === actual.toList)
 
@@ -151,7 +150,8 @@ class IlluminaProcessingUnitFetcherTest extends FlatSpec with Matchers with Befo
 
     val expected = firstCreateTwoRunfolders(0)
 
-    val actual = IlluminaProcessingUnitFetcher.checkForReadyProcessingUnits(fetcherConfig)
+    val fetcher = new IlluminaProcessingUnitFetcher()
+    val actual = fetcher.checkForReadyProcessingUnits(fetcherConfig)
 
     assert(actual.size == 1)
     assert(expected === actual(0))
@@ -165,7 +165,8 @@ class IlluminaProcessingUnitFetcherTest extends FlatSpec with Matchers with Befo
     // which means that only the first runfolder should be found
     new File(runfolders(1) + "/found").createNewFile()
 
-    val actual = IlluminaProcessingUnitFetcher.checkForReadyProcessingUnits(fetcherConfig)
+    val fetcher = new IlluminaProcessingUnitFetcher()
+    val actual = fetcher.checkForReadyProcessingUnits(fetcherConfig)
 
     assert(expected.toList === actual.toList)
   }
@@ -175,7 +176,8 @@ class IlluminaProcessingUnitFetcherTest extends FlatSpec with Matchers with Befo
     createRunFolders(4)
     val expected: Seq[IlluminaProcessingUnit] = generateExpectedRunfolders(runfolders, 4)
 
-    val actual = IlluminaProcessingUnitFetcher.checkForReadyProcessingUnits(fetcherConfig)
+    val fetcher = new IlluminaProcessingUnitFetcher()
+    val actual = fetcher.checkForReadyProcessingUnits(fetcherConfig)
 
     assert(
       actual.
@@ -190,7 +192,8 @@ class IlluminaProcessingUnitFetcherTest extends FlatSpec with Matchers with Befo
 
     val expected: Seq[IlluminaProcessingUnit] = generateExpectedRunfolders(runfolders, 1)
 
-    val actual = IlluminaProcessingUnitFetcher.checkForReadyProcessingUnits(fetcherConfig)
+    val fetcher = new IlluminaProcessingUnitFetcher()
+    val actual = fetcher.checkForReadyProcessingUnits(fetcherConfig)
 
     assert(
       actual.
@@ -222,7 +225,8 @@ class IlluminaProcessingUnitFetcherTest extends FlatSpec with Matchers with Befo
 
     })
 
-    val actual = IlluminaProcessingUnitFetcher.checkForReadyProcessingUnits(fetcherConfig)
+    val fetcher = new IlluminaProcessingUnitFetcher()
+    val actual = fetcher.checkForReadyProcessingUnits(fetcherConfig)
 
     assert(actual === expected, "\n\n" + "actual = " + actual + "\n\n" + "expected=" + expected)
   }
@@ -235,7 +239,8 @@ class IlluminaProcessingUnitFetcherTest extends FlatSpec with Matchers with Befo
       foreach(f => f.delete())
 
     intercept[FileNotFoundException] {
-      val actual = IlluminaProcessingUnitFetcher.checkForReadyProcessingUnits(fetcherConfig)
+      val fetcher = new IlluminaProcessingUnitFetcher()
+      val actual = fetcher.checkForReadyProcessingUnits(fetcherConfig)
     }
   }
 

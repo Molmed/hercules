@@ -87,7 +87,7 @@ class IlluminaProcessingUnitWatcherExecutorActor(
 
     case CheckForRunfolders => {
       log.info("Looking for new runfolders!")
-
+      
       val fetcherConfig = new IlluminaProcessingUnitFetcherConfig(
         new File(config.runfolderRootPath),
         new File(config.samplesheetPath),
@@ -98,7 +98,7 @@ class IlluminaProcessingUnitWatcherExecutorActor(
         log)
 
       def result =
-        IlluminaProcessingUnitFetcher.checkForReadyProcessingUnits(fetcherConfig)
+        fetcher.checkForReadyProcessingUnits(fetcherConfig)
 
       self ! ProcessingUnitSequenceMessage(result)
     }

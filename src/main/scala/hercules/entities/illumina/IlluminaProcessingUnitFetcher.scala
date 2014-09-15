@@ -12,7 +12,13 @@ import hercules.entities.ProcessingUnitFetcher
 import hercules.config.processingunit.ProcessingUnitFetcherConfig
 import hercules.config.processingunit.IlluminaProcessingUnitFetcherConfig
 
-object IlluminaProcessingUnitFetcher extends ProcessingUnitFetcher[IlluminaProcessingUnitFetcherConfig, IlluminaProcessingUnit] {
+object IlluminaProcessingUnitFetcher {
+
+  def apply(): IlluminaProcessingUnitFetcher = new IlluminaProcessingUnitFetcher()
+
+}
+
+class IlluminaProcessingUnitFetcher() extends ProcessingUnitFetcher[IlluminaProcessingUnitFetcherConfig, IlluminaProcessingUnit] {
 
   /**
    * Indicate if the unit is ready to be processed.
@@ -244,6 +250,5 @@ object IlluminaProcessingUnitFetcher extends ProcessingUnitFetcher[IlluminaProce
       illuminaProcessingUnit
     }
   }
-}
 
-class IlluminaProcessingUnitFetcher()
+}
