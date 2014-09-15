@@ -28,6 +28,7 @@ import hercules.actors.demultiplexing.IlluminaDemultiplexingActor
 import hercules.actors.masters.SisyphusMasterActor
 import hercules.actors.processingunitwatcher.IlluminaProcessingUnitWatcherActor
 import hercules.actors.interactive.InteractiveActor
+import hercules.actors.notifiers.EmailNotifierActor
 
 /**
  * The main entry point for the application
