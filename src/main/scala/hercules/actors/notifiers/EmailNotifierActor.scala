@@ -70,6 +70,17 @@ class EmailNotifierActor(
       RequestNotificationUnitMessage()
     )
 
+	// Create some artificial tasks
+	val createWork =
+    	context.system.scheduler.schedule(
+      	60.seconds, 
+      	300.seconds, 
+      	self,
+      	SendNotificationUnitMessage(new EmailNotificationUnit("Generated work"))
+    )
+
+	
+
   // Make sure that the scheduled event stops if the actors does.
   override def postStop() = {
     requestWork.cancel()
