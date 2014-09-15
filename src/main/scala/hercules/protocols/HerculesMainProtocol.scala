@@ -1,6 +1,7 @@
 package hercules.protocols
 
 import hercules.entities.ProcessingUnit
+import hercules.entities.notification.NotificationUnit
 
 /**
  * Import this object to gain access to the messaging protocol of
@@ -31,7 +32,7 @@ object HerculesMainProtocol {
   trait ProcessingUnitMessage extends HerculesMessage {
     val unit: ProcessingUnit
   }
-
+  
   case class FoundProcessingUnitMessage(unit: ProcessingUnit) extends ProcessingUnitMessage
 
   case class RequestDemultiplexingProcessingUnitMessage extends HerculesMessage
@@ -43,6 +44,20 @@ object HerculesMainProtocol {
   case class StartQCProcessingUnitMessage(unit: ProcessingUnit) extends ProcessingUnitMessage
   case class FinishedQCProcessingUnitMessage(unit: ProcessingUnit) extends ProcessingUnitMessage
   case class FailedQCProcessingUnitMessage(unit: ProcessingUnit) extends ProcessingUnitMessage
+  
+  /**
+   * The base trait for the messages encapsulating the notifications to be 
+   * sent out. Contains the NotificationUnit. 
+   */
+  trait NotificationUnitMessage extends HerculesMessage {
+    val unit: NotificationUnit
+  }
+  
+  case class RequestNotificationUnitMessage extends HerculesMessage
+  case class SendNotificationUnitMessage(unit: NotificationUnit) extends NotificationUnitMessage
+  case class SentNotificationUnitMessage(unit: NotificationUnit) extends NotificationUnitMessage
+  case class FailedNotificationUnitMessage(unit: NotificationUnit, reason: String) extends NotificationUnitMessage
+
 
   //@TODO Extend this with all messages that we should to be able to send!
 
