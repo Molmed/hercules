@@ -11,7 +11,7 @@ import akka.actor.actorRef2Scala
 import akka.contrib.pattern.ClusterReceptionistExtension
 import akka.contrib.pattern.ClusterSingletonManager
 import hercules.protocols.HerculesMainProtocol._
-import akka.pattern.ask
+import akka.pattern.{ ask, pipe }
 import akka.util.Timeout
 import scala.concurrent.duration._
 import scala.concurrent.Await
@@ -26,12 +26,12 @@ object SisyphusMasterActor {
   def startSisyphusMasterActor(): Unit = {
 
     val generalConfig = ConfigFactory.load()
-    val conf = generalConfig.getConfig("master").withFallback(generalConfig)     
+    val conf = generalConfig.getConfig("master").withFallback(generalConfig)
 
     val system = ActorSystem("ClusterSystem", conf)
 
     val primarySeedNode = conf.getStringList("master.akka.cluster.seed-nodes").head
-    
+
     system.actorOf(
       ClusterSingletonManager.props(
         SisyphusMasterActor.props(),
@@ -55,6 +55,16 @@ object SisyphusMasterActor {
   def findMessagesOfType[A <: ProcessingUnitMessage](messageSeq: Set[ProcessingUnitMessage]): Set[A] = {
     messageSeq.filter(p => p.isInstanceOf[A]).map(p => p.asInstanceOf[A])
   }
+
+  /**
+   * Internal messaging protocol
+   */
+  object SisyphusMasterActorProtocol {
+    sealed trait SetMessageState
+    case class RemoveFromMessageNotYetProcessed(message: ProcessingUnitMessage) extends SetMessageState
+    case class RemoveFromFailedMessages(message: ProcessingUnitMessage) extends SetMessageState
+  }
+
 }
 
 /**
@@ -65,6 +75,8 @@ object SisyphusMasterActor {
  * send it.
  */
 class SisyphusMasterActor extends HerculesMasterActor {
+
+  import SisyphusMasterActor.SisyphusMasterActorProtocol._
 
   // The master will register it self to the cluster receptionist.
   ClusterReceptionistExtension(context.system).registerService(self)
@@ -95,12 +107,21 @@ class SisyphusMasterActor extends HerculesMasterActor {
         (sender ? StartDemultiplexingProcessingUnitMessage(unitMessage.unit)).map {
           case Acknowledge => {
             log.info(s"$unitMessage was accepted by demultiplexer removing from work queue.")
-            messagesNotYetProcessed = messagesNotYetProcessed - unitMessage
-            log.info(s"State of queue was: $messagesNotYetProcessed")
+            RemoveFromMessageNotYetProcessed(unitMessage)            
           }
           case Reject =>
             log.info(s"$unitMessage was not accepted by demultiplexer. Keep it in the work queue.")
-        }
+        } pipeTo(self)
+      }
+    }
+
+    case x: SetMessageState => {
+      x match {
+        case RemoveFromMessageNotYetProcessed(message) => {
+          messagesNotYetProcessed = messagesNotYetProcessed - message
+        }          
+        case RemoveFromFailedMessages(message) => 
+          failedMessages = failedMessages - message
       }
     }
 
@@ -123,14 +144,13 @@ class SisyphusMasterActor extends HerculesMasterActor {
         log.info(
           "For a message to restart " + message.unitName +
             " moving it into the messages to process list.")
-            
-        val matchingMessage = failedMessages.find(x => x.unit.name == message.unitName).get    
-        val startDemultiplexingMessage = new StartDemultiplexingProcessingUnitMessage(matchingMessage.unit)    
+
+        val matchingMessage = failedMessages.find(x => x.unit.name == message.unitName).get
+        val startDemultiplexingMessage = new StartDemultiplexingProcessingUnitMessage(matchingMessage.unit)
         messagesNotYetProcessed = messagesNotYetProcessed + startDemultiplexingMessage
         failedMessages = failedMessages - matchingMessage
         sender ! Acknowledge
-      }
-      else {
+      } else {
         log.info("Couldn't find unit " + message.unitName + " requested to restart.")
         sender ! Reject(Some("Couldn't find unit " + message.unitName + " requested to restart."))
       }
