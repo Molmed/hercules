@@ -1,9 +1,8 @@
 package hercules.config.notification
 
 import com.typesafe.config.Config
-import com.typesafe.config.ConfigFactory
-import java.util.Hashtable
 import java.util.List
+import scala.collection.JavaConversions._
 
 object EmailNotificationConfig {
 
@@ -11,7 +10,7 @@ object EmailNotificationConfig {
    *  configuration. If necessary, provide default values for missing options.
    */
   def getEmailNotificationConfig(conf: Config): EmailNotificationConfig = {
-    val emailRecipients = conf.getStringList("recipients")  
+    val emailRecipients = asScalaBuffer(conf.getStringList("recipients")).toSeq
     val emailSender = conf.getString("sender")
     val emailSMTPHost = conf.getString("smtp_host")
     val emailSMTPPort = conf.getInt("smtp_port")
@@ -31,7 +30,7 @@ object EmailNotificationConfig {
  * Base class for configuring an email notification
  */
 case class EmailNotificationConfig(
-  val emailRecipients: java.util.List[String],
+  val emailRecipients: Seq[String],
   val emailSender: String,
   val emailSMTPHost: String,
   val emailSMTPPort: Int,
