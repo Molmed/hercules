@@ -2,13 +2,10 @@ package hercules.actors.processingunitwatcher
 
 import java.io.File
 import java.net.URI
-
 import scala.concurrent.duration.DurationInt
-
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.FlatSpecLike
 import org.scalatest.Matchers
-
 import akka.actor.Actor
 import akka.actor.ActorRef
 import akka.actor.ActorSystem
@@ -22,6 +19,7 @@ import hercules.entities.illumina.HiSeqProcessingUnit
 import hercules.entities.illumina.IlluminaProcessingUnit
 import hercules.entities.illumina.IlluminaProcessingUnitFetcher
 import hercules.protocols.HerculesMainProtocol
+import hercules.test.utils.StepParent
 
 class IlluminaProcessingUnitWatcherExecutorActorTest
     extends TestKit(ActorSystem("IlluminaProcessingUnitExecutorActorTest"))
@@ -68,18 +66,6 @@ class IlluminaProcessingUnitWatcherExecutorActorTest
       1)
 
     config
-  }
-
-  /**
-   * Use this class to create a fake parent class to pass messages through
-   * which should have been sent to the master.
-   * It will simply take any messages from the child and forward them.
-   */
-  class StepParent(childToCreate: Props, probe: ActorRef) extends Actor {
-    val child = context.actorOf(childToCreate, "child")
-    def receive = {
-      case msg => probe.tell(msg, sender)
-    }
   }
 
   override def afterAll(): Unit = {
