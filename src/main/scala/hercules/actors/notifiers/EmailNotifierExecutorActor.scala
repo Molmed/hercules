@@ -26,7 +26,7 @@ class EmailNotifierExecutorActor(
       log.info(self.getClass().getName() + " received a " + message.getClass().getName() + " with a " + message.unit.getClass().getName())
       message.unit match {
         case unit: EmailNotificationUnit => {
-          // Not very nice solution to keep the reference to sender available for the future. Must be a better way to do this!
+          // Keep the reference to sender available for the future
           val parentActor = sender
           // If we manage to send the message, send a confirmation
           val emailDelivery = EmailNotificationUnit.sendNotification(

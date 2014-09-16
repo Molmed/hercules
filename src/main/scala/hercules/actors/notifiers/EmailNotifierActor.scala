@@ -3,7 +3,6 @@ package hercules.actors.notifiers
 import akka.actor.Props
 import akka.actor.ActorRef
 import akka.contrib.pattern.ClusterClient.SendToAll
-import akka.routing.RoundRobinRouter
 import scala.concurrent.duration._
 import hercules.config.notification.EmailNotificationConfig
 import hercules.entities.notification.EmailNotificationUnit
@@ -28,9 +27,6 @@ object EmailNotifierActor extends MasterLookup {
       props(clusterClient), 
       "EmailNotifierActor"
     )
-    
-    selfref ! "EmailNotifierActor started"
-    selfref
   }
 
   /**
@@ -56,9 +52,7 @@ class EmailNotifierActor(
   // Spawn an executor object that will do the work for us
   val notifierRouter = context.actorOf(
     EmailNotifierExecutorActor.props(
-      emailConfig).withRouter(
-        RoundRobinRouter(nrOfInstances = 1)
-    ),
+      emailConfig),
     "EmailNotifierExecutorActor"
   )
 
