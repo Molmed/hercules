@@ -2,15 +2,11 @@ package hercules.actors.processingunitwatcher
 
 import java.io.File
 import java.net.URI
-
 import scala.collection.JavaConversions.asScalaBuffer
-
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.FlatSpecLike
 import org.scalatest.Matchers
-
 import com.typesafe.config.ConfigFactory
-
 import akka.actor.Actor
 import akka.actor.ActorLogging
 import akka.actor.ActorRef
@@ -29,10 +25,17 @@ import hercules.config.processingunit.IlluminaProcessingUnitConfig
 import hercules.entities.illumina.HiSeqProcessingUnit
 import hercules.entities.illumina.IlluminaProcessingUnit
 import hercules.protocols.HerculesMainProtocol
+import com.typesafe.config.Config
 
-  //extends TestKit(ActorSystem("IlluminaProcessingUnitWatcherActorTest"))
-class IlluminaProcessingUnitWatcherActorTest(_system: ActorSystem) 
-    extends TestKit(_system)
+//extends TestKit(ActorSystem("IlluminaProcessingUnitWatcherActorTest"))
+//class IlluminaProcessingUnitWatcherActorTest(_system: ActorSystem) 
+//    extends TestKit(_system)
+//    with ImplicitSender
+//    with FlatSpecLike
+//    with BeforeAndAfterAll
+//    with Matchers {
+class IlluminaProcessingUnitWatcherActorTest
+    extends TestKit(ActorSystem("IlluminaProcessingUnitWatcherActorTest", ConfigFactory.parseString("akka.remote.netty.tcp.port=1337")))
     with ImplicitSender
     with FlatSpecLike
     with BeforeAndAfterAll
@@ -40,10 +43,10 @@ class IlluminaProcessingUnitWatcherActorTest(_system: ActorSystem)
 
   val generalConfig = ConfigFactory.load()
   val defaultConfig = generalConfig.getConfig("master").
-    withFallback(ConfigFactory.parseString("master.akka.remote.netty.tcp.hostname=localhost")).
+    withFallback(ConfigFactory.parseString("master.akka.remote.netty.tcp.hostname=127.0.0.1")).
     withFallback(ConfigFactory.parseString("""master.akka.cluster.roles=["master"]""")).
-    withFallback(ConfigFactory.parseString("""master.contact-points=["akka.tcp://ClusterSystem@localhost:2551"]""")).
-    withFallback(ConfigFactory.parseString("""master.akka.cluster.seed-nodes = ["akka.tcp://ClusterSystem@localhost:2551"]""")).
+    withFallback(ConfigFactory.parseString("""master.contact-points=["akka.tcp://ClusterSystem@127.0.0.1:2551"]""")).
+    withFallback(ConfigFactory.parseString("""master.akka.cluster.seed-nodes = ["akka.tcp://ClusterSystem@127.0.0.1:2551"]""")).
     withFallback(generalConfig)
 
   // The processing units that we will return
@@ -92,15 +95,22 @@ class IlluminaProcessingUnitWatcherActorTest(_system: ActorSystem)
   }
 
   val masterSystem: ActorSystem = {
-    val config = ConfigFactory.parseString("akka.cluster.roles=[master]").withFallback(defaultConfig)
+    val config =
+      ConfigFactory.
+        parseString("akka.cluster.roles=[master]").
+        withFallback(defaultConfig)
     ActorSystem("IlluminaProcessingUnitWatcherActorTest", config)
   }
 
   // Initiate cluster systems    
+  val clusterSystemConfig =
+    ConfigFactory.
+      parseString("""akka.remote.netty.tcp.port=0""").
+      withFallback(defaultConfig)
   val clusterSystem = ActorSystem("ClusterSystem", defaultConfig)
 
   val clusterAdress = Cluster(masterSystem).selfAddress
-  Cluster(system).join(clusterAdress)
+  Cluster(masterSystem).join(clusterAdress)
 
   // Create a fake master
   masterSystem.actorOf(
@@ -123,10 +133,13 @@ class IlluminaProcessingUnitWatcherActorTest(_system: ActorSystem)
     Thread.sleep(1000)
   }
 
+  
   "A IlluminaProcessingUnitWatcherActor" should " pass any FoundProcessingUnitMessage on to the master" in {
+
+    val watcher = IlluminaProcessingUnitWatcherActor.startIlluminaProcessingUnitWatcherActor(() => defaultConfig)
     
     // Create the watcher with a fake executor
-    val watcher = clusterSystem.actorOf(IlluminaProcessingUnitWatcherActor.props(clusterClient, FakeExecutor.props()))
+    //val watcher = clusterSystem.actorOf(IlluminaProcessingUnitWatcherActor.props(clusterClient, FakeExecutor.props()))
 
     // Check that it gets it processes messages correctly
     watcher ! HerculesMainProtocol.FoundProcessingUnitMessage(processingUnits(0))
@@ -134,6 +147,12 @@ class IlluminaProcessingUnitWatcherActorTest(_system: ActorSystem)
 
     watcher ! HerculesMainProtocol.FoundProcessingUnitMessage(processingUnits(1))
     expectMsg(HerculesMainProtocol.FoundProcessingUnitMessage(processingUnits(1)))
+
+  }
+
+  it should "go banans here!" in {
+
+    //throw new Exception("Bananas!")
 
   }
 

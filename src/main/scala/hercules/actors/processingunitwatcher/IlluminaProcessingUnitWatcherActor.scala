@@ -13,7 +13,7 @@ object IlluminaProcessingUnitWatcherActor extends MasterLookup {
 
   def startIlluminaProcessingUnitWatcherActor(customConfig: () => Config = getDefaultConfig): ActorRef = {
 
-    val config = customConfig    
+    val config = customConfig
     val (clusterClient, system) = getMasterClusterClientAndSystem(config)
     val props = IlluminaProcessingUnitWatcherActor.props(clusterClient)
 
@@ -23,6 +23,7 @@ object IlluminaProcessingUnitWatcherActor extends MasterLookup {
   def props(
     clusterClient: ActorRef,
     executor: Props = IlluminaProcessingUnitWatcherExecutorActor.props()): Props = {
+
     Props(new IlluminaProcessingUnitWatcherActor(
       clusterClient,
       executor))
