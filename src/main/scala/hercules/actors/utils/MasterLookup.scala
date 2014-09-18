@@ -9,6 +9,8 @@ import akka.contrib.pattern.ClusterClient
 import akka.japi.Util.immutableSeq
 import akka.actor.ActorRef
 import com.typesafe.config.Config
+import akka.actor.ActorSelection
+import akka.actor.Props
 
 /**
  * Provides a method to get a cluster client which point to the Master node
@@ -16,7 +18,24 @@ import com.typesafe.config.Config
 trait MasterLookup {
 
   /**
-   * Load the default config from the application.conf file 
+   * @TODO Write documentation!
+   *
+   * @param system
+   * @param conf
+   * @return
+   */
+  def getDefaultClusterClient(system: ActorSystem, conf: Config): ActorRef = {
+
+    val initialContacts = immutableSeq(conf.getStringList("master.contact-points")).map {
+      case AddressFromURIString(addr) ⇒ system.actorSelection(RootActorPath(addr) / "user" / "receptionist")
+    }.toSet
+
+    system.actorOf(ClusterClient.props(initialContacts), "clusterClient")
+
+  }
+
+  /**
+   * Load the default config from the application.conf file
    */
   def getDefaultConfig(): Config = {
 
@@ -30,24 +49,23 @@ trait MasterLookup {
         withFallback(generalConfig)
 
     conf
-
   }
 
   /**
-   * Looks up the cluster receptionist for the master
+   * @TODO Write documentation!
+   *
+   * @param system
+   * @param getConfig
+   * @param getClusterClient
+   * @return
    */
-  def getMasterClusterClientAndSystem(getConfig: () => Config = getDefaultConfig): (ActorRef, ActorSystem) = {
-
-    val systemIdentifier = "ClusterSystem"
+  def getMasterClusterClient(
+    system: ActorSystem,
+    getConfig: () => Config = getDefaultConfig,
+    getClusterClient: (ActorSystem, Config) => ActorRef = getDefaultClusterClient) = {
 
     val conf = getConfig()
-        
-    val system = ActorSystem(systemIdentifier, conf)
-    val initialContacts = immutableSeq(conf.getStringList("master.contact-points")).map {
-      case AddressFromURIString(addr) ⇒ system.actorSelection(RootActorPath(addr) / "user" / "receptionist")
-    }.toSet
-
-    (system.actorOf(ClusterClient.props(initialContacts), "clusterClient"), system)
+    getClusterClient(system, conf)
   }
 
 }

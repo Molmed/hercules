@@ -8,14 +8,18 @@ import hercules.actors.utils.MasterLookup
 import hercules.protocols.HerculesMainProtocol
 import akka.actor.ActorSystem
 import com.typesafe.config.Config
+import akka.actor.ActorSelection
 
 object IlluminaProcessingUnitWatcherActor extends MasterLookup {
 
-  def startIlluminaProcessingUnitWatcherActor(customConfig: () => Config = getDefaultConfig): ActorRef = {
+  def startIlluminaProcessingUnitWatcherActor(
+      system:ActorSystem = ActorSystem("IlluminaProcessingUnitWatcherSystem"),
+      executor: Props = IlluminaProcessingUnitWatcherExecutorActor.props(),
+      clusterClientCustomConfig: () => Config = getDefaultConfig,
+      getClusterClient: (ActorSystem, Config) => ActorRef = getDefaultClusterClient): ActorRef = {
 
-    val config = customConfig
-    val (clusterClient, system) = getMasterClusterClientAndSystem(config)
-    val props = IlluminaProcessingUnitWatcherActor.props(clusterClient)
+    val clusterClient = getMasterClusterClient(system, clusterClientCustomConfig, getClusterClient)
+    val props = IlluminaProcessingUnitWatcherActor.props(clusterClient, executor)
 
     system.actorOf(props, "IlluminaProcessingUnitWatcher")
   }

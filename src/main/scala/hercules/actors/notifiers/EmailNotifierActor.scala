@@ -9,6 +9,7 @@ import hercules.config.notification.EmailNotificationConfig
 import hercules.entities.notification.EmailNotificationUnit
 import hercules.actors.utils.MasterLookup
 import hercules.protocols.HerculesMainProtocol
+import akka.actor.ActorSystem
 
 object EmailNotifierActor extends MasterLookup {
 
@@ -19,7 +20,9 @@ object EmailNotifierActor extends MasterLookup {
 
   def startEmailNotifierActor(): ActorRef = {
 
-    val (clusterClient, system) = getMasterClusterClientAndSystem()
+    val system = ActorSystem("EmailNotifierSystem")
+    
+    val clusterClient = getMasterClusterClient(system)
 
     val selfref = system.actorOf(
       props(clusterClient), 
