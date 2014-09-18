@@ -2,7 +2,6 @@ package hercules.actors.notifiers
 
 import hercules.actors.HerculesActor
 import akka.actor.ActorRef
-import akka.actor.Actor
 import hercules.entities.notification.NotificationUnit
 import hercules.protocols.HerculesMainProtocol._
 import hercules.protocols.NotificationChannelProtocol._
@@ -12,10 +11,9 @@ import hercules.protocols.NotificationChannelProtocol._
  * trello board).
  */
 trait Notifier {
-
   // Provide a notify handle 
   protected val notice = NotifierManager.getInstance
-} 
+}
 
 
 object NotifierManager {

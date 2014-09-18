@@ -9,9 +9,15 @@ import akka.actor.Props
 
 /**
  * Send notifications of events (e.g. email them or push cards around on a
- * trello board).
+ * trello board). All specific implementations of notifier Actors should extend
+ * the NotifierActor trait. Note that it does not extend the HerculesActor since
+ * that would cause circular dependencies (?)
  */
 trait NotifierActor extends Actor with ActorLogging {}
+
+/**
+  * The ActorFactory trait provides a general mechanism for starting an actor
+  */  
 trait ActorFactory extends MasterLookup {
   def props(client: ActorRef): Props 
   def startInstance(name: String): ActorRef = {
