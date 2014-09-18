@@ -18,8 +18,8 @@ import hercules.protocols.HerculesMainProtocol
 object IlluminaProcessingUnitWatcherExecutorActor {
 
   /**
-   * @TODO Write docs!
-   * @return
+   * Load the default config values for from the application.conf file.
+   * @return the default IlluminaProcessingUnitWatcherConfig
    */
   def createDefaultConfig(): IlluminaProcessingUnitWatcherConfig = {
 

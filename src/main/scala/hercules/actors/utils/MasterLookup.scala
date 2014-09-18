@@ -18,11 +18,11 @@ import akka.actor.Props
 trait MasterLookup {
 
   /**
-   * @TODO Write documentation!
+   * Get the default cluster client by looking up the past to the system receptionist.
    *
-   * @param system
-   * @param conf
-   * @return
+   * @param system		in which to create the cluster client.
+   * @param conf		A config which defines the path to the masters contact points.
+   * @return A cluster client actor reference.
    */
   def getDefaultClusterClient(system: ActorSystem, conf: Config): ActorRef = {
 
@@ -52,17 +52,20 @@ trait MasterLookup {
   }
 
   /**
-   * @TODO Write documentation!
+   * By calling this method one can look up a reference to the cluster receptionist.
+   * This enables message passing to any actor which has registered to the cluster receptionist,
+   * e.g. the master.
    *
-   * @param system
-   * @param getConfig
-   * @param getClusterClient
-   * @return
+   * @param system 				in which to create the cluster client actor
+   * @param getConfig 			a function returning a Config. 
+   * 							Used to setup the client actor. Has a sensible default, can be overriden for tests. 
+   * @param getClusterClient    A function used to get the cluster client. Has a sensible default, can be overriden for tests.
+   * @return a reference to a cluster client
    */
   def getMasterClusterClient(
     system: ActorSystem,
     getConfig: () => Config = getDefaultConfig,
-    getClusterClient: (ActorSystem, Config) => ActorRef = getDefaultClusterClient) = {
+    getClusterClient: (ActorSystem, Config) => ActorRef = getDefaultClusterClient): ActorRef = {
 
     val conf = getConfig()
     getClusterClient(system, conf)
