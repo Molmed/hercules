@@ -31,7 +31,9 @@ object InteractiveActor extends MasterLookup {
    * @param unitName Unit to do something with
    */
   def startInteractive(command: String, unitName: String): Unit = {
-    val (clusterClient, system) = getMasterClusterClientAndSystem()
+    
+    val system = ActorSystem("IlluminaDemultiplexingActor")
+    val clusterClient = getMasterClusterClient(system)
     val props = InteractiveActor.props(clusterClient, command, unitName)
     system.actorOf(props, "interactive")
   }

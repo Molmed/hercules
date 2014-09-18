@@ -30,8 +30,6 @@ object SisyphusMasterActor {
 
     val system = ActorSystem("ClusterSystem", conf)
 
-    val primarySeedNode = conf.getStringList("master.akka.cluster.seed-nodes").head
-
     system.actorOf(
       ClusterSingletonManager.props(
         SisyphusMasterActor.props(),

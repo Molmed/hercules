@@ -19,6 +19,8 @@ ScoverageKeys.highlighting := true
 
 parallelExecution in Test := false
 
+parallelExecution in ScoverageTest := false
+
 resolvers += Resolver.sonatypeRepo("public")
 
 resolvers += "softprops-maven" at "http://dl.bintray.com/content/softprops/maven"

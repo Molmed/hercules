@@ -1,29 +1,31 @@
 package hercules.actors.processingunitwatcher
 
 import java.io.File
+
+import scala.concurrent.duration.DurationInt
+
 import com.typesafe.config.ConfigFactory
+
 import akka.actor.Props
+import akka.actor.actorRef2Scala
 import hercules.actors.HerculesActor
-import hercules.entities.illumina.IlluminaProcessingUnit
-import scala.concurrent.duration._
-import hercules.protocols.HerculesMainProtocol
-import hercules.config.processingunit.ProcessingUnitConfig
-import hercules.config.processingunit.IlluminaProcessingUnitConfig
 import hercules.config.processing.IlluminaProcessingUnitWatcherConfig
+import hercules.config.processingunit.IlluminaProcessingUnitFetcherConfig
+import hercules.entities.illumina.IlluminaProcessingUnit
+import hercules.entities.illumina.IlluminaProcessingUnitFetcher
+import hercules.protocols.HerculesMainProtocol
 
 object IlluminaProcessingUnitWatcherExecutorActor {
 
   /**
-   * Factory method for creating a IlluminaProcessingUnitExecutorActor
-   * Loads it's configuration from the IlluminaProcessingUnitExecutorActor.conf
-   * @param configFile the configFile to load
-   * @returns a Props of IlluminaProcessingUnitExecutorActor
+   * Load the default config values for from the application.conf file.
+   * @return the default IlluminaProcessingUnitWatcherConfig
    */
-  def props(): Props = {
+  def createDefaultConfig(): IlluminaProcessingUnitWatcherConfig = {
 
     val generalConfig = ConfigFactory.load()
     val conf = generalConfig.getConfig("remote.actors").withFallback(generalConfig)
-    
+
     val runfolderPath = conf.getString("general.runFolderPath")
     val samplesheetPath = conf.getString("general.samplesheetPath")
 
@@ -42,7 +44,21 @@ object IlluminaProcessingUnitWatcherExecutorActor {
       defaultProgramConfigurationFile,
       interval)
 
-    Props(new IlluminaProcessingUnitWatcherExecutorActor(config))
+    config
+  }
+
+  /**
+   * Factory method for creating a IlluminaProcessingUnitExecutorActor
+   * Loads it's configuration from the IlluminaProcessingUnitExecutorActor.conf
+   * @param fetcher The type of fetcher to use to get the processing units
+   * @returns a Props of IlluminaProcessingUnitExecutorActor
+   */
+  def props(
+    fetcher: IlluminaProcessingUnitFetcher = new IlluminaProcessingUnitFetcher(),
+    getConfig: () => IlluminaProcessingUnitWatcherConfig = createDefaultConfig): Props = {
+
+    val config = createDefaultConfig()
+    Props(new IlluminaProcessingUnitWatcherExecutorActor(config, fetcher))
   }
 
   object IlluminaProcessingUnitWatcherExecutorActorProtocol {
@@ -51,7 +67,17 @@ object IlluminaProcessingUnitWatcherExecutorActor {
   }
 }
 
-class IlluminaProcessingUnitWatcherExecutorActor(config: IlluminaProcessingUnitWatcherConfig)
+/**
+ * A actor which executes the checkForReadyProcessingUnits defined in the fetcher
+ * at interval of X, and pass any processing units it finds on to the parent as
+ * a FoundProcessingUnitMessage.
+ *
+ * @param config
+ * @param fetcher
+ */
+class IlluminaProcessingUnitWatcherExecutorActor(
+  config: IlluminaProcessingUnitWatcherConfig,
+  fetcher: IlluminaProcessingUnitFetcher)
     extends HerculesActor with ProcessingUnitWatcherActor {
 
   import IlluminaProcessingUnitWatcherExecutorActor.IlluminaProcessingUnitWatcherExecutorActorProtocol._
@@ -59,7 +85,7 @@ class IlluminaProcessingUnitWatcherExecutorActor(config: IlluminaProcessingUnitW
   import context.dispatcher
 
   val checkForRunfolder =
-    context.system.scheduler.schedule(10.seconds, config.checkForRunfoldersInterval.seconds, self, {
+    context.system.scheduler.schedule(1.seconds, config.checkForRunfoldersInterval.seconds, self, {
       CheckForRunfolders
     })
 
@@ -74,15 +100,17 @@ class IlluminaProcessingUnitWatcherExecutorActor(config: IlluminaProcessingUnitW
     case CheckForRunfolders => {
       log.info("Looking for new runfolders!")
 
+      val fetcherConfig = new IlluminaProcessingUnitFetcherConfig(
+        new File(config.runfolderRootPath),
+        new File(config.samplesheetPath),
+        new File(config.qcControlConfigPath),
+        new File(config.defaultQCConfigFile),
+        new File(config.programConfigPath),
+        new File(config.defaultProgramConfigFile),
+        log)
+
       def result =
-        IlluminaProcessingUnit.checkForReadyProcessingUnits(
-          new File(config.runfolderRootPath),
-          new File(config.samplesheetPath),
-          new File(config.qcControlConfigPath),
-          new File(config.defaultQCConfigFile),
-          new File(config.programConfigPath),
-          new File(config.defaultProgramConfigFile),
-          log)
+        fetcher.checkForReadyProcessingUnits(fetcherConfig)
 
       self ! ProcessingUnitSequenceMessage(result)
     }

@@ -7,18 +7,30 @@ import akka.contrib.pattern.ClusterClient.SendToAll
 import hercules.actors.utils.MasterLookup
 import hercules.protocols.HerculesMainProtocol
 import akka.actor.ActorSystem
+import com.typesafe.config.Config
+import akka.actor.ActorSelection
 
 object IlluminaProcessingUnitWatcherActor extends MasterLookup {
 
-  def startIlluminaProcessingUnitWatcherActor(): Unit = {
-  
-    val (clusterClient, system) = getMasterClusterClientAndSystem()
-    val props = IlluminaProcessingUnitWatcherActor.props(clusterClient)
+  def startIlluminaProcessingUnitWatcherActor(
+      system:ActorSystem = ActorSystem("IlluminaProcessingUnitWatcherSystem"),
+      executor: Props = IlluminaProcessingUnitWatcherExecutorActor.props(),
+      clusterClientCustomConfig: () => Config = getDefaultConfig,
+      getClusterClient: (ActorSystem, Config) => ActorRef = getDefaultClusterClient): ActorRef = {
+
+    val clusterClient = getMasterClusterClient(system, clusterClientCustomConfig, getClusterClient)
+    val props = IlluminaProcessingUnitWatcherActor.props(clusterClient, executor)
+
     system.actorOf(props, "IlluminaProcessingUnitWatcher")
   }
 
-  def props(clusterClient: ActorRef): Props = {
-    Props(new IlluminaProcessingUnitWatcherActor(clusterClient))
+  def props(
+    clusterClient: ActorRef,
+    executor: Props = IlluminaProcessingUnitWatcherExecutorActor.props()): Props = {
+
+    Props(new IlluminaProcessingUnitWatcherActor(
+      clusterClient,
+      executor))
   }
 
 }
@@ -26,15 +38,16 @@ object IlluminaProcessingUnitWatcherActor extends MasterLookup {
 /**
  * Base class for Actors which are watching for finished illumina runfolders.
  */
-class IlluminaProcessingUnitWatcherActor(clusterClient: ActorRef)
+class IlluminaProcessingUnitWatcherActor(clusterClient: ActorRef, executor: Props)
     extends ProcessingUnitWatcherActor {
- 
+
   context.actorOf(
-    IlluminaProcessingUnitWatcherExecutorActor.props(),
+    executor,
     "IlluminaProcessingUnitExecutor")
 
   def receive = {
     case message: HerculesMainProtocol.FoundProcessingUnitMessage => {
+      log.info("Got a FoundProcessingUnitMessage")
       clusterClient ! SendToAll("/user/master/active", message)
     }
   }

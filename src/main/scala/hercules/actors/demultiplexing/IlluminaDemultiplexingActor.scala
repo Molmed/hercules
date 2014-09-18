@@ -1,9 +1,7 @@
 package hercules.actors.demultiplexing
 
 import java.io.File
-
 import scala.concurrent.duration.DurationInt
-
 import akka.actor.ActorRef
 import akka.actor.Props
 import akka.actor.actorRef2Scala
@@ -15,6 +13,7 @@ import hercules.protocols.HerculesMainProtocol.Acknowledge
 import hercules.protocols.HerculesMainProtocol.FinishedDemultiplexingProcessingUnitMessage
 import hercules.protocols.HerculesMainProtocol.Reject
 import hercules.protocols.HerculesMainProtocol.StringMessage
+import akka.actor.ActorSystem
 
 object IlluminaDemultiplexingActor extends MasterLookup {
 
@@ -23,7 +22,9 @@ object IlluminaDemultiplexingActor extends MasterLookup {
    * including initiating the system.
    */
   def startIlluminaDemultiplexingActor(): Unit = {
-    val (clusterClient, system) = getMasterClusterClientAndSystem()
+    val system = ActorSystem("IlluminaDemultiplexingActor")
+
+    val clusterClient = getMasterClusterClient(system)
     val props = IlluminaDemultiplexingActor.props(clusterClient)
     system.actorOf(props, "demultiplexer")
   }
@@ -91,8 +92,7 @@ class IlluminaDemultiplexingActor(clusterClient: ActorRef) extends Demultiplexin
         log.info("Found the runfolder and will acknowlede message.")
         sender ! Acknowledge
         demultiplexingRouter ! message
-      }
-      else
+      } else
         sender ! Reject
 
     }
