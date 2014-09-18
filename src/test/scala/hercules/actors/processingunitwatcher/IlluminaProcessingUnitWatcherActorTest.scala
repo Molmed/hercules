@@ -26,28 +26,25 @@ import hercules.entities.illumina.HiSeqProcessingUnit
 import hercules.entities.illumina.IlluminaProcessingUnit
 import hercules.protocols.HerculesMainProtocol
 import com.typesafe.config.Config
+import akka.contrib.pattern.ClusterReceptionistExtension
+import scala.concurrent.duration._
+import akka.contrib.pattern.ClusterClient.SendToAll
+import akka.japi.Util.immutableSeq
+import akka.contrib.pattern.ClusterReceptionist
 
-//extends TestKit(ActorSystem("IlluminaProcessingUnitWatcherActorTest"))
-//class IlluminaProcessingUnitWatcherActorTest(_system: ActorSystem) 
-//    extends TestKit(_system)
-//    with ImplicitSender
-//    with FlatSpecLike
-//    with BeforeAndAfterAll
-//    with Matchers {
 class IlluminaProcessingUnitWatcherActorTest
-    extends TestKit(ActorSystem("IlluminaProcessingUnitWatcherActorTest", ConfigFactory.parseString("akka.remote.netty.tcp.port=1337")))
-    with ImplicitSender
+    extends TestKit(
+      ActorSystem(
+        "ClusterSystem",
+        ConfigFactory.parseString("""akka.remote.netty.tcp.port=1337""").
+          withFallback(ConfigFactory.parseString("""remote.netty.tcp.hostname=127.0.0.1""")).
+          withFallback(ConfigFactory.parseString("""seed-nodes = ["akka.tcp://ClusterSystem@127.0.0.1:1337"]""")).
+          withFallback(ConfigFactory.load())))
     with FlatSpecLike
     with BeforeAndAfterAll
     with Matchers {
 
   val generalConfig = ConfigFactory.load()
-  val defaultConfig = generalConfig.getConfig("master").
-    withFallback(ConfigFactory.parseString("master.akka.remote.netty.tcp.hostname=127.0.0.1")).
-    withFallback(ConfigFactory.parseString("""master.akka.cluster.roles=["master"]""")).
-    withFallback(ConfigFactory.parseString("""master.contact-points=["akka.tcp://ClusterSystem@127.0.0.1:2551"]""")).
-    withFallback(ConfigFactory.parseString("""master.akka.cluster.seed-nodes = ["akka.tcp://ClusterSystem@127.0.0.1:2551"]""")).
-    withFallback(generalConfig)
 
   // The processing units that we will return
   val processingUnits: Seq[IlluminaProcessingUnit] = Seq(
@@ -65,52 +62,60 @@ class IlluminaProcessingUnitWatcherActorTest
       new URI("/path/to/runfolder2")))
 
   object FakeMaster {
-
     def props(testProbe: ActorRef): Props = Props(new FakeMaster(testProbe))
-
   }
 
   class FakeMaster(testProbe: ActorRef) extends Actor with ActorLogging {
     // The master will register it self to the cluster receptionist.
-    // ClusterReceptionistExtension(context.system).registerService(self)
+    ClusterReceptionistExtension(context.system).registerService(self)
 
     def receive() = {
-      case msg => testProbe.tell(msg, sender)
+      case msg => {
+        testProbe.tell(msg, sender)
+      }
     }
   }
 
   object FakeExecutor {
     def props(): Props = {
-      Props(new FakeExecutor)
+      Props(new FakeExecutor())
     }
   }
 
-  class FakeExecutor extends Actor with ActorLogging {
-    //@TODO 
-    // This needs to push a message up to the parent after starting.
+  class FakeExecutor() extends Actor with ActorLogging {
+
+    import context.dispatcher
+    context.system.scheduler.scheduleOnce(1 second, self, "StartTest")
 
     def receive() = {
-      case _ => log.info("FakeExecutor got message. Ignore it.")
+      case "StartTest" => {
+        log.info("FakeExecutor trying to send message to the clusterClient")
+        for (unit <- processingUnits)
+          context.parent ! HerculesMainProtocol.FoundProcessingUnitMessage(unit)
+      }
     }
   }
 
   val masterSystem: ActorSystem = {
     val config =
       ConfigFactory.
-        parseString("akka.cluster.roles=[master]").
-        withFallback(defaultConfig)
-    ActorSystem("IlluminaProcessingUnitWatcherActorTest", config)
+        parseString(
+          """
+    		akka {
+    			remote.netty.tcp.port=2551
+    			remote.netty.tcp.hostname=127.0.0.1  
+    			cluster.roles=["master"]
+    
+    			cluster {
+    				seed-nodes = ["akka.tcp://ClusterSystem@127.0.0.1:2551"]
+    				auto-down-unreachable-after = 10s
+    			}
+    		}   
+    		contact-points = ["akka.tcp://ClusterSystem@127.0.0.1:2551"]            
+            """).
+          withFallback(generalConfig)
+    ActorSystem("ClusterSystem", config)
   }
-
-  // Initiate cluster systems    
-  val clusterSystemConfig =
-    ConfigFactory.
-      parseString("""akka.remote.netty.tcp.port=0""").
-      withFallback(defaultConfig)
-  val clusterSystem = ActorSystem("ClusterSystem", defaultConfig)
-
-  val clusterAdress = Cluster(masterSystem).selfAddress
-  Cluster(masterSystem).join(clusterAdress)
 
   // Create a fake master
   masterSystem.actorOf(
@@ -121,39 +126,42 @@ class IlluminaProcessingUnitWatcherActorTest
       Some("master")),
     "master")
 
-  val initialContacts = defaultConfig.getStringList("master.contact-points").map {
-    case AddressFromURIString(addr) ⇒ system.actorSelection(RootActorPath(addr) / "user" / "receptionist")
-  }.toSet
-
-  val clusterClient = system.actorOf(ClusterClient.props(initialContacts))
-
   override def afterAll(): Unit = {
     system.shutdown()
     masterSystem.shutdown()
     Thread.sleep(1000)
   }
 
-  
   "A IlluminaProcessingUnitWatcherActor" should " pass any FoundProcessingUnitMessage on to the master" in {
 
-    val watcher = IlluminaProcessingUnitWatcherActor.startIlluminaProcessingUnitWatcherActor(() => defaultConfig)
+    val initialContacts = List("akka.tcp://ClusterSystem@127.0.0.1:2551").map {
+      case AddressFromURIString(addr) ⇒ masterSystem.actorSelection(RootActorPath(addr) / "user" / "receptionist")
+    }.toSet
     
-    // Create the watcher with a fake executor
-    //val watcher = clusterSystem.actorOf(IlluminaProcessingUnitWatcherActor.props(clusterClient, FakeExecutor.props()))
+    masterSystem.actorOf(ClusterClient.props(initialContacts), "clusterClient")
+    val clusterClient = masterSystem.actorOf(ClusterClient.props(initialContacts))
 
-    // Check that it gets it processes messages correctly
-    watcher ! HerculesMainProtocol.FoundProcessingUnitMessage(processingUnits(0))
-    expectMsg(HerculesMainProtocol.FoundProcessingUnitMessage(processingUnits(0)))
+    val watcherConfig =
+      ConfigFactory.
+        parseString(
+          """
+      		remote.netty.tcp.port=2552
+			remote.netty.tcp.hostname=127.0.0.1  
+            """).
+          withFallback(generalConfig)
 
-    watcher ! HerculesMainProtocol.FoundProcessingUnitMessage(processingUnits(1))
-    expectMsg(HerculesMainProtocol.FoundProcessingUnitMessage(processingUnits(1)))
+    val fakeExecutor = FakeExecutor.props()
 
+    val watcher = IlluminaProcessingUnitWatcherActor.
+      startIlluminaProcessingUnitWatcherActor(
+        system = masterSystem,
+        executor = fakeExecutor,
+        clusterClientCustomConfig = () => watcherConfig,
+        getClusterClient = (_, _) => clusterClient)
+
+    within(10.seconds) {
+      expectMsg(HerculesMainProtocol.FoundProcessingUnitMessage(processingUnits(0)))
+      expectMsg(HerculesMainProtocol.FoundProcessingUnitMessage(processingUnits(1)))
+    }
   }
-
-  it should "go banans here!" in {
-
-    //throw new Exception("Bananas!")
-
-  }
-
 }
