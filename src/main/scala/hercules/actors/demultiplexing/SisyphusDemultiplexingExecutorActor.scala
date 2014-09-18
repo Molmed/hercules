@@ -5,29 +5,40 @@ import hercules.actors.HerculesActor
 import hercules.protocols.HerculesMainProtocol._
 import hercules.external.program.Sisyphus
 import scala.io.Source
+import java.io.File
+import hercules.demultiplexing.Demultiplexer
+import hercules.demultiplexing.DemultiplexingResult
 
 object SisyphusDemultiplexingExecutorActor {
-  def props(): Props = Props(new SisyphusDemultiplexingExecutorActor())
+
+  def props(demultiplexer: Demultiplexer = new Sisyphus()): Props =
+    Props(new SisyphusDemultiplexingExecutorActor(demultiplexer))
+
 }
 
 /**
  * Concrete executor implementation for demultiplexing using Sisyphus
  * This one can lock while doing it work.
  */
-class SisyphusDemultiplexingExecutorActor extends HerculesActor {
+class SisyphusDemultiplexingExecutorActor(demultiplexer: Demultiplexer) extends HerculesActor {
 
   def receive = {
     case StartDemultiplexingProcessingUnitMessage(unit) => {
 
-      log.info("Starting a sisyphus instance!")
-      
-      val sisyphusInstance = new Sisyphus()
-      val (exitStatus, logFile) = sisyphusInstance.run(unit)
+      log.info(s"Starting to demultiplex: $unit!")
+
+      val DemultiplexingResult(exitStatus, logFile) =
+        demultiplexer.demultiplex(unit)
+
       if (exitStatus == 0)
         sender ! FinishedDemultiplexingProcessingUnitMessage(unit)
       else {
-        sisyphusInstance.cleanup(unit)
-        val logText = Source.fromFile(logFile).getLines.mkString
+        demultiplexer.cleanup(unit)
+        val logText =
+          if (logFile.isDefined)
+            Source.fromFile(logFile.get).getLines.mkString
+          else 
+            ""
         sender ! FailedDemultiplexingProcessingUnitMessage(unit, logText)
       }
 
