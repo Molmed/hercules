@@ -8,22 +8,37 @@ import scala.concurrent.duration._
 import hercules.config.notification.EmailNotificationConfig
 import hercules.entities.notification._
 import hercules.protocols._
+import hercules.config.notification._
 import com.typesafe.config.ConfigFactory
 import akka.actor.ActorLogging
 
-object EmailNotifierActor extends ActorFactory {
+object EmailNotifierActor {
+
+  /**
+   * Initiate all the stuff needed to start a EmailNotifierActor
+   * including initiating the system.
+   */
+
+  def startInstance(
+    system: ActorSystem = ActorSystem("EmailNotifierSystem")
+    ): ActorRef = {
+      system.actorOf(
+        props(), 
+        "EmailNotifierActor"
+      )
+  }
+
   /**
    * Create a new EmailNotifierActor
    * @param clusterClient A reference to a cluster client thorough which the
    *                      actor will communicate with the rest of the cluster.
    */
-  def props(clusterClient: ActorRef): Props = {
-    Props(new EmailNotifierActor(clusterClient))
+  def props(): Props = {
+    Props(new EmailNotifierActor())
   }  
 }
 
-class EmailNotifierActor(
-  clusterClient: ActorRef) extends NotifierActor {
+class EmailNotifierActor() extends NotifierActor {
 
   var failedNotifications: Set[EmailNotificationUnit] = Set()
   var sentNotifications: Set[EmailNotificationUnit] = Set()
@@ -64,7 +79,7 @@ class EmailNotifierActor(
 
     // If we receive an instruction to retry failed messages, iterate over that set and send messages that have not met the limit for maximum number of retries
     case _: RetryFailedNotificationUnitsMessage => {
-      log.info(self.getClass.getSimpleName + " received a RetryFailedNotificationUnitsMessage")
+      log.info(self + " received a RetryFailedNotificationUnitsMessage")
       // Send a notification message and remove the unit from the list
       failedNotifications.foreach(
         unit => {

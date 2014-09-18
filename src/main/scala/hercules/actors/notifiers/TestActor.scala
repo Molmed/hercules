@@ -2,6 +2,7 @@ package hercules.actors.notifiers
 
 import akka.actor.Props
 import akka.actor.ActorRef
+import akka.actor.ActorSystem
 import hercules.actors.HerculesActor
 import hercules.actors.utils.MasterLookup
 

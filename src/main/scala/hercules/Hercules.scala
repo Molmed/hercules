@@ -66,7 +66,7 @@ object Hercules extends App {
       case Some(RunMaster) =>
         SisyphusMasterActor.startSisyphusMasterActor()
       case Some(RunNotifier) => 
-        TestActor.startInstance("TestActor")
+        TestActor.startInstance()
       case Some(RunDemultiplexter) =>
         IlluminaDemultiplexingActor.startIlluminaDemultiplexingActor()
       case Some(RunRunfolderWatcher) =>

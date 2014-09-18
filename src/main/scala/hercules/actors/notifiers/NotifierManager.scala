@@ -1,24 +1,14 @@
 package hercules.actors.notifiers
 
-import hercules.actors.HerculesActor
 import akka.actor.ActorRef
-import hercules.entities.notification.NotificationUnit
+import akka.actor.ActorSystem
+import hercules.entities.notification._
 import hercules.protocols.HerculesMainProtocol._
 import hercules.protocols.NotificationChannelProtocol._
-  
-/**
- * Send notifications of events (e.g. email them or push cards around on a
- * trello board).
- */
-trait Notifier {
-  // Provide a notify handle 
-  protected val notice = NotifierManager.getInstance
-}
-
 
 object NotifierManager {
-  def getInstance: NotifierManager = {
-    new NotifierManager
+  def getInstance(system: ActorSystem): NotifierManager = {
+    new NotifierManager(system)
   }
 
   def send_message(
@@ -33,8 +23,9 @@ object NotifierManager {
     }  
 }
 
-class NotifierManager {
-  val actors = Seq(EmailNotifierActor.startInstance("EmailNotifierActor"))
+class NotifierManager(system: ActorSystem) {
+  
+  val actors = Seq(EmailNotifierActor.startInstance(system))
   
   def info(msg: String): Unit = {
     NotifierManager.send_message(msg,Info,actors)
