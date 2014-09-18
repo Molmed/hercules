@@ -2,10 +2,19 @@ package hercules.actors.notifiers
 
 import akka.actor.Props
 import akka.actor.ActorRef
-import hercules.protocols.HerculesMainProtocol
 import hercules.actors.HerculesActor
+import hercules.actors.utils.MasterLookup
 
-object TestActor extends ActorFactory {
+object TestActor extends MasterLookup {
+  
+  def startInstance(): ActorRef = {
+    val system = ActorSystem("TestActorSystem")
+    val clusterClient = getMasterClusterClient(system)
+    system.actorOf(
+      props(clusterClient), 
+      "TestActor"
+    )
+  }
 
   /**
    * Create a new TestActor
