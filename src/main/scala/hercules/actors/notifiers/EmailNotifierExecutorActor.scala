@@ -16,7 +16,7 @@ object EmailNotifierExecutorActor {
 }
 
 class EmailNotifierExecutorActor(
-  emailConfig: EmailNotificationConfig) extends HerculesActor {
+  emailConfig: EmailNotificationConfig) extends NotifierActor {
   
   import HerculesMainProtocol._
   import context.dispatcher

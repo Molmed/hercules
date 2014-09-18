@@ -20,12 +20,16 @@ object EmailNotificationConfig {
       conf.getStringList("channels")
       ).toSeq.map(
         stringToChannel)
+    val emailNumRetries = conf.getInt("num_retries")
+    val emailRetryInterval = conf.getInt("retry_interval")
     new EmailNotificationConfig(
       emailRecipients,
       emailSender,
       emailSMTPHost,
       emailSMTPPort,
       emailPrefix,
+      emailNumRetries,
+      emailRetryInterval,
       emailChannels
     )
   }
@@ -48,5 +52,7 @@ case class EmailNotificationConfig(
   val emailSMTPHost: String,
   val emailSMTPPort: Int,
   val emailPrefix: String,
+  val emailNumRetries: Int,
+  val emailRetryInterval: Int,
   val channels: Seq[NotificationChannel]) extends NotificationConfig {
 }

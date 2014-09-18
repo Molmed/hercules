@@ -19,7 +19,7 @@ object TestActor extends ActorFactory {
 }
 
 class TestActor (
-  clusterClient: ActorRef) extends HerculesActor with Notifier {
+  clusterClient: ActorRef) extends HerculesActor {
     notice.info("Info: TestActor is launched")
     notice.warning("Warning: TestActor is launched")
     notice.progress("Progress: TestActor is launched")
