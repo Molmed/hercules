@@ -27,12 +27,16 @@ class SisyphusDemultiplexingExecutorActor(demultiplexer: Demultiplexer) extends 
 
       log.info(s"Starting to demultiplex: $unit!")
 
-      val DemultiplexingResult(exitStatus, logFile) =
+      val DemultiplexingResult(success, logFile) =
         demultiplexer.demultiplex(unit)
 
-      if (exitStatus == 0)
+      if (success) {
+        log.info("Successfully demultiplexed: " + unit)
         sender ! FinishedDemultiplexingProcessingUnitMessage(unit)
+      }
+        
       else {
+        log.info("Failed in demultiplexing: " + unit)
         demultiplexer.cleanup(unit)
         val logText =
           if (logFile.isDefined)
