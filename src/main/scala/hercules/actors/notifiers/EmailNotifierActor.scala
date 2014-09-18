@@ -2,33 +2,16 @@ package hercules.actors.notifiers
 
 import akka.actor.Props
 import akka.actor.ActorRef
+import akka.event.Logging
 import akka.contrib.pattern.ClusterClient.SendToAll
 import scala.concurrent.duration._
 import hercules.config.notification.EmailNotificationConfig
-import hercules.entities.notification.EmailNotificationUnit
-import hercules.actors.utils.MasterLookup
-import hercules.protocols.HerculesMainProtocol
-import akka.actor.ActorSystem
+import hercules.entities.notification._
+import hercules.protocols._
+import com.typesafe.config.ConfigFactory
+import akka.actor.ActorLogging
 
-object EmailNotifierActor extends MasterLookup {
-
-  /**
-   * Initiate all the stuff needed to start a EmailNotifierActor
-   * including initiating the system.
-   */
-
-  def startEmailNotifierActor(): ActorRef = {
-
-    val system = ActorSystem("EmailNotifierSystem")
-    
-    val clusterClient = getMasterClusterClient(system)
-
-    val selfref = system.actorOf(
-      props(clusterClient), 
-      "EmailNotifierActor"
-    )
-  }
-
+object EmailNotifierActor extends ActorFactory {
   /**
    * Create a new EmailNotifierActor
    * @param clusterClient A reference to a cluster client thorough which the
@@ -36,18 +19,20 @@ object EmailNotifierActor extends MasterLookup {
    */
   def props(clusterClient: ActorRef): Props = {
     Props(new EmailNotifierActor(clusterClient))
-  }
-  
+  }  
 }
 
 class EmailNotifierActor(
   clusterClient: ActorRef) extends NotifierActor {
 
+  var failedNotifications: Set[NotificationUnit] = Set()
+  var sentNotifications: Set[NotificationUnit] = Set()
+
   import HerculesMainProtocol._
 
   // Get a EmailNotifierConfig object
   val emailConfig = EmailNotificationConfig.getEmailNotificationConfig(
-    context.system.settings.config.getConfig("email")
+    ConfigFactory.load().getConfig("notifications.email")
   )
   // Spawn an executor object that will do the work for us
   val notifierRouter = context.actorOf(
@@ -57,69 +42,45 @@ class EmailNotifierActor(
   )
 
   import context.dispatcher
-
-  // Request new work periodically
-  val requestWork =
-    context.system.scheduler.schedule(
-      10.seconds, 
-      10.seconds, 
-      self,
-      RequestNotificationUnitMessage()
-    )
-
-	// Create some artificial tasks
-	val createWork =
-    	context.system.scheduler.schedule(
-      	60.seconds, 
-      	300.seconds, 
-      	self,
-      	SendNotificationUnitMessage(new EmailNotificationUnit("Generated work"))
-    )
-
-	
-
-  // Make sure that the scheduled event stops if the actors does.
-  override def postStop() = {
-    requestWork.cancel()
-  }
+  import NotificationChannelProtocol._
   
   def receive = {
     
     // We've received a request to send a notification
     case message: SendNotificationUnitMessage => {
-      // Check if the notification unit is an email
+      // Check if the message unit is already an EmailNotificationUnit or if we need to wrap it
       message.unit match {
         case unit: EmailNotificationUnit => {
           log.info(self.getClass().getName() + " will attempt for the " + unit.attempts + " time to deliver " + unit.getClass().getName() + " message: " + unit.message)
-          // Acknowledge to sender that we will take this
-          sender ! Acknowledge
           // Pass the message to the executor
           notifierRouter ! message
         }
-        // If message unit is not an EmailNotificationUnit, we'll reject it 
-        case unit => {  
-          log.info(self.getClass().getName() + " will not process NotificationUnit of type " + unit.getClass().getName() + ", rejecting")
-          sender ! Reject
+        // Wrap the notification unit to an email
+        case unit: NotificationUnit => {
+          // Check if the notification unit is in a channel that we will pay attention to
+          if (emailConfig.channels.contains(message.unit.channel)) {
+            // Wrap the message and send it to self
+            self ! new SendNotificationUnitMessage(EmailNotificationUnit.wrapNotificationUnit(message.unit))
+          }
+          else {
+            log.info(self.getClass().getSimpleName() + " does not listen to the " + message.unit.channel + " channel and will ignore message")
+          }
         }
       }
     }
-    // If we receive a failure message, pass it on to the master
+    // If we receive a failure message, log the failure and add it to the failed set
     case message: FailedNotificationUnitMessage => {
-      log.info(self.getClass().getName() + " passes failed  " + message.unit.getClass().getName() + " on up to master")
-      clusterClient ! SendToAll("/user/master/active",message)
+      log.info(self.getClass.getSimpleName + " received a " + message.getClass.getSimpleName + " reason: " + message.reason)
+      failedNotifications = failedNotifications + message.unit
     }
-    // If we receive a send confirmation message, pass it on to master
+    // If we receive a send confirmation message, add the message to the sent set
     case message: SentNotificationUnitMessage => {
-      log.info(self.getClass().getName() + " passes sent  " + message.unit.getClass().getName() + " on up to master")
-      clusterClient ! SendToAll("/user/master/active",message)
+      log.info(self.getClass.getSimpleName + " received a " + message.unit.getClass.getSimpleName)
+      sentNotifications = sentNotifications + message.unit
     }
-    // If we receive a request for messages to send, pass it on to master
-    case message: RequestNotificationUnitMessage => {
-      log.info(self.getClass().getName() + " passes " + message.getClass().getName() + " on up to master")
-      clusterClient ! SendToAll("/user/master/active",message)
-    }
+    // If not a NotificationUnitMessage, we will ignore it
     case message => {
-      log.info(self.getClass().getName() + " received a " + message.getClass().getName() + " message: " + message.toString() + " and ignores it")
+      log.info(self.getClass.getSimpleName + " received a " + message.getClass.getSimpleName + " and ignores it")
     }
   }
 }

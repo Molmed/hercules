@@ -4,7 +4,7 @@ import hercules.actors.demultiplexing.IlluminaDemultiplexingActor
 import hercules.actors.masters.SisyphusMasterActor
 import hercules.actors.processingunitwatcher.IlluminaProcessingUnitWatcherActor
 import hercules.actors.interactive.InteractiveActor
-import hercules.actors.notifiers.EmailNotifierActor
+import hercules.actors.notifiers.TestActor
 
 /**
  * The main entry point for the application
@@ -66,7 +66,7 @@ object Hercules extends App {
       case Some(RunMaster) =>
         SisyphusMasterActor.startSisyphusMasterActor()
       case Some(RunNotifier) => 
-        EmailNotifierActor.startEmailNotifierActor()
+        TestActor.startInstance("TestActor")
       case Some(RunDemultiplexter) =>
         IlluminaDemultiplexingActor.startIlluminaDemultiplexingActor()
       case Some(RunRunfolderWatcher) =>

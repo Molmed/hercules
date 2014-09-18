@@ -43,9 +43,8 @@ class EmailNotifierExecutorActor(
             	parentActor ! SentNotificationUnitMessage(unit)
             }
             case Failure(t) => {
-            	unit.attempts = unit.attempts + 1
-          		log.info(self.getClass().getName() + " failed sending a " + unit.getClass().getName() + " for the " + unit.attempts + " time")
-            	parentActor ! FailedNotificationUnitMessage(unit,t.getMessage)
+          		log.info(self.getClass().getName() + " failed sending a " + unit.getClass().getName() + " for the " + (unit.attempts+1) + " time")
+            	parentActor ! FailedNotificationUnitMessage(unit.copy(attempts = unit.attempts + 1),t.getMessage)
             }
           }
         }

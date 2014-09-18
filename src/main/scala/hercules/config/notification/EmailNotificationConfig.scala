@@ -3,11 +3,12 @@ package hercules.config.notification
 import com.typesafe.config.Config
 import java.util.List
 import scala.collection.JavaConversions._
+import hercules.protocols.NotificationChannelProtocol._
 
 object EmailNotificationConfig {
 
   /** Create and return a EmailNotificationConfig from the supplied 
-   *  configuration. If necessary, provide default values for missing options.
+   *  configuration.
    */
   def getEmailNotificationConfig(conf: Config): EmailNotificationConfig = {
     val emailRecipients = asScalaBuffer(conf.getStringList("recipients")).toSeq
@@ -15,15 +16,27 @@ object EmailNotificationConfig {
     val emailSMTPHost = conf.getString("smtp_host")
     val emailSMTPPort = conf.getInt("smtp_port")
     val emailPrefix = conf.getString("prefix")
+    val emailChannels = asScalaBuffer(
+      conf.getStringList("channels")
+      ).toSeq.map(
+        stringToChannel)
     new EmailNotificationConfig(
       emailRecipients,
       emailSender,
       emailSMTPHost,
       emailSMTPPort,
-      emailPrefix
+      emailPrefix,
+      emailChannels
     )
   }
   
+  def stringToChannel(str:String): NotificationChannel = str match {
+    case "progress" => Progress
+    case "info" => Info
+    case "warning" => Warning
+    case "critical" => Critical
+  }
+
 }
 
 /**
@@ -34,5 +47,6 @@ case class EmailNotificationConfig(
   val emailSender: String,
   val emailSMTPHost: String,
   val emailSMTPPort: Int,
-  val emailPrefix: String) extends NotificationConfig {
+  val emailPrefix: String,
+  val channels: Seq[NotificationChannel]) extends NotificationConfig {
 }

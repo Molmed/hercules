@@ -53,7 +53,6 @@ object HerculesMainProtocol {
     val unit: NotificationUnit
   }
   
-  case class RequestNotificationUnitMessage extends HerculesMessage
   case class SendNotificationUnitMessage(unit: NotificationUnit) extends NotificationUnitMessage
   case class SentNotificationUnitMessage(unit: NotificationUnit) extends NotificationUnitMessage
   case class FailedNotificationUnitMessage(unit: NotificationUnit, reason: String) extends NotificationUnitMessage
