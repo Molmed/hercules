@@ -31,6 +31,7 @@ import scala.concurrent.duration._
 import akka.contrib.pattern.ClusterClient.SendToAll
 import akka.japi.Util.immutableSeq
 import akka.contrib.pattern.ClusterReceptionist
+import hercules.test.utils.FakeMaster
 
 class IlluminaProcessingUnitWatcherActorTest
     extends TestKit(
@@ -60,21 +61,6 @@ class IlluminaProcessingUnitWatcherActorTest
         new File("DefaultQC"),
         Some(new File("DefaultProg"))),
       new URI("/path/to/runfolder2")))
-
-  object FakeMaster {
-    def props(testProbe: ActorRef): Props = Props(new FakeMaster(testProbe))
-  }
-
-  class FakeMaster(testProbe: ActorRef) extends Actor with ActorLogging {
-    // The master will register it self to the cluster receptionist.
-    ClusterReceptionistExtension(context.system).registerService(self)
-
-    def receive() = {
-      case msg => {
-        testProbe.tell(msg, sender)
-      }
-    }
-  }
 
   object FakeExecutor {
     def props(): Props = {
@@ -137,7 +123,7 @@ class IlluminaProcessingUnitWatcherActorTest
     val initialContacts = List("akka.tcp://ClusterSystem@127.0.0.1:2551").map {
       case AddressFromURIString(addr) ⇒ masterSystem.actorSelection(RootActorPath(addr) / "user" / "receptionist")
     }.toSet
-    
+
     masterSystem.actorOf(ClusterClient.props(initialContacts), "clusterClient")
     val clusterClient = masterSystem.actorOf(ClusterClient.props(initialContacts))
 
