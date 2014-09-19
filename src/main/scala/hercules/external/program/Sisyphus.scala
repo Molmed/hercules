@@ -44,15 +44,19 @@ class Sisyphus() extends Demultiplexer with ExternalProgram {
 
     val writer =
       new PrintWriter(
-        new BufferedWriter(
-          new FileWriter(logFile, true)))
+        new FileWriter(logFile, true))
 
     // Drop a time stamp for the sisyphus run attempt.
     writer.println("--------------------------------------------------")
     writer.println(Formats.date.format(new Date()))
     writer.println("--------------------------------------------------")
-    
-    val exitStatus = command.!(ProcessLogger(writer.println, writer.println))
+
+    def writeAndFlush(s: String) = {
+      writer.println(s)
+      writer.flush()
+    }
+
+    val exitStatus = command.!(ProcessLogger({ s => writeAndFlush(s) }, { s => writeAndFlush(s) }))
 
     writer.close()
 
