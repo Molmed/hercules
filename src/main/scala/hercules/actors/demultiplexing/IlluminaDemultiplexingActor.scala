@@ -14,6 +14,7 @@ import hercules.protocols.HerculesMainProtocol.FinishedDemultiplexingProcessingU
 import hercules.protocols.HerculesMainProtocol.Reject
 import hercules.protocols.HerculesMainProtocol.StringMessage
 import akka.actor.ActorSystem
+import com.typesafe.config.Config
 
 object IlluminaDemultiplexingActor extends MasterLookup {
 
@@ -21,11 +22,14 @@ object IlluminaDemultiplexingActor extends MasterLookup {
    * Initiate all the stuff needed to start a IlluminaDemultiplexingActor
    * including initiating the system.
    */
-  def startIlluminaDemultiplexingActor(): Unit = {
-    val system = ActorSystem("IlluminaDemultiplexingActor")
+  def startIlluminaDemultiplexingActor(
+    system: ActorSystem = ActorSystem("IlluminaDemultiplexingSystem"),
+    executor: Props = SisyphusDemultiplexingExecutorActor.props(),
+    clusterClientCustomConfig: () => Config = getDefaultConfig,
+    getClusterClient: (ActorSystem, Config) => ActorRef = getDefaultClusterClient): ActorRef = {
 
-    val clusterClient = getMasterClusterClient(system)
-    val props = IlluminaDemultiplexingActor.props(clusterClient)
+    val clusterClient = getMasterClusterClient(system, clusterClientCustomConfig, getClusterClient)
+    val props = IlluminaDemultiplexingActor.props(clusterClient, executor)
     system.actorOf(props, "demultiplexer")
   }
 
@@ -33,9 +37,13 @@ object IlluminaDemultiplexingActor extends MasterLookup {
    * Create a new IlluminaDemultiplexingActor
    * @param clusterClient A reference to a cluster client thorough which the
    *                      actor will communicate with the rest of the cluster.
+   * @param demultiplexingExecutor to use. Will default to the SisyphusDemultiplexingExecutorActor
    */
-  def props(clusterClient: ActorRef): Props = {
-    Props(new IlluminaDemultiplexingActor(clusterClient))
+  def props(
+    clusterClient: ActorRef,
+    demultiplexingExecutor: Props = SisyphusDemultiplexingExecutorActor.props()): Props = {
+
+    Props(new IlluminaDemultiplexingActor(clusterClient, demultiplexingExecutor))
   }
 }
 
@@ -45,18 +53,18 @@ object IlluminaDemultiplexingActor extends MasterLookup {
  * should do the actual work.
  * @param clusterClient A reference to a cluster client thorough which the
  *                      actor will communicate with the rest of the cluster.
+ * @param demultiplexingExecutor The executor to use
  */
-class IlluminaDemultiplexingActor(clusterClient: ActorRef) extends DemultiplexingActor {
+class IlluminaDemultiplexingActor(
+    clusterClient: ActorRef,
+    demultiplexingExecutor: Props) extends DemultiplexingActor {
 
   import HerculesMainProtocol._
 
   //@TODO Make the number of demultiplexing instances started configurable.
-
-  //@TODO Make it possible to switch executor implementation
-  // Right now I'll just fix the sisyphus one. /JD 11/9 2014
   val demultiplexingRouter =
     context.actorOf(
-      SisyphusDemultiplexingExecutorActor.props().
+      demultiplexingExecutor.
         withRouter(RoundRobinRouter(nrOfInstances = 2)),
       "SisyphusDemultiplexingExecutor")
 
@@ -89,23 +97,19 @@ class IlluminaDemultiplexingActor(clusterClient: ActorRef) extends Demultiplexin
 
       val pathToTheRunfolder = new File(message.unit.uri)
       if (pathToTheRunfolder.exists()) {
-        log.info("Found the runfolder and will acknowlede message.")
+        log.info("Found the runfolder and will acknowlede message to sender: " + sender)
         sender ! Acknowledge
         demultiplexingRouter ! message
-      } else
+      } else {
+        log.info("Didn't find the runfolder. Will REJECT: " + message.unit)
         sender ! Reject
-
+      }
     }
 
     case message: FinishedDemultiplexingProcessingUnitMessage =>
+      log.info("Got a FinishedDemultiplexingProcessingUnitMessage will forward it to the master.")
       clusterClient ! SendToAll("/user/master/active",
         message)
-
-    case StringMessage(s) => {
-      log.info("Got a StringMessage: " + s)
-    }
-
-    case _ => log.info("IlluminaDemultiplexingActor got a message!")
   }
 
 }

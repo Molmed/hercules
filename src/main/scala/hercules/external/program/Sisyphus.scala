@@ -7,12 +7,20 @@ import scala.sys.process.ProcessIO
 import java.io.ByteArrayOutputStream
 import org.apache.commons.io.FileUtils
 import com.typesafe.config.ConfigFactory
+import hercules.demultiplexing.Demultiplexer
+import hercules.demultiplexing.DemultiplexingResult
+import hercules.demultiplexing.DemultiplexingResult
 
-class Sisyphus() extends ExternalProgram {
+class Sisyphus() extends Demultiplexer with ExternalProgram  {
 
   val config = ConfigFactory.load()
   val sisyphusInstallLocation = config.getString("general.sisyphusInstallLocation")
   val sisyphusLogLocation = config.getString("general.sisyphusLogLocation")
+
+  def demultiplex(unit: ProcessingUnit): DemultiplexingResult = {
+    val (exitStatus, logFile) = run(unit)
+    new DemultiplexingResult(exitStatus, Some(logFile))
+  }
 
   def run(unit: ProcessingUnit): (Boolean, File) = {
 
