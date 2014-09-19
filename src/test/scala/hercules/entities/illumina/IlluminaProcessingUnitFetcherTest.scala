@@ -53,7 +53,7 @@ class IlluminaProcessingUnitFetcherTest extends FlatSpec with Matchers with Befo
     "140812_M00485_0148_000000000-AA3LB",
     "140821_D00458_0030_BC4F53ANXX",
     "140822_M00485_0150_000000000-A9YTW").
-    map(x => new File(runfolderRoot + "/" + x))
+    map(x => new File(runfolderRoot + "/" + x)).sorted
 
   def createMinimalRunParametersXml(runfolder: File) = {
     val runParameters = new File(runfolder + "/RunParameters.xml")
