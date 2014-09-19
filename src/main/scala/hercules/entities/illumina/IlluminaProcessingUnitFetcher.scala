@@ -87,6 +87,11 @@ class IlluminaProcessingUnitFetcher() extends ProcessingUnitFetcher[IlluminaProc
      * Search for a samplesheet matching the found runfolder.
      */
     def searchForSamplesheet(runfolder: File): Option[File] = {
+      
+      require(
+          config.sampleSheetRoot.exists(),
+          s"${config.sampleSheetRoot} does not exist! Create it or provide a valid value in application.conf")
+      
       val runfolderName = runfolder.getName()
 
       val samplesheet = config.sampleSheetRoot.listFiles().
@@ -123,7 +128,7 @@ class IlluminaProcessingUnitFetcher() extends ProcessingUnitFetcher[IlluminaProc
      */
     def getQCConfig(runfolder: File): Option[File] = {
 
-      assert(config.customQCConfigRoot.exists() && config.customQCConfigRoot.isDirectory(),
+      require(config.customQCConfigRoot.exists() && config.customQCConfigRoot.isDirectory(),
         config.customQCConfigRoot.getAbsolutePath() + " does not exist!")
 
       val customFile =
@@ -160,7 +165,7 @@ class IlluminaProcessingUnitFetcher() extends ProcessingUnitFetcher[IlluminaProc
      */
     def getProgramConfig(runfolder: File): Option[File] = {
 
-      assert(config.customProgramConfigRoot.exists() && config.customProgramConfigRoot.isDirectory(),
+      require(config.customProgramConfigRoot.exists() && config.customProgramConfigRoot.isDirectory(),
         config.customProgramConfigRoot.getAbsolutePath() + " does not exist!")
 
       val customFile =
@@ -178,8 +183,8 @@ class IlluminaProcessingUnitFetcher() extends ProcessingUnitFetcher[IlluminaProc
           Some(config.defaultProgramConfigFile)
         else
           throw new FileNotFoundException(
-            "Didn't find default qc config file: " +
-              config.defaultQCConfigFile.getAbsolutePath())
+            "Didn't find default program config file: " +
+              config.defaultProgramConfigFile.getAbsolutePath())
       }
     }
 
