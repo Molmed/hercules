@@ -1,17 +1,24 @@
 package hercules.external.program
 
-import hercules.entities.ProcessingUnit
+import java.io.BufferedWriter
 import java.io.File
+import java.io.FileWriter
 import java.io.PrintWriter
-import scala.sys.process.ProcessIO
-import java.io.ByteArrayOutputStream
+import java.util.Date
+
+import scala.sys.process.ProcessLogger
+import scala.sys.process.stringToProcess
+
 import org.apache.commons.io.FileUtils
+
 import com.typesafe.config.ConfigFactory
+
 import hercules.demultiplexing.Demultiplexer
 import hercules.demultiplexing.DemultiplexingResult
-import hercules.demultiplexing.DemultiplexingResult
+import hercules.entities.ProcessingUnit
+import hercules.utils.Formats
 
-class Sisyphus() extends Demultiplexer with ExternalProgram  {
+class Sisyphus() extends Demultiplexer with ExternalProgram {
 
   val config = ConfigFactory.load()
   val sisyphusInstallLocation = config.getString("general.sisyphusInstallLocation")
@@ -35,9 +42,21 @@ class Sisyphus() extends Demultiplexer with ExternalProgram  {
         " -runfolder " + runfolder.getAbsolutePath() +
         " -nowait "
 
-    val writer = new PrintWriter(logFile)
+    val writer =
+      new PrintWriter(
+        new FileWriter(logFile, true))
 
-    val exitStatus = command.!(ProcessLogger(writer.println, writer.println))
+    // Drop a time stamp for the sisyphus run attempt.
+    writer.println("--------------------------------------------------")
+    writer.println(Formats.date.format(new Date()))
+    writer.println("--------------------------------------------------")
+
+    def writeAndFlush(s: String) = {
+      writer.println(s)
+      writer.flush()
+    }
+
+    val exitStatus = command.!(ProcessLogger({ s => writeAndFlush(s) }, { s => writeAndFlush(s) }))
 
     writer.close()
 

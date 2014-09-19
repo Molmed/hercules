@@ -20,7 +20,7 @@ object SisyphusDemultiplexingExecutorActor {
  * Concrete executor implementation for demultiplexing using Sisyphus
  * This one can lock while doing it work.
  */
-class SisyphusDemultiplexingExecutorActor(demultiplexer: Demultiplexer) extends HerculesActor {
+class SisyphusDemultiplexingExecutorActor(demultiplexer: Demultiplexer) extends DemultiplexingActor {
 
   def receive = {
     case StartDemultiplexingProcessingUnitMessage(unit) => {
