@@ -41,7 +41,6 @@ class IlluminaDemultiplexingActorTest extends TestKit(
       withFallback(ConfigFactory.parseString("""seed-nodes = ["akka.tcp://ClusterSystem@127.0.0.1:1337"]""")).
       withFallback(ConfigFactory.load())))
     with FlatSpecLike
-    with ImplicitSender
     with BeforeAndAfterAll
     with Matchers {
 
@@ -133,8 +132,8 @@ class IlluminaDemultiplexingActorTest extends TestKit(
 
     demultiplexer ! HerculesMainProtocol.RequestDemultiplexingProcessingUnitMessage()
 
-    within(10.seconds) {
-      expectMsg(HerculesMainProtocol.RequestDemultiplexingProcessingUnitMessage)
+    within(20.seconds) {
+      expectMsg(FakeMaster.MasterWrapped(HerculesMainProtocol.RequestDemultiplexingProcessingUnitMessage))
     }
   }
 
@@ -142,7 +141,7 @@ class IlluminaDemultiplexingActorTest extends TestKit(
 
     // Create the dir so that it can be found.
     runfolder.mkdirs()
-    demultiplexer ! HerculesMainProtocol.StartDemultiplexingProcessingUnitMessage(processingUnit)
+    demultiplexer.tell(HerculesMainProtocol.StartDemultiplexingProcessingUnitMessage(processingUnit), testActor)
 
     within(10.seconds) {
       expectMsg(HerculesMainProtocol.Acknowledge)
@@ -152,20 +151,19 @@ class IlluminaDemultiplexingActorTest extends TestKit(
   }
 
   it should "reject request to start demultiplexing if it cannot find the unit" in {
-    demultiplexer ! HerculesMainProtocol.StartDemultiplexingProcessingUnitMessage(processingUnit)
+    demultiplexer.tell(HerculesMainProtocol.StartDemultiplexingProcessingUnitMessage(processingUnit), testActor)
 
     within(10.seconds) {
       expectMsg(HerculesMainProtocol.Reject)
     }
-
   }
 
   it should "pass any FinishedDemultiplexingProcessingUnitMessage on to the master" in {
 
     demultiplexer.tell(HerculesMainProtocol.FinishedDemultiplexingProcessingUnitMessage(processingUnit), testActor)
 
-    within(30.seconds) {
-      expectMsg(HerculesMainProtocol.FinishedDemultiplexingProcessingUnitMessage(processingUnit))
+    within(10.seconds) {
+      expectMsg(FakeMaster.MasterWrapped(HerculesMainProtocol.FinishedDemultiplexingProcessingUnitMessage(processingUnit)))
     }
 
   }

@@ -7,6 +7,7 @@ import akka.actor.ActorLogging
 import akka.contrib.pattern.ClusterReceptionistExtension
 
 object FakeMaster {
+  case class MasterWrapped(msg: Any)
   def props(testProbe: ActorRef): Props = Props(new FakeMaster(testProbe))
 }
 
@@ -16,7 +17,7 @@ class FakeMaster(testProbe: ActorRef) extends Actor with ActorLogging {
 
   def receive() = {
     case msg => {
-      testProbe.tell(msg, sender)
+      testProbe.tell(FakeMaster.MasterWrapped(msg), sender)
     }
   }
 }

@@ -73,7 +73,7 @@ class IlluminaDemultiplexingActor(
   //@TODO Make request new work period configurable.
   // Request new work periodically
   val requestWork =
-    context.system.scheduler.schedule(5.seconds, 3.seconds, self, {
+    context.system.scheduler.schedule(10.seconds, 10.seconds, self, {
       HerculesMainProtocol.RequestDemultiplexingProcessingUnitMessage
     })
 
@@ -100,9 +100,10 @@ class IlluminaDemultiplexingActor(
         log.info("Found the runfolder and will acknowlede message to sender: " + sender)
         sender ! Acknowledge
         demultiplexingRouter ! message
-      } else
-        log.info("Didn't find the runfolder. Will reject: " + message.unit)
+      } else {
+        log.info("Didn't find the runfolder. Will REJECT: " + message.unit)
         sender ! Reject
+      }
     }
 
     case message: FinishedDemultiplexingProcessingUnitMessage =>

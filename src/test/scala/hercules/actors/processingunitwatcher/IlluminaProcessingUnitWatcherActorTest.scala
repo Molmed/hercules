@@ -146,8 +146,8 @@ class IlluminaProcessingUnitWatcherActorTest
         getClusterClient = (_, _) => clusterClient)
 
     within(10.seconds) {
-      expectMsg(HerculesMainProtocol.FoundProcessingUnitMessage(processingUnits(0)))
-      expectMsg(HerculesMainProtocol.FoundProcessingUnitMessage(processingUnits(1)))
+      expectMsg(FakeMaster.MasterWrapped(HerculesMainProtocol.FoundProcessingUnitMessage(processingUnits(0))))
+      expectMsg(FakeMaster.MasterWrapped(HerculesMainProtocol.FoundProcessingUnitMessage(processingUnits(1))))
     }
   }
 }
