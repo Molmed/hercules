@@ -118,6 +118,13 @@ cd $INSTALL
 sudo patch -p1 --dry-run < /vagrant/test_system/bcl2fastq.patch && \
     sudo patch -p1 < /vagrant/test_system/bcl2fastq.patch
 
+
+#Create dir used by Hercules to look for config, etc.
+sudo mkdir -p /srv/samplesheet/processning
+sudo mkdir -p /srv/qc_config/custom
+sudo mkdir -p /srv/program_config/custom/
+sudo chown -R vagrant:vagrant /srv/
+
 SCRIPT
 
 
