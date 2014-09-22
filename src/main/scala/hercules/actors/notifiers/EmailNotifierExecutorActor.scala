@@ -23,7 +23,7 @@ class EmailNotifierExecutorActor(
   
   def receive = {
     case message: SendNotificationUnitMessage => {
-      log.info(self.getClass().getName() + " received a " + message.getClass().getName() + " with a " + message.unit.getClass().getName())
+      log.debug(self.getClass().getName() + " received a " + message.getClass().getName() + " with a " + message.unit.getClass().getName())
       message.unit match {
         case unit: EmailNotificationUnit => {
           // Keep the reference to sender available for the future
@@ -31,11 +31,11 @@ class EmailNotifierExecutorActor(
           // If we manage to send the message, send a confirmation
           val emailDelivery = EmailNotificationUnit.sendNotification(
           	unit,
-          	emailConfig.emailRecipients,
-          	emailConfig.emailSender,
-          	emailConfig.emailPrefix,
-          	emailConfig.emailSMTPHost,
-          	emailConfig.emailSMTPPort
+          	emailConfig.recipients,
+          	emailConfig.sender,
+          	emailConfig.prefix,
+          	emailConfig.smtpHost,
+          	emailConfig.smtpPort
           )
           emailDelivery onComplete {
           	case Success(_) => {
@@ -43,18 +43,18 @@ class EmailNotifierExecutorActor(
             	parentActor ! SentNotificationUnitMessage(unit)
             }
             case Failure(t) => {
-          		log.info(self.getClass().getName() + " failed sending a " + unit.getClass().getName() + " for the " + (unit.attempts+1) + " time")
+          		log.warning(self.getClass().getName() + " failed sending a " + unit.getClass().getName() + " for the " + (unit.attempts+1) + " time")
             	parentActor ! FailedNotificationUnitMessage(unit.copy(attempts = unit.attempts + 1),t.getMessage)
             }
           }
         }
         case message => {
-          log.info(self.getClass().getName() + " received a " + message.getClass().getName() + " message: " + message.toString() + " and ignores it")
+          log.debug(self.getClass().getName() + " received a " + message.getClass().getName() + " message: " + message.toString() + " and ignores it")
         }
       } 
     }
     case message => {
-      log.info(self.getClass().getName() + " received a " + message.getClass().getName() + " message: " + message.toString() + " and ignores it")
+      log.debug(self.getClass().getName() + " received a " + message.getClass().getName() + " message: " + message.toString() + " and ignores it")
     }
   }
 } 

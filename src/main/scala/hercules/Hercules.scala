@@ -4,7 +4,6 @@ import hercules.actors.demultiplexing.IlluminaDemultiplexingActor
 import hercules.actors.masters.SisyphusMasterActor
 import hercules.actors.processingunitwatcher.IlluminaProcessingUnitWatcherActor
 import hercules.actors.interactive.InteractiveActor
-import hercules.actors.notifiers.TestActor
 
 /**
  * The main entry point for the application
@@ -21,7 +20,6 @@ object Hercules extends App {
   case object RunDemultiplexter extends Command
   case object RunRunfolderWatcher extends Command
   case object RunInteractive extends Command
-  case object RunNotifier extends Command
 
   case class CommandLineOptions(
     applicationType: Option[Command] = None,
@@ -38,10 +36,6 @@ object Hercules extends App {
       c.copy(applicationType = Some(RunDemultiplexter))
     }
 
-    cmd("notifier") action { (_, c) =>
-      c.copy(applicationType = Some(RunNotifier))
-    }
-
     cmd("watcher") action { (_, c) =>
       c.copy(applicationType = Some(RunRunfolderWatcher))
     }
@@ -54,10 +48,6 @@ object Hercules extends App {
           c.copy(unitName = Some(x))
         }))
         
-    cmd("notifier") action { (_, c) =>
-      c.copy(applicationType = Some(RunNotifier))
-    }
-    
   }
 
   parser.parse(args, CommandLineOptions()) map { config =>
@@ -65,8 +55,6 @@ object Hercules extends App {
     config.applicationType match {
       case Some(RunMaster) =>
         SisyphusMasterActor.startSisyphusMasterActor()
-      case Some(RunNotifier) => 
-        TestActor.startInstance()
       case Some(RunDemultiplexter) =>
         IlluminaDemultiplexingActor.startIlluminaDemultiplexingActor()
       case Some(RunRunfolderWatcher) =>

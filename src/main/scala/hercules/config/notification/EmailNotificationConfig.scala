@@ -47,12 +47,12 @@ object EmailNotificationConfig {
  * Base class for configuring an email notification
  */
 case class EmailNotificationConfig(
-  val emailRecipients: Seq[String],
-  val emailSender: String,
-  val emailSMTPHost: String,
-  val emailSMTPPort: Int,
-  val emailPrefix: String,
-  val emailNumRetries: Int,
-  val emailRetryInterval: Int,
+  val recipients: Seq[String],
+  val sender: String,
+  val smtpHost: String,
+  val smtpPort: Int,
+  val prefix: String,
+  val numRetries: Int,
+  val retryInterval: Int,
   val channels: Seq[NotificationChannel]) extends NotificationConfig {
 }
