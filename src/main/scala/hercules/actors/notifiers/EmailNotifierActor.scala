@@ -2,6 +2,7 @@ package hercules.actors.notifiers
 
 import akka.actor.Props
 import akka.actor.ActorRef
+import akka.actor.ActorSystem
 import akka.event.Logging
 import akka.contrib.pattern.ClusterClient.SendToAll
 import scala.concurrent.duration._
