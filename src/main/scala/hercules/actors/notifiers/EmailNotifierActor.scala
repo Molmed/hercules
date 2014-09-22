@@ -21,8 +21,7 @@ object EmailNotifierActor {
    */
 
   def startInstance(
-    system: ActorSystem = ActorSystem("EmailNotifierSystem")
-    ): ActorRef = {
+    system: ActorSystem): ActorRef = {
       system.actorOf(
         props(), 
         "EmailNotifierActor"
