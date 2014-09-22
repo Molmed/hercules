@@ -1,9 +1,16 @@
 package hercules.actors.notifiers
 
-import hercules.actors.HerculesActor
+import akka.actor.Actor
+import akka.actor.ActorLogging
+import hercules.protocols.HerculesMainProtocol.HerculesMessage
 
 /**
  * Send notifications of events (e.g. email them or push cards around on a
- * trello board).
+ * trello board). All specific implementations of notifier Actors should extend
+ * the NotifierActor trait. Note that it does not extend the HerculesActor since
+ * that would cause circular dependencies (?)
  */
-trait NotifierActor extends HerculesActor {}
+trait NotifierActor extends Actor with ActorLogging {
+  sealed trait NotifierActorMessage
+  case object RetryFailedNotificationUnitsMessage extends NotifierActorMessage
+}

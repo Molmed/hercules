@@ -53,11 +53,9 @@ object HerculesMainProtocol {
     val unit: NotificationUnit
   }
   
-  case class RequestNotificationUnitMessage extends HerculesMessage
   case class SendNotificationUnitMessage(unit: NotificationUnit) extends NotificationUnitMessage
   case class SentNotificationUnitMessage(unit: NotificationUnit) extends NotificationUnitMessage
   case class FailedNotificationUnitMessage(unit: NotificationUnit, reason: String) extends NotificationUnitMessage
-
 
   //@TODO Extend this with all messages that we should to be able to send!
 

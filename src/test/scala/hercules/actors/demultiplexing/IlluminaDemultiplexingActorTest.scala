@@ -98,7 +98,7 @@ class IlluminaDemultiplexingActorTest extends TestKit(
     "master")
 
   val initialContacts = List("akka.tcp://ClusterSystem@127.0.0.1:2551").map {
-    case AddressFromURIString(addr) ⇒ masterSystem.actorSelection(RootActorPath(addr) / "user" / "receptionist")
+    case AddressFromURIString(addr) => masterSystem.actorSelection(RootActorPath(addr) / "user" / "receptionist")
   }.toSet
 
   masterSystem.actorOf(ClusterClient.props(initialContacts), "clusterClient")

@@ -1,6 +1,7 @@
 package hercules.actors.notifiers
 
 import akka.actor.Props
+import akka.event.LoggingReceive
 import hercules.actors.HerculesActor
 import hercules.config.notification.EmailNotificationConfig
 import hercules.entities.notification.EmailNotificationUnit
@@ -16,46 +17,38 @@ object EmailNotifierExecutorActor {
 }
 
 class EmailNotifierExecutorActor(
-  emailConfig: EmailNotificationConfig) extends HerculesActor {
+  emailConfig: EmailNotificationConfig) extends NotifierActor {
   
   import HerculesMainProtocol._
   import context.dispatcher
   
-  def receive = {
+  def receive = LoggingReceive {
     case message: SendNotificationUnitMessage => {
-      log.info(self.getClass().getName() + " received a " + message.getClass().getName() + " with a " + message.unit.getClass().getName())
       message.unit match {
         case unit: EmailNotificationUnit => {
-          // Not very nice solution to keep the reference to sender available for the future. Must be a better way to do this!
+          // Keep the reference to sender available for the future
           val parentActor = sender
           // If we manage to send the message, send a confirmation
           val emailDelivery = EmailNotificationUnit.sendNotification(
           	unit,
-          	emailConfig.emailRecipients,
-          	emailConfig.emailSender,
-          	emailConfig.emailPrefix,
-          	emailConfig.emailSMTPHost,
-          	emailConfig.emailSMTPPort
+          	emailConfig.recipients,
+          	emailConfig.sender,
+          	emailConfig.prefix,
+          	emailConfig.smtpHost,
+          	emailConfig.smtpPort
           )
           emailDelivery onComplete {
           	case Success(_) => {
-          		log.info(self.getClass().getName() + " sent a " + unit.getClass().getName() + " successfully")
+          		log.info(unit.getClass.getName + " sent successfully")
             	parentActor ! SentNotificationUnitMessage(unit)
             }
             case Failure(t) => {
-            	unit.attempts = unit.attempts + 1
-          		log.info(self.getClass().getName() + " failed sending a " + unit.getClass().getName() + " for the " + unit.attempts + " time")
-            	parentActor ! FailedNotificationUnitMessage(unit,t.getMessage)
+          		log.warning("Sending " + unit.getClass.getName + " failed for the " + (unit.attempts+1) + " time")
+            	parentActor ! FailedNotificationUnitMessage(unit.copy(attempts = unit.attempts + 1),t.getMessage)
             }
           }
         }
-        case message => {
-          log.info(self.getClass().getName() + " received a " + message.getClass().getName() + " message: " + message.toString() + " and ignores it")
-        }
       } 
-    }
-    case message => {
-      log.info(self.getClass().getName() + " received a " + message.getClass().getName() + " message: " + message.toString() + " and ignores it")
     }
   }
 } 

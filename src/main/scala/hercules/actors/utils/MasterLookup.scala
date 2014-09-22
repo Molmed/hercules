@@ -27,7 +27,7 @@ trait MasterLookup {
   def getDefaultClusterClient(system: ActorSystem, conf: Config): ActorRef = {
 
     val initialContacts = immutableSeq(conf.getStringList("master.contact-points")).map {
-      case AddressFromURIString(addr) ⇒ system.actorSelection(RootActorPath(addr) / "user" / "receptionist")
+      case AddressFromURIString(addr) => system.actorSelection(RootActorPath(addr) / "user" / "receptionist")
     }.toSet
 
     system.actorOf(ClusterClient.props(initialContacts), "clusterClient")
