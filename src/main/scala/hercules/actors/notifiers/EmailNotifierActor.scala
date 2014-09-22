@@ -5,6 +5,7 @@ import akka.actor.ActorRef
 import akka.actor.ActorSystem
 import akka.event.LoggingReceive
 import scala.concurrent.duration._
+import scala.util.Random
 import hercules.config.notification.EmailNotificationConfig
 import hercules.entities.notification._
 import hercules.protocols._
@@ -20,9 +21,10 @@ object EmailNotifierActor {
 
   def startInstance(
     system: ActorSystem): ActorRef = {
+      // Append a random string to the actor name to ensure it is unique
       system.actorOf(
         props(), 
-        "EmailNotifierActor"
+        "EmailNotifierActor_" + List.fill(8)((Random.nextInt(25)+97).toChar).mkString
       )
   }
 
@@ -39,11 +41,10 @@ object EmailNotifierActor {
 class EmailNotifierActor() extends NotifierActor {
 
   var failedNotifications: Set[EmailNotificationUnit] = Set()
-  var sentNotifications: Set[EmailNotificationUnit] = Set()
   var permanentlyFailedNotifications: Set[EmailNotificationUnit] = Set()
   
   import HerculesMainProtocol._
-
+  
   // Get a EmailNotifierConfig object
   val emailConfig = EmailNotificationConfig.getEmailNotificationConfig(
     ConfigFactory.load().getConfig("notifications.email")
@@ -65,18 +66,17 @@ class EmailNotifierActor() extends NotifierActor {
       Duration.create(emailConfig.retryInterval,"seconds"),
       Duration.create(emailConfig.retryInterval,"seconds"), 
       self, 
-      {RetryFailedNotificationUnitsMessage()})
+      RetryFailedNotificationUnitsMessage)
 
   // Make sure that the scheduled event stops if the actors does.
   override def postStop() = {
     resendFailed.cancel()
   }
   
-  
   def receive = LoggingReceive {
 
     // If we receive an instruction to retry failed messages, iterate over that set and send messages that have not met the limit for maximum number of retries
-    case _: RetryFailedNotificationUnitsMessage => {
+    case RetryFailedNotificationUnitsMessage => {
       // Send a notification message and remove the unit from the list
       failedNotifications.foreach(
         unit => {
@@ -106,20 +106,15 @@ class EmailNotifierActor() extends NotifierActor {
     case message: FailedNotificationUnitMessage => message.unit match {
       case unit: EmailNotificationUnit => {
         (unit.attempts - 1) match {
-          case emailConfig.numRetries => 
+          case retries if (emailConfig.numRetries > 0 && 
+              emailConfig.numRetries == retries) => {
+            log.warning("Giving up trying to send " + unit.getClass.getSimpleName)
             permanentlyFailedNotifications = permanentlyFailedNotifications + unit
+          }
           case _ =>
             failedNotifications = failedNotifications + unit
         }
       }
-    }
-
-    // If we receive a send confirmation message, add the message to the sent set
-    case message: SentNotificationUnitMessage => message.unit match {
-      case unit: EmailNotificationUnit => {
-        sentNotifications = sentNotifications + unit
-      }
-    }
-    
+    }    
   }
 }

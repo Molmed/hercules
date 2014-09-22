@@ -56,7 +56,6 @@ object HerculesMainProtocol {
   case class SendNotificationUnitMessage(unit: NotificationUnit) extends NotificationUnitMessage
   case class SentNotificationUnitMessage(unit: NotificationUnit) extends NotificationUnitMessage
   case class FailedNotificationUnitMessage(unit: NotificationUnit, reason: String) extends NotificationUnitMessage
-  case class RetryFailedNotificationUnitsMessage extends HerculesMessage
 
   //@TODO Extend this with all messages that we should to be able to send!
 
