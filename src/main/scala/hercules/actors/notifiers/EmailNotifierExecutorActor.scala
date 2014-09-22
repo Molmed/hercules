@@ -1,6 +1,7 @@
 package hercules.actors.notifiers
 
 import akka.actor.Props
+import akka.event.LoggingReceive
 import hercules.actors.HerculesActor
 import hercules.config.notification.EmailNotificationConfig
 import hercules.entities.notification.EmailNotificationUnit
@@ -21,9 +22,8 @@ class EmailNotifierExecutorActor(
   import HerculesMainProtocol._
   import context.dispatcher
   
-  def receive = {
+  def receive = LoggingReceive {
     case message: SendNotificationUnitMessage => {
-      log.debug(self.getClass().getName() + " received a " + message.getClass().getName() + " with a " + message.unit.getClass().getName())
       message.unit match {
         case unit: EmailNotificationUnit => {
           // Keep the reference to sender available for the future
@@ -39,22 +39,16 @@ class EmailNotifierExecutorActor(
           )
           emailDelivery onComplete {
           	case Success(_) => {
-          		log.info(self.getClass().getName() + " sent a " + unit.getClass().getName() + " successfully")
+          		log.info(unit.getClass.getName + " sent successfully")
             	parentActor ! SentNotificationUnitMessage(unit)
             }
             case Failure(t) => {
-          		log.warning(self.getClass().getName() + " failed sending a " + unit.getClass().getName() + " for the " + (unit.attempts+1) + " time")
+          		log.warning("Sending " + unit.getClass.getName + " failed for the " + (unit.attempts+1) + " time")
             	parentActor ! FailedNotificationUnitMessage(unit.copy(attempts = unit.attempts + 1),t.getMessage)
             }
           }
         }
-        case message => {
-          log.debug(self.getClass().getName() + " received a " + message.getClass().getName() + " message: " + message.toString() + " and ignores it")
-        }
       } 
-    }
-    case message => {
-      log.debug(self.getClass().getName() + " received a " + message.getClass().getName() + " message: " + message.toString() + " and ignores it")
     }
   }
 } 
