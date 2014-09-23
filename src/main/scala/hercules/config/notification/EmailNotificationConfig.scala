@@ -1,55 +1,58 @@
 package hercules.config.notification
 
 import com.typesafe.config.Config
-import com.typesafe.config.ConfigFactory
-import java.util.Hashtable
 import java.util.List
+import scala.collection.JavaConversions._
+import hercules.protocols.NotificationChannelProtocol._
 
 object EmailNotificationConfig {
 
-  /** 
-    * Return a ConfigFactory.Config object with default email settings which can be 
-    * overridden with settings from the config file
-  */
-  def defaults(): Config = {
-    val defaultSettings = new java.util.Hashtable[String,Object]()
-    //defaultSettings.put("email.recipients",new java.util.ArrayList[String]().subList(0,0))
-    defaultSettings.put("smtp_host","localhost")
-    defaultSettings.put("smtp_port",new java.lang.Integer(25))
-    defaultSettings.put("sender",this.getClass.getName + "@" + java.net.InetAddress.getLocalHost.getHostName)
-    defaultSettings.put("prefix","[Hercules]")
-    ConfigFactory.parseMap(defaultSettings,"default email settings")
-  }
-  
   /** Create and return a EmailNotificationConfig from the supplied 
-   *  configuration. If necessary, provide default values for missing options.
+   *  configuration.
    */
-  def getEmailNotificationConfig(emailConf: Config): EmailNotificationConfig = {
-    val conf = emailConf.withFallback(defaults)
-    println(conf.root.render)
-    val emailRecipients = conf.getStringList("recipients")  
+  def getEmailNotificationConfig(conf: Config): EmailNotificationConfig = {
+    val emailRecipients = asScalaBuffer(conf.getStringList("recipients")).toSeq
     val emailSender = conf.getString("sender")
     val emailSMTPHost = conf.getString("smtp_host")
     val emailSMTPPort = conf.getInt("smtp_port")
     val emailPrefix = conf.getString("prefix")
+    val emailChannels = asScalaBuffer(
+      conf.getStringList("channels")
+      ).toSeq.map(
+        stringToChannel)
+    val emailNumRetries = conf.getInt("num_retries")
+    val emailRetryInterval = conf.getInt("retry_interval")
     new EmailNotificationConfig(
       emailRecipients,
       emailSender,
       emailSMTPHost,
       emailSMTPPort,
-      emailPrefix
+      emailPrefix,
+      emailNumRetries,
+      emailRetryInterval,
+      emailChannels
     )
   }
   
+  def stringToChannel(str:String): NotificationChannel = str match {
+    case "progress" => Progress
+    case "info" => Info
+    case "warning" => Warning
+    case "critical" => Critical
+  }
+
 }
 
 /**
  * Base class for configuring an email notification
  */
 case class EmailNotificationConfig(
-  val emailRecipients: java.util.List[String],
-  val emailSender: String,
-  val emailSMTPHost: String,
-  val emailSMTPPort: Int,
-  val emailPrefix: String) extends NotificationConfig {
+  val recipients: Seq[String],
+  val sender: String,
+  val smtpHost: String,
+  val smtpPort: Int,
+  val prefix: String,
+  val numRetries: Int,
+  val retryInterval: Int,
+  val channels: Seq[NotificationChannel]) extends NotificationConfig {
 }

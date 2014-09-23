@@ -4,7 +4,6 @@ import hercules.actors.demultiplexing.IlluminaDemultiplexingActor
 import hercules.actors.masters.SisyphusMasterActor
 import hercules.actors.processingunitwatcher.IlluminaProcessingUnitWatcherActor
 import hercules.actors.interactive.InteractiveActor
-import hercules.actors.notifiers.EmailNotifierActor
 import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
 import akka.dispatch.Foreach
@@ -18,10 +17,10 @@ import org.slf4j.LoggerFactory
  * Will parse the command line options and initiate the appropriate
  * system depending on the command and options passed.
  */
-object Hercules extends App { 
+object Hercules extends App {
 
   val log = LoggerFactory.getLogger("Hercules")
-  
+
   // A very simple command line parser that is able to check if this is a
   // worker or a master that is starting up.
   sealed trait Role
@@ -29,7 +28,6 @@ object Hercules extends App {
   case object RunDemultiplexer extends Role
   case object RunRunfolderWatcher extends Role
   case object RunInteractive extends Role
-  case object RunNotifier extends Role
   case object RunHelp extends Role
 
   def string2Role(s: String): Role = {
@@ -62,16 +60,6 @@ object Hercules extends App {
     cmd("watcher") action { (_, c) =>
       c.copy(applicationType = Some(List(RunRunfolderWatcher)))
     }
-    //@TODO Temporarily removed this as I think that maybe we want some
-    // other way to do this after we fix the REST API. /JD 22/9 2014
-    //    cmd("interactive") action { (_, c) =>
-    //      c.copy(applicationType = Some(List(RunInteractive)))
-    //    } children (
-    //      cmd("restart") action { (_, c) => c.copy(command = Some("restart")) } children (
-    //        arg[String]("unit") required () action { (x, c) =>
-    //          c.copy(unitName = Some(x))
-    //        }))
-
   }
 
   def parseCommandLineOptions(config: CommandLineOptions): Unit = {
@@ -81,13 +69,13 @@ object Hercules extends App {
       case None => {
         val configLoader = ConfigFactory.load()
         val rolesToStart = configLoader.getStringList("hercules.roles").toList
-        
+
         log.info(
           "When Hercules starts without any arguments it will by default " +
-            "read the list roles from the application.conf. Will now attempt to " + 
+            "read the list roles from the application.conf. Will now attempt to " +
             "start the following roles: ")
         rolesToStart.foreach(log.info(_))
-        
+
         val mappedToRoles = rolesToStart.map(x => string2Role(x))
         val updatedConfig = config.copy(applicationType = Some(mappedToRoles))
         parseCommandLineOptions(updatedConfig)
@@ -99,8 +87,6 @@ object Hercules extends App {
               parser.showUsage
             case RunMaster =>
               SisyphusMasterActor.startSisyphusMasterActor()
-            case RunNotifier =>
-              EmailNotifierActor.startEmailNotifierActor()
             case RunDemultiplexer =>
               IlluminaDemultiplexingActor.startIlluminaDemultiplexingActor()
             case RunRunfolderWatcher =>

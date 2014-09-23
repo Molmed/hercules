@@ -1,33 +1,40 @@
 package hercules.entities.notification
 
-import java.util.List
-import courier._, Defaults._
+import courier._
+import Defaults._
 import scala.concurrent.Future
-import scala.collection.JavaConversions._
+import hercules.protocols.NotificationChannelProtocol._
 
 object EmailNotificationUnit {
   
   def sendNotification(
     unit: EmailNotificationUnit,
-    recipients: java.util.List[String],
+    recipients: Seq[String],
     sender: String,
     prefix: String,
     smtpHost: String,
     smtpPort: Int): Future[Unit] = {
-    	val mailer = Mailer(smtpHost,smtpPort)()
-    	mailer(
-    		Envelope.from(addr(sender).addr)
-//        	.to(scala.collection.JavaConversions.asScalaBuffer(recipients).toSeq.map(to => addr(to).addr))
-        	.to(addr(recipients.get(0)).addr)
-        	.subject(prefix + " " + unit.getClass.getName)
+      // Create an envelope without specifying the recipients
+      val blankEnvelope = Envelope.from(addr(sender).addr)
+        	.subject(prefix + " " + unit.channel + " " + unit.getClass.getName)
         	.content(Text(unit.message))
-        )
-  	}
-  
+      // Add recipients on by one 
+      val envelope = recipients.foldLeft(blankEnvelope)((tEnv,recipient) => tEnv.to(addr(recipient).addr))
+      // Create the Mailer and send the envelope, returning a Future
+    	val mailer = Mailer(smtpHost,smtpPort)()
+    	mailer(envelope)
+  	}  
+    
+    def wrapNotificationUnit(unit: NotificationUnit): EmailNotificationUnit = {
+      new EmailNotificationUnit(unit.message,unit.channel)
+    }
 }
+
 /**
  * Provides a base for representing an email notification unit
  */
-class EmailNotificationUnit(
-  val message: String,
-  var attempts: Int = 0) extends NotificationUnit {}
+case class EmailNotificationUnit(
+  override val message: String,
+  override val channel: NotificationChannel, 
+  val attempts: Int = 0) extends NotificationUnit(message, channel) {}
+ 
