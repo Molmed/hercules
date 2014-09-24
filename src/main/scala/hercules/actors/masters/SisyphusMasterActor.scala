@@ -1,22 +1,25 @@
 package hercules.actors.masters
 
-import java.io.File
-import scala.collection.JavaConversions.asScalaBuffer
+import scala.concurrent.duration.DurationInt
+
 import com.typesafe.config.ConfigFactory
-import akka.actor.ActorRef
+
 import akka.actor.ActorSystem
 import akka.actor.PoisonPill
 import akka.actor.Props
 import akka.actor.actorRef2Scala
 import akka.contrib.pattern.ClusterReceptionistExtension
 import akka.contrib.pattern.ClusterSingletonManager
-import hercules.protocols.HerculesMainProtocol._
-import akka.pattern.{ ask, pipe }
-import akka.util.Timeout
-import scala.concurrent.duration._
-import scala.concurrent.Await
-import scala.collection.JavaConversions._
 import akka.event.LoggingReceive
+import akka.pattern.ask
+import akka.pattern.pipe
+import akka.persistence.PersistentActor
+import akka.persistence.SaveSnapshotFailure
+import akka.persistence.SaveSnapshotSuccess
+import akka.persistence.SnapshotOffer
+import akka.util.Timeout
+import hercules.config.masters.MasterActorConfig
+import hercules.protocols.HerculesMainProtocol._
 
 object SisyphusMasterActor {
 
@@ -29,11 +32,13 @@ object SisyphusMasterActor {
     val generalConfig = ConfigFactory.load()
     val conf = generalConfig.getConfig("master").withFallback(generalConfig)
 
+    val masterConfig = new MasterActorConfig(conf.getInt("snapshot.interval"))
+
     val system = ActorSystem("ClusterSystem", conf)
 
     system.actorOf(
       ClusterSingletonManager.props(
-        SisyphusMasterActor.props(),
+        SisyphusMasterActor.props(masterConfig),
         "active",
         PoisonPill,
         Some("master")),
@@ -43,7 +48,7 @@ object SisyphusMasterActor {
   /**
    * Create a new SisyphusMasterActor
    */
-  def props(): Props = Props(new SisyphusMasterActor())
+  def props(config: MasterActorConfig): Props = Props(new SisyphusMasterActor(config))
 
   /**
    * Filter out the messages with conform to type A from a list of
@@ -60,16 +65,51 @@ object SisyphusMasterActor {
    */
   object SisyphusMasterActorProtocol {
 
+    // Use this to save snapshot of the current actor state.
+    case object TakeASnapshot
+
     // These messages are always to be used when updating the state of the 
     // actor. The reason for this is that these messages need to be persisted
     // to be able to able to replay the actors state.
-    sealed trait SetMessageState
+    sealed trait SetStateMessage
 
-    case class AddToMessageNotYetProcessed(message: ProcessingUnitMessage) extends SetMessageState
-    case class RemoveFromMessageNotYetProcessed(message: ProcessingUnitMessage) extends SetMessageState
+    case class AddToMessageNotYetProcessed(message: ProcessingUnitMessage) extends SetStateMessage
+    case class RemoveFromMessageNotYetProcessed(message: ProcessingUnitMessage) extends SetStateMessage
 
-    case class AddToFailedMessages(message: ProcessingUnitMessage) extends SetMessageState
-    case class RemoveFromFailedMessages(message: ProcessingUnitMessage) extends SetMessageState
+    case class AddToFailedMessages(message: ProcessingUnitMessage) extends SetStateMessage
+    case class RemoveFromFailedMessages(message: ProcessingUnitMessage) extends SetStateMessage
+  }
+
+  /**
+   * Captures the current state of the actor.
+   */
+  case class SisyphusMasterActorState(
+      val messagesNotYetProcessed: Set[ProcessingUnitMessage] = Set(),
+      val failedMessages: Set[ProcessingUnitMessage] = Set()) {
+
+    import SisyphusMasterActorProtocol._
+
+    /**
+     * Manipulate the state of the message sets depending on what message has been
+     * sent
+     * @param x the SetStateMessage describing the message to add or remove
+     * @return Unit
+     */
+    def manipulateState(x: SetStateMessage): SisyphusMasterActorState = {
+      x match {
+        case AddToMessageNotYetProcessed(message) =>
+          this.copy(messagesNotYetProcessed = messagesNotYetProcessed + message)
+
+        case RemoveFromMessageNotYetProcessed(message) =>
+          this.copy(messagesNotYetProcessed = messagesNotYetProcessed - message)
+
+        case AddToFailedMessages(message) =>
+          this.copy(failedMessages = failedMessages + message)
+
+        case RemoveFromFailedMessages(message) =>
+          this.copy(failedMessages = failedMessages - message)
+      }
+    }
   }
 
 }
@@ -81,35 +121,62 @@ object SisyphusMasterActor {
  * and request work from it. If the master has work for the actor it will
  * send it.
  */
-class SisyphusMasterActor extends HerculesMasterActor {
+class SisyphusMasterActor(config: MasterActorConfig) extends PersistentActor with HerculesMasterActor {
+
+  override def persistenceId = "SisyphusMasterActor"
 
   import SisyphusMasterActor.SisyphusMasterActorProtocol._
+  import SisyphusMasterActor.SisyphusMasterActorState
 
   // The master will register it self to the cluster receptionist.
   ClusterReceptionistExtension(context.system).registerService(self)
 
-  var messagesNotYetProcessed: Set[ProcessingUnitMessage] = Set()
-  var failedMessages: Set[ProcessingUnitMessage] = Set()
+  import context.dispatcher
 
-  def receive = LoggingReceive {
+  //@TODO Make request new work period configurable.
+  // Make sure that the system is snapshoted every now and then
+  val saveStateSnapshot =
+    context.system.scheduler.schedule(
+      config.snapshotInterval.seconds,
+      config.snapshotInterval.seconds,
+      self,
+      TakeASnapshot)
 
-    // @TODO Needs to be persisted
-    case x: SetMessageState => {
-      x match {
+  // Make sure that the scheduled event stops if the actors does.
+  override def postStop() = {
+    saveStateSnapshot.cancel()    
+  }
 
-        case AddToMessageNotYetProcessed(message) =>
-          messagesNotYetProcessed = messagesNotYetProcessed + message
+  // The state of the actor, containing messages which have not yet been
+  // processed, as well as failed messages.
+  var state = SisyphusMasterActorState()
 
-        case RemoveFromMessageNotYetProcessed(message) =>
-          messagesNotYetProcessed = messagesNotYetProcessed - message
+  // Replay messages and snapshots to restore actor state
+  override def receiveRecover: Receive = {
+    case x: SetStateMessage =>
+      state = state.manipulateState(x)
+    case SnapshotOffer(_, snapshot: SisyphusMasterActorState) =>
+      state = snapshot
+  }
 
-        case AddToFailedMessages(message) =>
-          failedMessages = failedMessages + message
+  override def receiveCommand: Receive = LoggingReceive {
 
-        case RemoveFromFailedMessages(message) =>
-          failedMessages = failedMessages - message
+    // Only messages handled by this method will manipulate the state
+    // of the actor, and therefore they need to be persisted
+    case message: SetStateMessage => {
+      persist(message)(m => state = state.manipulateState(m))
+    }
 
-      }
+    case TakeASnapshot => {
+      saveSnapshot(state)
+    }
+
+    case SaveSnapshotFailure(metadata, reason) => {
+      log.error(s"Failed to save a snapshot - metadata: $metadata reason: $reason")
+    }
+
+    case SaveSnapshotSuccess(_) => {
+      log.debug("Yeah! We save that that snapshot!")
     }
 
     case message: FoundProcessingUnitMessage => {
@@ -119,7 +186,7 @@ class SisyphusMasterActor extends HerculesMasterActor {
     case RequestDemultiplexingProcessingUnitMessage => {
 
       val unitsReadyForDemultiplexing = SisyphusMasterActor.
-        findMessagesOfType[FoundProcessingUnitMessage](messagesNotYetProcessed)
+        findMessagesOfType[FoundProcessingUnitMessage](state.messagesNotYetProcessed)
 
       import context.dispatcher
       implicit val timeout = Timeout(5 seconds)
@@ -146,18 +213,19 @@ class SisyphusMasterActor extends HerculesMasterActor {
     case message: FailedDemultiplexingProcessingUnitMessage => {
       //@TODO This would be a perfect place to run send a notification :D
       log.warning("Noted that " + message.unit.name + " has failed " +
-        " demultiplexing. Will move it into the list of failed jobs.")
+        " demultiplexing. Will move it into the list of failed jobs.")        
       self ! AddToFailedMessages(message)
+      notice.warning(s"Failed demultiplexing for: $message.unit with the reason: $message.reason")
     }
 
     // Refer to change state messages.
     case message: RestartDemultiplexingProcessingUnitMessage => {
-      if (failedMessages.exists(p => p.unit.name == message.unitName)) {
+      if (state.failedMessages.exists(p => p.unit.name == message.unitName)) {
         log.info(
           "For a message to restart " + message.unitName +
             " moving it into the messages to process list.")
 
-        val matchingMessage = failedMessages.find(x => x.unit.name == message.unitName).get
+        val matchingMessage = state.failedMessages.find(x => x.unit.name == message.unitName).get
         val startDemultiplexingMessage = new StartDemultiplexingProcessingUnitMessage(matchingMessage.unit)
         self ! AddToMessageNotYetProcessed(startDemultiplexingMessage)
         self ! RemoveFromFailedMessages(matchingMessage)

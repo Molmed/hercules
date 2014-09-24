@@ -12,6 +12,7 @@ libraryDependencies ++= Seq(
   "com.typesafe.akka" %% "akka-contrib" % "2.3.3",
   "com.typesafe.akka" %% "akka-testkit" % "2.3.3",
   "com.typesafe.akka" %% "akka-slf4j" % "2.3.3",
+  "com.typesafe.akka" %% "akka-persistence-experimental" % "2.3.4",
   "org.scalatest" %% "scalatest" % "2.1.6" % "test",
   "com.github.scopt" %% "scopt" % "3.2.0",
   "commons-io" % "commons-io" % "2.4",
@@ -31,6 +32,8 @@ resolvers += Resolver.sonatypeRepo("public")
 
 resolvers += "softprops-maven" at "http://dl.bintray.com/content/softprops/maven"
 
+// This is needed for the persistence to work when running from sbt
+fork := true
 
 // -----------------------
 // Stuff for the packager
