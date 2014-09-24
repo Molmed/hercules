@@ -59,8 +59,16 @@ object SisyphusMasterActor {
    * Internal messaging protocol
    */
   object SisyphusMasterActorProtocol {
+
+    // These messages are always to be used when updating the state of the 
+    // actor. The reason for this is that these messages need to be persisted
+    // to be able to able to replay the actors state.
     sealed trait SetMessageState
+
+    case class AddToMessageNotYetProcessed(message: ProcessingUnitMessage) extends SetMessageState
     case class RemoveFromMessageNotYetProcessed(message: ProcessingUnitMessage) extends SetMessageState
+
+    case class AddToFailedMessages(message: ProcessingUnitMessage) extends SetMessageState
     case class RemoveFromFailedMessages(message: ProcessingUnitMessage) extends SetMessageState
   }
 
@@ -85,11 +93,27 @@ class SisyphusMasterActor extends HerculesMasterActor {
 
   def receive = LoggingReceive {
 
-    // @TODO Needs to be persisted 
-    // Maybe this should be changed to sending a SetMessageState message to self
-    // and then all persistance can be managed from a single case in the receive. 
+    // @TODO Needs to be persisted
+    case x: SetMessageState => {
+      x match {
+
+        case AddToMessageNotYetProcessed(message) =>
+          messagesNotYetProcessed = messagesNotYetProcessed + message
+
+        case RemoveFromMessageNotYetProcessed(message) =>
+          messagesNotYetProcessed = messagesNotYetProcessed - message
+
+        case AddToFailedMessages(message) =>
+          failedMessages = failedMessages + message
+
+        case RemoveFromFailedMessages(message) =>
+          failedMessages = failedMessages - message
+
+      }
+    }
+
     case message: FoundProcessingUnitMessage => {
-      messagesNotYetProcessed = messagesNotYetProcessed + message
+      self ! AddToMessageNotYetProcessed(message)
     }
 
     case RequestDemultiplexingProcessingUnitMessage => {
@@ -112,17 +136,6 @@ class SisyphusMasterActor extends HerculesMasterActor {
       }
     }
 
-    // @TODO Needs to be persisted
-    case x: SetMessageState => {
-      x match {
-        case RemoveFromMessageNotYetProcessed(message) => {
-          messagesNotYetProcessed = messagesNotYetProcessed - message
-        }
-        case RemoveFromFailedMessages(message) =>
-          failedMessages = failedMessages - message
-      }
-    }
-
     case FinishedDemultiplexingProcessingUnitMessage(unit) => {
       //@TODO Later more behaviour downstream of demultiplexing should
       // be added here!
@@ -130,15 +143,13 @@ class SisyphusMasterActor extends HerculesMasterActor {
         " demultiplexing. Right now I'll do nothing about.")
     }
 
-    // @TODO Refer to change state message
     case message: FailedDemultiplexingProcessingUnitMessage => {
       //@TODO This would be a perfect place to run send a notification :D
       log.warning("Noted that " + message.unit.name + " has failed " +
         " demultiplexing. Will move it into the list of failed jobs.")
-      failedMessages = failedMessages + message
+      self ! AddToFailedMessages(message)
     }
 
-    
     // Refer to change state messages.
     case message: RestartDemultiplexingProcessingUnitMessage => {
       if (failedMessages.exists(p => p.unit.name == message.unitName)) {
@@ -148,8 +159,8 @@ class SisyphusMasterActor extends HerculesMasterActor {
 
         val matchingMessage = failedMessages.find(x => x.unit.name == message.unitName).get
         val startDemultiplexingMessage = new StartDemultiplexingProcessingUnitMessage(matchingMessage.unit)
-        messagesNotYetProcessed = messagesNotYetProcessed + startDemultiplexingMessage
-        failedMessages = failedMessages - matchingMessage
+        self ! AddToMessageNotYetProcessed(startDemultiplexingMessage)
+        self ! RemoveFromFailedMessages(matchingMessage)
         sender ! Acknowledge
       } else {
         log.warning("Couldn't find unit " + message.unitName + " requested to restart.")
@@ -157,6 +168,6 @@ class SisyphusMasterActor extends HerculesMasterActor {
       }
 
     }
-    
+
   }
 }
