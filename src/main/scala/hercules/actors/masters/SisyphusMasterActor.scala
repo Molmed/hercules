@@ -16,6 +16,7 @@ import akka.util.Timeout
 import scala.concurrent.duration._
 import scala.concurrent.Await
 import scala.collection.JavaConversions._
+import akka.event.LoggingReceive
 
 object SisyphusMasterActor {
 
@@ -82,18 +83,16 @@ class SisyphusMasterActor extends HerculesMasterActor {
   var messagesNotYetProcessed: Set[ProcessingUnitMessage] = Set()
   var failedMessages: Set[ProcessingUnitMessage] = Set()
 
-  def receive = {
+  def receive = LoggingReceive {
 
-    case StringMessage(s) =>
-      log.info(s"I got this message: $s")
-
+    // @TODO Needs to be persisted 
+    // Maybe this should be changed to sending a SetMessageState message to self
+    // and then all persistance can be managed from a single case in the receive. 
     case message: FoundProcessingUnitMessage => {
-      log.info("Sisyphus master got a FoundProcessingUnitMessage: " + message)
       messagesNotYetProcessed = messagesNotYetProcessed + message
     }
 
     case RequestDemultiplexingProcessingUnitMessage => {
-      log.info("Got a request for a ProccesingUnit to demultiplex.")
 
       val unitsReadyForDemultiplexing = SisyphusMasterActor.
         findMessagesOfType[FoundProcessingUnitMessage](messagesNotYetProcessed)
@@ -104,21 +103,22 @@ class SisyphusMasterActor extends HerculesMasterActor {
       for (unitMessage <- unitsReadyForDemultiplexing) {
         (sender ? StartDemultiplexingProcessingUnitMessage(unitMessage.unit)).map {
           case Acknowledge => {
-            log.info(s"$unitMessage was accepted by demultiplexer removing from work queue.")
-            RemoveFromMessageNotYetProcessed(unitMessage)            
+            log.debug(s"$unitMessage was accepted by demultiplexer removing from work queue.")
+            RemoveFromMessageNotYetProcessed(unitMessage)
           }
           case Reject =>
-            log.info(s"$unitMessage was not accepted by demultiplexer. Keep it in the work queue.")
-        } pipeTo(self)
+            log.debug(s"$unitMessage was not accepted by demultiplexer. Keep it in the work queue.")
+        } pipeTo (self)
       }
     }
 
+    // @TODO Needs to be persisted
     case x: SetMessageState => {
       x match {
         case RemoveFromMessageNotYetProcessed(message) => {
           messagesNotYetProcessed = messagesNotYetProcessed - message
-        }          
-        case RemoveFromFailedMessages(message) => 
+        }
+        case RemoveFromFailedMessages(message) =>
           failedMessages = failedMessages - message
       }
     }
@@ -126,10 +126,11 @@ class SisyphusMasterActor extends HerculesMasterActor {
     case FinishedDemultiplexingProcessingUnitMessage(unit) => {
       //@TODO Later more behaviour downstream of demultiplexing should
       // be added here!
-      log.info("Noted that " + unit.name + " has finished " +
+      log.debug("Noted that " + unit.name + " has finished " +
         " demultiplexing. Right now I'll do nothing about.")
     }
 
+    // @TODO Refer to change state message
     case message: FailedDemultiplexingProcessingUnitMessage => {
       //@TODO This would be a perfect place to run send a notification :D
       log.warning("Noted that " + message.unit.name + " has failed " +
@@ -137,6 +138,8 @@ class SisyphusMasterActor extends HerculesMasterActor {
       failedMessages = failedMessages + message
     }
 
+    
+    // Refer to change state messages.
     case message: RestartDemultiplexingProcessingUnitMessage => {
       if (failedMessages.exists(p => p.unit.name == message.unitName)) {
         log.info(
@@ -149,12 +152,11 @@ class SisyphusMasterActor extends HerculesMasterActor {
         failedMessages = failedMessages - matchingMessage
         sender ! Acknowledge
       } else {
-        log.info("Couldn't find unit " + message.unitName + " requested to restart.")
+        log.warning("Couldn't find unit " + message.unitName + " requested to restart.")
         sender ! Reject(Some("Couldn't find unit " + message.unitName + " requested to restart."))
       }
 
     }
-
-    case message => log.info(self.getClass().getName() + " received a " + message.getClass().getName() + " message which will be ignored")
+    
   }
 }
