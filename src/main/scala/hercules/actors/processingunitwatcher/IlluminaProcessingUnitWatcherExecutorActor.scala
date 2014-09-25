@@ -51,7 +51,7 @@ object IlluminaProcessingUnitWatcherExecutorActor {
    * Factory method for creating a IlluminaProcessingUnitExecutorActor
    * Loads it's configuration from the IlluminaProcessingUnitExecutorActor.conf
    * @param fetcher The type of fetcher to use to get the processing units
-   * @returns a Props of IlluminaProcessingUnitExecutorActor
+   * @return a Props of IlluminaProcessingUnitExecutorActor
    */
   def props(
     fetcher: IlluminaProcessingUnitFetcher = new IlluminaProcessingUnitFetcher(),
