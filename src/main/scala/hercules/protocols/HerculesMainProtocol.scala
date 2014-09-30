@@ -2,6 +2,7 @@ package hercules.protocols
 
 import hercules.entities.ProcessingUnit
 import hercules.entities.notification.NotificationUnit
+import hercules.entities.ProcessingUnit
 
 /**
  * Import this object to gain access to the messaging protocol of
@@ -26,33 +27,43 @@ object HerculesMainProtocol {
   case class StringMessage(s: String) extends HerculesMessage
 
   /**
+   * Request the state from the master, if no unit has been specified
+   * the full state should be returned. This can be used for example the details
+   * @param unitName the name of the processing unit to look for
+   */
+  case class RequestMasterState(unitName: Option[String] = None) extends HerculesMessage
+
+  /**
    * The base trait for the messages encapsulating the state of the
    * ProcessingUnit, which in turn defines what is to be done with it.
    */
   trait ProcessingUnitMessage extends HerculesMessage {
     val unit: ProcessingUnit
   }
-  
+
   case class FoundProcessingUnitMessage(unit: ProcessingUnit) extends ProcessingUnitMessage
 
-  case class RequestDemultiplexingProcessingUnitMessage extends HerculesMessage
-  case class StartDemultiplexingProcessingUnitMessage(unit: ProcessingUnit) extends ProcessingUnitMessage
-  case class FinishedDemultiplexingProcessingUnitMessage(unit: ProcessingUnit) extends ProcessingUnitMessage
-  case class FailedDemultiplexingProcessingUnitMessage(unit: ProcessingUnit, reason: String) extends ProcessingUnitMessage
-  case class RestartDemultiplexingProcessingUnitMessage(unitName: String) extends HerculesMessage
+  sealed trait DemultiplexingMessage extends HerculesMessage
+  case class RequestDemultiplexingProcessingUnitMessage extends DemultiplexingMessage
+  case class StartDemultiplexingProcessingUnitMessage(unit: ProcessingUnit) extends DemultiplexingMessage with ProcessingUnitMessage
+  case class StopDemultiplexingProcessingUnitMessage(unitName: String) extends DemultiplexingMessage
+  case class FinishedDemultiplexingProcessingUnitMessage(unit: ProcessingUnit) extends DemultiplexingMessage with ProcessingUnitMessage
+  case class FailedDemultiplexingProcessingUnitMessage(unit: ProcessingUnit, reason: String) extends DemultiplexingMessage with ProcessingUnitMessage
+  case class RestartDemultiplexingProcessingUnitMessage(unitName: String) extends DemultiplexingMessage
+  case class ForgetDemultiplexingProcessingUnitMessage(unitName: String) extends DemultiplexingMessage
 
   case class StartQCProcessingUnitMessage(unit: ProcessingUnit) extends ProcessingUnitMessage
   case class FinishedQCProcessingUnitMessage(unit: ProcessingUnit) extends ProcessingUnitMessage
   case class FailedQCProcessingUnitMessage(unit: ProcessingUnit) extends ProcessingUnitMessage
-  
+
   /**
-   * The base trait for the messages encapsulating the notifications to be 
-   * sent out. Contains the NotificationUnit. 
+   * The base trait for the messages encapsulating the notifications to be
+   * sent out. Contains the NotificationUnit.
    */
   trait NotificationUnitMessage extends HerculesMessage {
     val unit: NotificationUnit
   }
-  
+
   case class SendNotificationUnitMessage(unit: NotificationUnit) extends NotificationUnitMessage
   case class SentNotificationUnitMessage(unit: NotificationUnit) extends NotificationUnitMessage
   case class FailedNotificationUnitMessage(unit: NotificationUnit, reason: String) extends NotificationUnitMessage
