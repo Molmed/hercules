@@ -1,5 +1,6 @@
 import com.typesafe.sbt.SbtNativePackager._
 import NativePackagerKeys._
+import NativePackagerHelper._
 import com.typesafe.sbt.packager.archetypes.ServerLoader
 
 name := """hercules"""
@@ -43,7 +44,9 @@ packageArchetype.java_server
 
 // Make sure that the application.conf file is loaded from the system
 // and not the class path
-bashScriptExtraDefines += """addJava "-Dconfig.file=${app_home}/../conf/application.conf""""
+//bashScriptExtraDefines += """addJava "-Dconfig.file=${app_home}/../conf/application.conf""""
+
+mappings in Universal += { file("src/main/resources/application.conf") -> "conf/application.conf" }
 
 val packageMaintainer = "Johan Dahlberg <johan.dahlberg@medsci.uu.se>"
 
