@@ -109,7 +109,7 @@ class SisyphusMasterActor(config: MasterActorConfig) extends PersistentActor wit
     case message: StringMessage => {
       sender ! StringMessage(message.s.reverse)
     }
-    
+
     // Only messages handled by this method will manipulate the state
     // of the actor, and therefore they need to be persisted
     case message: SetStateMessage => {
@@ -209,4 +209,3 @@ class SisyphusMasterActor(config: MasterActorConfig) extends PersistentActor wit
 
 }
 
-  

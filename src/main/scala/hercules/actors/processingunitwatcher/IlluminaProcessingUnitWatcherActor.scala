@@ -13,10 +13,10 @@ import akka.actor.ActorSelection
 object IlluminaProcessingUnitWatcherActor extends MasterLookup {
 
   def startIlluminaProcessingUnitWatcherActor(
-      system:ActorSystem = ActorSystem("IlluminaProcessingUnitWatcherSystem"),
-      executor: Props = IlluminaProcessingUnitWatcherExecutorActor.props(),
-      clusterClientCustomConfig: () => Config = getDefaultConfig,
-      getClusterClient: (ActorSystem, Config) => ActorRef = getDefaultClusterClient): ActorRef = {
+    system: ActorSystem = ActorSystem("IlluminaProcessingUnitWatcherSystem"),
+    executor: Props = IlluminaProcessingUnitWatcherExecutorActor.props(),
+    clusterClientCustomConfig: () => Config = getDefaultConfig,
+    getClusterClient: (ActorSystem, Config) => ActorRef = getDefaultClusterClient): ActorRef = {
 
     val clusterClient = getMasterClusterClient(system, clusterClientCustomConfig, getClusterClient)
     val props = IlluminaProcessingUnitWatcherActor.props(clusterClient, executor)

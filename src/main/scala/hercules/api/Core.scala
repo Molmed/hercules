@@ -1,6 +1,6 @@
 package hercules.api
 
-import akka.actor.{Props, ActorSystem}
+import akka.actor.{ Props, ActorSystem }
 
 /**
  * Core is type containing the ``system: ActorSystem`` member. This enables us to use it in our

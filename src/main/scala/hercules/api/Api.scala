@@ -18,8 +18,8 @@ trait Api extends RouteConcatenation {
 
   val routes =
     new DemultiplexingService(cluster).route ~
-    new StatusService(cluster).route
+      new StatusService(cluster).route
 
-  val rootService = system.actorOf(RoutedHttpService.props(routes),"hercules-api-service")
+  val rootService = system.actorOf(RoutedHttpService.props(routes), "hercules-api-service")
 
 }

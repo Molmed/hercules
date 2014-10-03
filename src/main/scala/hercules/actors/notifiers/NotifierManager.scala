@@ -13,31 +13,31 @@ object NotifierManager {
 
   def send_message(
     msg: String,
-    channel: NotificationChannel,  
+    channel: NotificationChannel,
     actors: Seq[ActorRef]): Unit = {
-      val message = new SendNotificationUnitMessage(
-        new NotificationUnit(
-          msg,
-          channel))
-      actors.foreach {_ ! message}
-    }  
+    val message = new SendNotificationUnitMessage(
+      new NotificationUnit(
+        msg,
+        channel))
+    actors.foreach { _ ! message }
+  }
 }
 
 class NotifierManager(system: ActorSystem) {
-  
+
   val actors = Seq(EmailNotifierActor.startInstance(system))
-  
+
   def info(msg: String): Unit = {
-    NotifierManager.send_message(msg,Info,actors)
+    NotifierManager.send_message(msg, Info, actors)
   }
   def progress(msg: String): Unit = {
-    NotifierManager.send_message(msg,Progress,actors)
+    NotifierManager.send_message(msg, Progress, actors)
   }
   def warning(msg: String): Unit = {
-    NotifierManager.send_message(msg,Warning,actors)
+    NotifierManager.send_message(msg, Warning, actors)
   }
   def critical(msg: String): Unit = {
-    NotifierManager.send_message(msg,Critical,actors)
+    NotifierManager.send_message(msg, Critical, actors)
   }
 
 }

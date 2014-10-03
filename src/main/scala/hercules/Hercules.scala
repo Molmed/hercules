@@ -63,7 +63,7 @@ object Hercules extends App {
     cmd("watcher") action { (_, c) =>
       c.copy(applicationType = Some(List(RunRunfolderWatcher)))
     }
-    
+
     cmd("restapi") action { (_, c) =>
       c.copy(applicationType = Some(List(RestApi)))
     }

@@ -10,8 +10,8 @@ import hercules.entities.ProcessingUnit
  * the master once they are ready to start processing.
  */
 trait ProcessingUnitWatcherActor extends HerculesActor {
-    object ProcessingUnitWatcherProtocol {
-      sealed trait ProcessingUnitWatcherMessage
-      case class FoundProcessingUnit(unit: ProcessingUnit)
-    }
+  object ProcessingUnitWatcherProtocol {
+    sealed trait ProcessingUnitWatcherMessage
+    case class FoundProcessingUnit(unit: ProcessingUnit)
+  }
 }

@@ -57,8 +57,8 @@ trait MasterLookup {
    * e.g. the master.
    *
    * @param system 				in which to create the cluster client actor
-   * @param getConfig 			a function returning a Config. 
-   * 							Used to setup the client actor. Has a sensible default, can be overriden for tests. 
+   * @param getConfig 			a function returning a Config.
+   * 							Used to setup the client actor. Has a sensible default, can be overriden for tests.
    * @param getClusterClient    A function used to get the cluster client. Has a sensible default, can be overriden for tests.
    * @return a reference to a cluster client
    */

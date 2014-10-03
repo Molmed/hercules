@@ -31,7 +31,7 @@ object InteractiveActor extends MasterLookup {
    * @param unitName Unit to do something with
    */
   def startInteractive(command: String, unitName: String): Unit = {
-    
+
     val system = ActorSystem("IlluminaDemultiplexingActor")
     val clusterClient = getMasterClusterClient(system)
     val props = InteractiveActor.props(clusterClient, command, unitName)
@@ -76,14 +76,14 @@ class InteractiveActor(clusterClient: ActorRef, command: String, unitName: Strin
 
   def receive = {
     case SendToMasterMessage => {
-      
+
       log.info("Time to send a message to the master!")
 
       command match {
         case "restart" => {
 
           log.info("I'm trying to restart: " + unitName)
-          
+
           import context.dispatcher
           implicit val timeout = Timeout(5 seconds)
 
@@ -98,7 +98,7 @@ class InteractiveActor(clusterClient: ActorRef, command: String, unitName: Strin
                 }
                 case Reject(reason) =>
                   log.info(s"Couldn't restart the $unitName because of: " + reason.getOrElse("Unknown"))
-                 context.system.shutdown()
+                  context.system.shutdown()
               }
         }
         case _ => {

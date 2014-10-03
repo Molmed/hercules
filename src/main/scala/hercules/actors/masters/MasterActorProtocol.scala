@@ -15,4 +15,3 @@ object MasterStateProtocol {
   case class AddToFailedMessages(message: ProcessingUnitMessage) extends SetStateMessage
   case class RemoveFromFailedMessages(message: ProcessingUnitMessage) extends SetStateMessage
 }
-  

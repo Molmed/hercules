@@ -1,11 +1,11 @@
 package hercules.actors.api
 
 import akka.actor.Props
-import spray.routing.{HttpServiceActor, Route}
-import spray.util.{SprayActorLogging, LoggingContext}
+import spray.routing.{ HttpServiceActor, Route }
+import spray.util.{ SprayActorLogging, LoggingContext }
 
 object RoutedHttpService {
-  
+
   def props(route: Route): Props = {
     Props(new RoutedHttpService(route))
   }
