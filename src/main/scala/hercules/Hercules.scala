@@ -4,6 +4,7 @@ import hercules.actors.demultiplexing.IlluminaDemultiplexingActor
 import hercules.actors.masters.SisyphusMasterActor
 import hercules.actors.processingunitwatcher.IlluminaProcessingUnitWatcherActor
 import hercules.actors.interactive.InteractiveActor
+import hercules.api.RestAPI
 import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
 import akka.dispatch.Foreach
@@ -28,6 +29,7 @@ object Hercules extends App {
   case object RunDemultiplexer extends Role
   case object RunRunfolderWatcher extends Role
   case object RunInteractive extends Role
+  case object RestApi extends Role
   case object RunHelp extends Role
 
   def string2Role(s: String): Role = {
@@ -35,6 +37,7 @@ object Hercules extends App {
       case "master"        => RunMaster
       case "demultiplexer" => RunDemultiplexer
       case "watcher"       => RunRunfolderWatcher
+      case "restapi"       => RestApi
     }
   }
 
@@ -59,6 +62,10 @@ object Hercules extends App {
 
     cmd("watcher") action { (_, c) =>
       c.copy(applicationType = Some(List(RunRunfolderWatcher)))
+    }
+    
+    cmd("restapi") action { (_, c) =>
+      c.copy(applicationType = Some(List(RestApi)))
     }
   }
 
@@ -93,6 +100,8 @@ object Hercules extends App {
               IlluminaProcessingUnitWatcherActor.startIlluminaProcessingUnitWatcherActor()
             case RunInteractive =>
               InteractiveActor.startInteractive(config.command.get, config.unitName.get)
+            case RestApi =>
+              RestAPI
           }
         }
       }
