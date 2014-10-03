@@ -21,11 +21,11 @@ object EmailNotifierActor {
 
   def startInstance(
     system: ActorSystem): ActorRef = {
-      // Append a random string to the actor name to ensure it is unique
-      system.actorOf(
-        props(), 
-        "EmailNotifierActor_" + List.fill(8)((Random.nextInt(25)+97).toChar).mkString
-      )
+    // Append a random string to the actor name to ensure it is unique
+    system.actorOf(
+      props(),
+      "EmailNotifierActor_" + List.fill(8)((Random.nextInt(25) + 97).toChar).mkString
+    )
   }
 
   /**
@@ -35,16 +35,16 @@ object EmailNotifierActor {
    */
   def props(): Props = {
     Props(new EmailNotifierActor())
-  }  
+  }
 }
 
 class EmailNotifierActor() extends NotifierActor {
 
   var failedNotifications: Set[EmailNotificationUnit] = Set()
   var permanentlyFailedNotifications: Set[EmailNotificationUnit] = Set()
-  
+
   import HerculesMainProtocol._
-  
+
   // Get a EmailNotifierConfig object
   val emailConfig = EmailNotificationConfig.getEmailNotificationConfig(
     ConfigFactory.load().getConfig("notifications.email")
@@ -58,21 +58,20 @@ class EmailNotifierActor() extends NotifierActor {
 
   import context.dispatcher
   import NotificationChannelProtocol._
-  
 
   // Periodically attempt to resend failed messages up to a limit
   val resendFailed =
     context.system.scheduler.schedule(
-      Duration.create(emailConfig.retryInterval,"seconds"),
-      Duration.create(emailConfig.retryInterval,"seconds"), 
-      self, 
+      Duration.create(emailConfig.retryInterval, "seconds"),
+      Duration.create(emailConfig.retryInterval, "seconds"),
+      self,
       RetryFailedNotificationUnitsMessage)
 
   // Make sure that the scheduled event stops if the actors does.
   override def postStop() = {
     resendFailed.cancel()
   }
-  
+
   def receive = LoggingReceive {
 
     // If we receive an instruction to retry failed messages, iterate over that set and send messages that have not met the limit for maximum number of retries
@@ -84,7 +83,7 @@ class EmailNotifierActor() extends NotifierActor {
           failedNotifications = failedNotifications.filterNot(u => u == unit)
         })
     }
-    
+
     // We've received a request to send a notification
     case message: SendNotificationUnitMessage => message.unit match {
       // Check if the message unit is already an EmailNotificationUnit or if we need to wrap it
@@ -106,8 +105,8 @@ class EmailNotifierActor() extends NotifierActor {
     case message: FailedNotificationUnitMessage => message.unit match {
       case unit: EmailNotificationUnit => {
         (unit.attempts - 1) match {
-          case retries if (emailConfig.numRetries > 0 && 
-              emailConfig.numRetries == retries) => {
+          case retries if (emailConfig.numRetries > 0 &&
+            emailConfig.numRetries == retries) => {
             log.warning("Giving up trying to send " + unit.getClass.getSimpleName)
             permanentlyFailedNotifications = permanentlyFailedNotifications + unit
           }
@@ -115,6 +114,6 @@ class EmailNotifierActor() extends NotifierActor {
             failedNotifications = failedNotifications + unit
         }
       }
-    }    
+    }
   }
 }

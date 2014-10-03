@@ -2,6 +2,7 @@ import com.typesafe.sbt.SbtNativePackager._
 import NativePackagerKeys._
 import NativePackagerHelper._
 import com.typesafe.sbt.packager.archetypes.ServerLoader
+import scalariform.formatter.preferences._
 
 name := """hercules"""
 
@@ -39,6 +40,18 @@ resolvers += "softprops-maven" at "http://dl.bintray.com/content/softprops/maven
 
 // This is needed for the persistence to work when running from sbt
 fork := true
+
+// -----------------------
+// Use the Scalariform plugin to make sure that our code is always
+// formatted the same way
+// -----------------------
+
+scalariformSettings
+
+ScalariformKeys.preferences := ScalariformKeys.preferences.value
+  .setPreference(AlignSingleLineCaseStatements, true)
+  .setPreference(AlignParameters, true)
+
 
 // -----------------------
 // Stuff for the packager

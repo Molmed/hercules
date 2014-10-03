@@ -8,5 +8,4 @@ import hercules.protocols.NotificationChannelProtocol._
  */
 class NotificationUnit(
   val message: String,
-  val channel: NotificationChannel
-  ) extends Serializable {}
+  val channel: NotificationChannel) extends Serializable {}

@@ -10,5 +10,5 @@ trait CoreActors extends MasterLookup {
   this: Core =>
 
   val cluster = getMasterClusterClient(system, getDefaultConfig, getDefaultClusterClient)
-  
+
 }

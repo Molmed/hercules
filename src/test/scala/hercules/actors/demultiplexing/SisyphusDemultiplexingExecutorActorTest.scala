@@ -40,8 +40,7 @@ class SisyphusDemultiplexingExecutorActorTest extends TestKit(ActorSystem("Sisyp
   val logText = "To be or not to be, that is the question?"
   writer.println(logText)
   writer.close()
-  
-  
+
   // A fake fetcher class which will just return the processing untis
   // defined above.
   class FakeDemultiplexer(succeed: Boolean) extends Demultiplexer {

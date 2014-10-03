@@ -87,11 +87,11 @@ class IlluminaProcessingUnitFetcher() extends ProcessingUnitFetcher[IlluminaProc
      * Search for a samplesheet matching the found runfolder.
      */
     def searchForSamplesheet(runfolder: File): Option[File] = {
-      
+
       require(
-          config.sampleSheetRoot.exists(),
-          s"${config.sampleSheetRoot} does not exist! Create it or provide a valid value in application.conf")
-      
+        config.sampleSheetRoot.exists(),
+        s"${config.sampleSheetRoot} does not exist! Create it or provide a valid value in application.conf")
+
       val runfolderName = runfolder.getName()
 
       val samplesheet = config.sampleSheetRoot.listFiles().

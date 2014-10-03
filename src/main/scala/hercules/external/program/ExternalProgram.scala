@@ -11,9 +11,9 @@ trait ExternalProgram {
    * @return Tuppel with info on if run was successfully run and the log file.
    */
   def run(unit: ProcessingUnit): (Boolean, File)
-  
+
   /**
    * Run any side effects that need to be run after a failed command.
    */
-  def cleanup(unit: ProcessingUnit):Unit
+  def cleanup(unit: ProcessingUnit): Unit
 }

@@ -33,15 +33,13 @@ class SisyphusDemultiplexingExecutorActor(demultiplexer: Demultiplexer) extends 
       if (success) {
         log.info("Successfully demultiplexed: " + unit)
         sender ! FinishedDemultiplexingProcessingUnitMessage(unit)
-      }
-        
-      else {
+      } else {
         log.info("Failed in demultiplexing: " + unit)
         demultiplexer.cleanup(unit)
         val logText =
           if (logFile.isDefined)
             Source.fromFile(logFile.get).getLines.mkString
-          else 
+          else
             ""
         sender ! FailedDemultiplexingProcessingUnitMessage(unit, logText)
       }
