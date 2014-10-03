@@ -14,7 +14,7 @@ class DemultiplexingService(cluster: ActorRef)(implicit executionContext: Execut
   implicit val timeout = Timeout(5.seconds)
   val route = 
     path("demultiplex" / Segment) { id => 
-      get {
+      post {
           detach() {
             complete {(cluster ? SendToAll("/user/master/active",RestartDemultiplexingProcessingUnitMessage(id))).map {
               case Acknowledge => 

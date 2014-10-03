@@ -15,6 +15,7 @@ trait Web {
 
   implicit val timeout = Timeout(5.seconds)
 
+  // @TODO Read ip and port from configuration
   IO(Http)(system) ? Http.Bind(rootService, "0.0.0.0", port = 8001)
 
 }

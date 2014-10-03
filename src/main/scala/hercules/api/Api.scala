@@ -1,6 +1,5 @@
 package hercules.api
 
-import akka.actor.Props
 import spray.routing.RouteConcatenation
 import hercules.actors.api.RoutedHttpService
 import hercules.api.services.DemultiplexingService
@@ -21,6 +20,6 @@ trait Api extends RouteConcatenation {
     new DemultiplexingService(cluster).route ~
     new StatusService(cluster).route
 
-  val rootService = system.actorOf(Props(new RoutedHttpService(routes)))
+  val rootService = system.actorOf(RoutedHttpService.props(routes),"hercules-api-service")
 
 }

@@ -105,6 +105,7 @@ class SisyphusMasterActor(config: MasterActorConfig) extends PersistentActor wit
 
   override def receiveCommand: Receive = LoggingReceive {
 
+    // @TODO Remove this debug statement
     case message: StringMessage => {
       sender ! StringMessage(message.s.reverse)
     }
