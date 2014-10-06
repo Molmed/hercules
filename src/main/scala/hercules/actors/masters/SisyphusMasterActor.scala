@@ -183,7 +183,7 @@ class SisyphusMasterActor(config: MasterActorConfig) extends PersistentActor wit
         log.warning("Noted that " + message.unit.name + " has failed " +
           " demultiplexing. Will move it into the list of failed jobs.")
         self ! AddToFailedMessages(message)
-        notice.warning(s"Failed demultiplexing for: $message.unit with the reason: $message.reason")
+        notice.critical(s"Failed demultiplexing for: $message.unit with the reason: $message.reason")
       }
 
       // Refer to change state messages.
