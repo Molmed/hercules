@@ -3,6 +3,7 @@ package hercules.entities.illumina
 import java.io.File
 import java.io.FileNotFoundException
 import java.net.URI
+import com.typesafe.config.ConfigFactory
 import scala.Option.option2Iterable
 import akka.event.LoggingAdapter
 import hercules.config.processingunit.IlluminaProcessingUnitConfig
@@ -197,11 +198,13 @@ class IlluminaProcessingUnitFetcher() extends ProcessingUnitFetcher[IlluminaProc
      * or "MiSeq Control Software" otherwise something has gone wrong.
      */
     def getMachineTypeFromRunParametersXML(runfolder: File): String = {
+      val configLoader = ConfigFactory.load()
+      val runParameters = configLoader.getString("general.runParameters")
       val runInfoXML =
         runfolder.listFiles().
-          find(x => x.getName() == "RunParameters.xml").
+          find(x => x.getName() == runParameters).
           getOrElse(throw new FileNotFoundException(
-            "Did not find RunParameters.xml in runfolder: " +
+            "Did not find " + runParameters + ".xml in runfolder: " +
               runfolder.getAbsolutePath()))
 
       val xml = scala.xml.XML.loadFile(runInfoXML)
@@ -212,6 +215,30 @@ class IlluminaProcessingUnitFetcher() extends ProcessingUnitFetcher[IlluminaProc
           """RunParameters.xml in runfolder: """ + runfolder.getName())
 
       applicationName.text
+    }
+
+    /**
+     * Fetch the manifest file names, if they are specified, from
+     * runParameters.xml.
+     * @param runfolder
+     * @return Seq[String] with file names
+     */
+    def getManifestFilesFromRunParametersXML(runfolder: File): Seq[String] = {
+      val configLoader = ConfigFactory.load()
+      val runParameters = configLoader.getString("general.runParameters")
+      val result = scala.collection.mutable.ArrayBuffer[String]()
+
+      val runInfoXML =
+        runfolder.listFiles().
+          find(x => x.getName() == runParameters).
+          getOrElse(throw new FileNotFoundException(
+            "Did not find " + runParameters + " .xml in runfolder: " +
+              runfolder.getAbsolutePath()))
+
+      val xml = scala.xml.XML.loadFile(runInfoXML)
+      val manifestFiles = xml \\ "ManifestFiles"
+      val files: Seq[String] = for (file <- xml \\ "ManifestFiles" \\ "string") yield file.text.toString
+      files
     }
 
     /**
@@ -236,7 +263,8 @@ class IlluminaProcessingUnitFetcher() extends ProcessingUnitFetcher[IlluminaProc
 
       //@TODO Some nicer solution for picking up if it's a HiSeq or MiSeq
       getMachineTypeFromRunParametersXML(runfolder) match {
-        case "MiSeq Control Software" => Some(new MiSeqProcessingUnit(unitConfig, runfolder.toURI()))
+        case "MiSeq Control Software" => Some(new MiSeqProcessingUnit(unitConfig, runfolder.toURI(),
+          getManifestFilesFromRunParametersXML(runfolder).size > 0))
         case "HiSeq Control Software" => Some(new HiSeqProcessingUnit(unitConfig, runfolder.toURI()))
         case s: String                => throw new Exception(s"Unrecognized type string:  $s")
       }

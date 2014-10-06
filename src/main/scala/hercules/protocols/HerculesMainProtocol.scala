@@ -44,7 +44,7 @@ object HerculesMainProtocol {
   case class FoundProcessingUnitMessage(unit: ProcessingUnit) extends ProcessingUnitMessage
 
   sealed trait DemultiplexingMessage extends HerculesMessage
-  case class RequestDemultiplexingProcessingUnitMessage extends DemultiplexingMessage
+  case object RequestDemultiplexingProcessingUnitMessage extends DemultiplexingMessage
   case class StartDemultiplexingProcessingUnitMessage(unit: ProcessingUnit) extends DemultiplexingMessage with ProcessingUnitMessage
   case class StopDemultiplexingProcessingUnitMessage(unitName: String) extends DemultiplexingMessage
   case class FinishedDemultiplexingProcessingUnitMessage(unit: ProcessingUnit) extends DemultiplexingMessage with ProcessingUnitMessage
