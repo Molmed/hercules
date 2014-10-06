@@ -1,6 +1,7 @@
 package hercules.actors.processingunitwatcher
 
 import java.io.File
+import java.io.FileNotFoundException
 
 import scala.concurrent.duration.DurationInt
 
@@ -109,10 +110,18 @@ class IlluminaProcessingUnitWatcherExecutorActor(
         new File(config.defaultProgramConfigFile),
         log)
 
-      def result =
-        fetcher.checkForReadyProcessingUnits(fetcherConfig)
+      try {
+        def result =
+          fetcher.checkForReadyProcessingUnits(fetcherConfig)
 
-      self ! ProcessingUnitSequenceMessage(result)
+        self ! ProcessingUnitSequenceMessage(result)
+
+      } catch {
+        case e @ (_: FileNotFoundException | _: IllegalArgumentException | _: AssertionError | _: Exception) => {
+          notice.warning("Failed with " + e.getClass.getSimpleName + " when checking for ready processing units: " + e.getMessage)
+          throw e
+        }
+      }
     }
     case ProcessingUnitSequenceMessage(seq) => {
       for (unit <- seq)
