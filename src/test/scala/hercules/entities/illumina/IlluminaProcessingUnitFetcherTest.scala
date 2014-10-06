@@ -52,29 +52,56 @@ class IlluminaProcessingUnitFetcherTest extends FlatSpec with Matchers with Befo
     "140806_D00457_0046_BC48R0ACXX",
     "140812_M00485_0148_000000000-AA3LB",
     "140821_D00458_0030_BC4F53ANXX",
-    "140822_M00485_0150_000000000-A9YTW").
+    "140822_M00485_0150_000000000-A9YTW",
+    "140924_M00485_0159_000000000-AA5R1").
     map(x => new File(runfolderRoot + "/" + x))
 
   def createMinimalRunParametersXml(runfolder: File) = {
-    val runParameters = new File(runfolder + "/RunParameters.xml")
+    val runParameters = new File(runfolder + "/runParameters.xml")
+    val runParametersWithEmptyManifest = new File(runfolder + "/runParameters.miseq.empty.xml")
+    val runParametersWithManifest = new File(runfolder + "/runParameters.miseq.xml")
 
     val controlSoftwareType = if (runfolder.getName().contains("M00485"))
       "MiSeq Control Software"
     else
       "HiSeq Control Software"
 
-    val xmlString =
-      s"""<?xml version="1.0"?>
-      <RunParameters xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
-        <Setup>
+    val xmlString = runfolder.getName() match {
+      case "140822_M00485_0150_000000000-A9YTW" => s"""<?xml version="1.0"?>
+        <RunParameters xmlns:xsd="http://www.w3.org/2001/XMLSchema" 
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+          <ManifestFiles />
+          <Setup>
+        		<ApplicationName>$controlSoftwareType</ApplicationName>
+      	  </Setup>
+        </RunParameters>      
+        """
+      case "140924_M00485_0159_000000000-AA5R1" => s"""<?xml version="1.0"?>
+        <RunParameters xmlns:xsd="http://www.w3.org/2001/XMLSchema" 
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+          <ManifestFiles>
+      		<string>TruSeq_CAT_Manifest_TC0036120-CAT</string>
+      		<string>TruSeq_Custom_Amplicon_Control_Manifest_ACP1.txt</string>
+          </ManifestFiles>
+          <Setup>
       		<ApplicationName>$controlSoftwareType</ApplicationName>
-    	</Setup>
-      </RunParameters>      
-      """
+    	  </Setup>
+        </RunParameters>      
+        """
+      case _ => s"""<?xml version="1.0"?>
+      	<RunParameters xmlns:xsd="http://www.w3.org/2001/XMLSchema" 
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+          <Setup>
+      		<ApplicationName>$controlSoftwareType</ApplicationName>
+    	  </Setup>
+        </RunParameters>      
+        """
+    }
 
     val printwriter = new PrintWriter(runParameters)
     printwriter.print(xmlString)
     printwriter.close()
+
   }
 
   def createRunFolders(takeXFirst: Int = 2): Seq[File] = {
@@ -104,7 +131,7 @@ class IlluminaProcessingUnitFetcherTest extends FlatSpec with Matchers with Befo
           programConfig = Some(defaultProgramConfigFile))
 
       if (f.getName().contains("M00485"))
-        new MiSeqProcessingUnit(expectedConfig, new URI("file:" + f.getAbsolutePath() + "/"))
+        new MiSeqProcessingUnit(expectedConfig, new URI("file:" + f.getAbsolutePath() + "/"), false)
       else
         new HiSeqProcessingUnit(expectedConfig, new URI("file:" + f.getAbsolutePath() + "/"))
     })
@@ -188,6 +215,29 @@ class IlluminaProcessingUnitFetcherTest extends FlatSpec with Matchers with Befo
         forall(p => p.isInstanceOf[MiSeqProcessingUnit]))
   }
 
+  it should " be able to parse runParameters.xml for ManifestFiles files" in {
+    createRunFolders(6)
+    val fetcher = new IlluminaProcessingUnitFetcher()
+    val actual: Seq[IlluminaProcessingUnit] = fetcher.checkForReadyProcessingUnits(fetcherConfig)
+
+    actual.
+      filter(x => {
+        val asFile = new File(x.uri)
+        asFile.getName().contains("M00485")
+      }).foreach(miseq => miseq.name match {
+        case "140812_M00485_0148_000000000-AA3LB" =>
+          assert(miseq.asInstanceOf[MiSeqProcessingUnit].performeOnMachineAnalysis == false,
+            "140812_M00485_0148_000000000-AA3LB should not contain manifest files")
+        case "140822_M00485_0150_000000000-A9YTW" =>
+          assert(miseq.asInstanceOf[MiSeqProcessingUnit].performeOnMachineAnalysis == false,
+            "140822_M00485_0150_000000000-A9YTW should not contain manifest files")
+        case "140924_M00485_0159_000000000-AA5R1" =>
+          assert(miseq.asInstanceOf[MiSeqProcessingUnit].performeOnMachineAnalysis == true,
+            "140924_M00485_0159_000000000 should contain manifest files")
+        case _ => assert(false, "Don't know how to evalute this miseq runfolder:" + miseq.name)
+      })
+  }
+
   it should " return a HiSeqProcessingUnit for HiSeq runs" in {
 
     val expected: Seq[IlluminaProcessingUnit] = generateExpectedRunfolders(runfolders, 1)
@@ -235,7 +285,7 @@ class IlluminaProcessingUnitFetcherTest extends FlatSpec with Matchers with Befo
 
     // remove all the RunParameters.xml
     runfolderRoot.listFiles().flatMap(x => x.listFiles()).
-      find(p => p.getName() == "RunParameters.xml").
+      find(p => p.getName() == "runParameters.xml").
       foreach(f => f.delete())
 
     intercept[FileNotFoundException] {

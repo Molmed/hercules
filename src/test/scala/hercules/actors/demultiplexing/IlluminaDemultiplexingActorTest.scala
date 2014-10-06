@@ -130,7 +130,7 @@ class IlluminaDemultiplexingActorTest extends TestKit(
 
   "A IlluminaDemultiplexingActorTest" should " pass RequestDemultiplexingProcessingUnitMessage on to the Master" in {
 
-    demultiplexer ! HerculesMainProtocol.RequestDemultiplexingProcessingUnitMessage()
+    demultiplexer ! HerculesMainProtocol.RequestDemultiplexingProcessingUnitMessage
 
     within(20.seconds) {
       expectMsg(FakeMaster.MasterWrapped(HerculesMainProtocol.RequestDemultiplexingProcessingUnitMessage))

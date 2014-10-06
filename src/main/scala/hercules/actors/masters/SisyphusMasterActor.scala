@@ -136,26 +136,6 @@ class SisyphusMasterActor(config: MasterActorConfig) extends PersistentActor wit
       log.debug("Yeah! We save that that snapshot!")
     }
 
-    case RequestDemultiplexingProcessingUnitMessage => {
-
-      val unitsReadyForDemultiplexing = SisyphusMasterActor.
-        findMessagesOfType[FoundProcessingUnitMessage](state.messagesNotYetProcessed)
-
-      import context.dispatcher
-      implicit val timeout = Timeout(5 seconds)
-
-      for (unitMessage <- unitsReadyForDemultiplexing) {
-        (sender ? StartDemultiplexingProcessingUnitMessage(unitMessage.unit)).map {
-          case Acknowledge => {
-            log.debug(s"$unitMessage was accepted by demultiplexer removing from work queue.")
-            RemoveFromMessageNotYetProcessed(unitMessage)
-          }
-          case Reject =>
-            log.debug(s"$unitMessage was not accepted by demultiplexer. Keep it in the work queue.")
-        } pipeTo (self)
-      }
-    }
-
     case message: FoundProcessingUnitMessage => {
       notice.info("New processingunit found: " + message.unit.name)
       self ! AddToMessageNotYetProcessed(message)
@@ -184,6 +164,29 @@ class SisyphusMasterActor(config: MasterActorConfig) extends PersistentActor wit
           " demultiplexing. Will move it into the list of failed jobs.")
         self ! AddToFailedMessages(message)
         notice.critical(s"Failed demultiplexing for: $message.unit with the reason: $message.reason")
+      }
+
+      case RequestDemultiplexingProcessingUnitMessage => {
+
+        log.debug("Processing RequestDemultiplexingProcessingUnitMessage!")
+
+        val unitsReadyForDemultiplexing = SisyphusMasterActor.
+          findMessagesOfType[FoundProcessingUnitMessage](state.messagesNotYetProcessed)
+
+        import context.dispatcher
+        implicit val timeout = Timeout(5 seconds)
+
+        for (unitMessage <- unitsReadyForDemultiplexing) {
+          log.debug("Sending...")
+          (sender ? StartDemultiplexingProcessingUnitMessage(unitMessage.unit)).map {
+            case Acknowledge => {
+              log.debug(s"$unitMessage was accepted by demultiplexer removing from work queue.")
+              RemoveFromMessageNotYetProcessed(unitMessage)
+            }
+            case Reject =>
+              log.debug(s"$unitMessage was not accepted by demultiplexer. Keep it in the work queue.")
+          } pipeTo (self)
+        }
       }
 
       // Refer to change state messages.

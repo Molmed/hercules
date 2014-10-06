@@ -18,6 +18,9 @@ import hercules.demultiplexing.DemultiplexingResult
 import hercules.entities.ProcessingUnit
 import hercules.utils.Formats
 
+import hercules.entities.illumina.HiSeqProcessingUnit
+import hercules.entities.illumina.MiSeqProcessingUnit
+
 class Sisyphus() extends Demultiplexer with ExternalProgram {
 
   val config = ConfigFactory.load()
@@ -31,16 +34,8 @@ class Sisyphus() extends Demultiplexer with ExternalProgram {
 
   def run(unit: ProcessingUnit): (Boolean, File) = {
 
-    import scala.sys.process._
-
     val runfolder = new File(unit.uri)
     val logFile = new File(sisyphusLogLocation + "/" + runfolder.getName() + ".log")
-
-    val command =
-      sisyphusInstallLocation +
-        "sisyphus.pl " +
-        " -runfolder " + runfolder.getAbsolutePath() +
-        " -nowait "
 
     val writer =
       new PrintWriter(
@@ -56,8 +51,26 @@ class Sisyphus() extends Demultiplexer with ExternalProgram {
       writer.flush()
     }
 
-    val exitStatus = command.!(ProcessLogger({ s => writeAndFlush(s) }, { s => writeAndFlush(s) }))
+    val (processingUnitConfig, command) = unit match {
+      case highSeq: HiSeqProcessingUnit => (Some(highSeq.processingUnitConfig),
+        Some(sisyphusInstallLocation + "sisyphus.pl " + " -runfolder " +
+          runfolder.getAbsolutePath() + " -nowait "))
+      case miSeq: MiSeqProcessingUnit => (Some(miSeq.processingUnitConfig),
+        Some(sisyphusInstallLocation + "sisyphus.pl " +
+          (if (miSeq.performeOnMachineAnalysis) "-miseq" else "") +
+          " -runfolder " + runfolder.getAbsolutePath() + " -nowait "))
+      case _ => (None, None)
+    }
 
+    import scala.sys.process._
+
+    val exitStatus = if (command.isDefined) {
+      FileUtils.copyFile(processingUnitConfig.get.programConfig.get, new File(runfolder + "/sisyphus.yml"))
+      FileUtils.copyFile(processingUnitConfig.get.QCConfig, new File(runfolder + "/sisyphus_qc.xml"))
+      FileUtils.copyFile(processingUnitConfig.get.sampleSheet, new File(runfolder + "/SampleSheet.csv"))
+
+      command.get.!(ProcessLogger({ s => writeAndFlush(s) }, { s => writeAndFlush(s) }))
+    } else 1
     writer.close()
 
     (exitStatus == 0, logFile)
