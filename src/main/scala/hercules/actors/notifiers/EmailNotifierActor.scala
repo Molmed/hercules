@@ -38,19 +38,15 @@ object EmailNotifierActor {
   }
 }
 
-class EmailNotifierActor() extends NotifierActor {
-
-  var failedNotifications: Set[EmailNotificationUnit] = Set()
-  var permanentlyFailedNotifications: Set[EmailNotificationUnit] = Set()
-
-  import HerculesMainProtocol._
+class EmailNotifierActor(
+    var state: NotifierState = new NotifierState()) extends NotifierActor {
 
   // Get a EmailNotifierConfig object
   val emailConfig = EmailNotificationConfig.getEmailNotificationConfig(
     ConfigFactory.load().getConfig("notifications.email")
   )
   // Spawn an executor object that will do the work for us
-  val notifierRouter = context.actorOf(
+  val executor = context.actorOf(
     EmailNotifierExecutorActor.props(
       emailConfig),
     "EmailNotifierExecutorActor"
@@ -58,6 +54,8 @@ class EmailNotifierActor() extends NotifierActor {
 
   import context.dispatcher
   import NotificationChannelProtocol._
+  import HerculesMainProtocol._
+  import NotifierActor.NotifierStateProtocol._
 
   // Periodically attempt to resend failed messages up to a limit
   val resendFailed =
@@ -72,17 +70,9 @@ class EmailNotifierActor() extends NotifierActor {
     resendFailed.cancel()
   }
 
-  def receive = LoggingReceive {
+  def receive = retryIgnorer
 
-    // If we receive an instruction to retry failed messages, iterate over that set and send messages that have not met the limit for maximum number of retries
-    case RetryFailedNotificationUnitsMessage => {
-      // Send a notification message and remove the unit from the list
-      failedNotifications.foreach(
-        unit => {
-          self ! SendNotificationUnitMessage(unit)
-          failedNotifications = failedNotifications.filterNot(u => u == unit)
-        })
-    }
+  def retryIgnorer: Receive = LoggingReceive {
 
     // We've received a request to send a notification
     case message: SendNotificationUnitMessage => message.unit match {
@@ -91,7 +81,7 @@ class EmailNotifierActor() extends NotifierActor {
         // Check if the notification unit is in a channel that we will pay attention to
         if (emailConfig.channels.contains(message.unit.channel)) {
           // Pass the message to the executor
-          notifierRouter ! message
+          executor ! message
         }
       }
       // Wrap the notification unit to an email
@@ -108,12 +98,28 @@ class EmailNotifierActor() extends NotifierActor {
           case retries if (emailConfig.numRetries > 0 &&
             emailConfig.numRetries == retries) => {
             log.warning("Giving up trying to send " + unit.getClass.getSimpleName)
-            permanentlyFailedNotifications = permanentlyFailedNotifications + unit
           }
           case _ =>
-            failedNotifications = failedNotifications + unit
+            state = state.manipulateState(AddToFailedNotifications(unit))
+            // When we add a failed notification, start monitoring retry requests
+            context.become(retryIgnorer orElse retryReceiver)
         }
       }
+    }
+  }
+
+  def retryReceiver: Receive = LoggingReceive {
+    // If we receive an instruction to retry failed messages, iterate over that set and send messages that have not met the limit for maximum number of retries
+    case RetryFailedNotificationUnitsMessage => {
+      // Send a notification message and remove the unit from the list
+      state.failedNotifications.foreach(
+        unit => {
+          self ! SendNotificationUnitMessage(unit)
+          state = state.manipulateState(RemoveFromFailedNotifications(unit))
+        })
+      // If we have no more failed notifications to handle, start ignore incoming retry requests
+      if (state.failedNotifications.isEmpty)
+        context.become(retryIgnorer)
     }
   }
 }

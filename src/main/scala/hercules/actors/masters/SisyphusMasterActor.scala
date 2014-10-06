@@ -129,6 +129,7 @@ class SisyphusMasterActor(config: MasterActorConfig) extends PersistentActor wit
 
     case SaveSnapshotFailure(metadata, reason) => {
       log.error(s"Failed to save a snapshot - metadata: $metadata reason: $reason")
+      notice.warning(s"Failed to save a snapshot - metadata: $metadata reason: $reason")
     }
 
     case SaveSnapshotSuccess(_) => {
@@ -156,6 +157,7 @@ class SisyphusMasterActor(config: MasterActorConfig) extends PersistentActor wit
     }
 
     case message: FoundProcessingUnitMessage => {
+      notice.info("New processingunit found: " + message.unit.name)
       self ! AddToMessageNotYetProcessed(message)
     }
 
@@ -174,10 +176,10 @@ class SisyphusMasterActor(config: MasterActorConfig) extends PersistentActor wit
         // be added here!
         log.debug("Noted that " + unit.name + " has finished " +
           " demultiplexing. Right now I'll do nothing about.")
+        notice.info("Demultiplexing finished for processingunit: " + unit.name)
       }
 
       case message: FailedDemultiplexingProcessingUnitMessage => {
-        //@TODO This would be a perfect place to run send a notification :D
         log.warning("Noted that " + message.unit.name + " has failed " +
           " demultiplexing. Will move it into the list of failed jobs.")
         self ! AddToFailedMessages(message)
@@ -190,7 +192,7 @@ class SisyphusMasterActor(config: MasterActorConfig) extends PersistentActor wit
           log.info(
             "For a message to restart " + message.unitName +
               " moving it into the messages to process list.")
-
+          notice.info("Restarting demultiplexing for processingunit: " + message.unitName)
           val matchingMessage = state.failedMessages.find(x => x.unit.name == message.unitName).get
           val startDemultiplexingMessage = new StartDemultiplexingProcessingUnitMessage(matchingMessage.unit)
           self ! AddToMessageNotYetProcessed(startDemultiplexingMessage)
@@ -198,6 +200,7 @@ class SisyphusMasterActor(config: MasterActorConfig) extends PersistentActor wit
           sender ! Acknowledge
         } else {
           log.warning("Couldn't find unit " + message.unitName + " requested to restart.")
+          notice.info("Could not find processingunit: " + message.unitName + " to restart demultiplexing for")
           sender ! Reject(Some("Couldn't find unit " + message.unitName + " requested to restart."))
         }
 
