@@ -8,6 +8,7 @@ import java.util.Date
 
 import scala.sys.process.ProcessLogger
 import scala.sys.process.stringToProcess
+import scala.concurrent._
 
 import org.apache.commons.io.FileUtils
 
@@ -27,9 +28,11 @@ class Sisyphus() extends Demultiplexer with ExternalProgram {
   val sisyphusInstallLocation = config.getString("general.sisyphusInstallLocation")
   val sisyphusLogLocation = config.getString("general.sisyphusLogLocation")
 
-  def demultiplex(unit: ProcessingUnit): DemultiplexingResult = {
-    val (exitStatus, logFile) = run(unit)
-    new DemultiplexingResult(exitStatus, Some(logFile))
+  def demultiplex(unit: ProcessingUnit)(implicit executor: ExecutionContext): Future[DemultiplexingResult] = {
+    future {
+      val (success, logFile) = run(unit)
+      new DemultiplexingResult(success, Some(logFile))
+    }
   }
 
   def run(unit: ProcessingUnit): (Boolean, File) = {
@@ -69,7 +72,8 @@ class Sisyphus() extends Demultiplexer with ExternalProgram {
       FileUtils.copyFile(processingUnitConfig.get.QCConfig, new File(runfolder + "/sisyphus_qc.xml"))
       FileUtils.copyFile(processingUnitConfig.get.sampleSheet, new File(runfolder + "/SampleSheet.csv"))
 
-      command.get.!(ProcessLogger({ s => writeAndFlush(s) }, { s => writeAndFlush(s) }))
+      val proc = command.get.run(ProcessLogger({ s => writeAndFlush(s) }, { s => writeAndFlush(s) }))
+      proc.exitValue
     } else 1
     writer.close()
 
