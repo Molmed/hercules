@@ -4,7 +4,7 @@ import java.io.File
 import akka.event.LoggingAdapter
 
 case class IlluminaProcessingUnitFetcherConfig(
-  runfolderRoot: File,
+  runfolderRoots: Seq[File],
   sampleSheetRoot: File,
   customQCConfigRoot: File,
   defaultQCConfigFile: File,

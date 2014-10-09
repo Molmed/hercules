@@ -23,7 +23,7 @@ class IlluminaProcessingUnitFetcherTest extends FlatSpec with Matchers with Befo
     ConfigFactory.parseString("""akka.loggers = ["akka.testkit.TestEventListener"]"""))
   val log = system.log
 
-  val runfolderRoot = new File("test_runfolders")
+  val runfolderRoots = List(new File("test_runfolders"))
   val sampleSheetRoot = new File("test_samplesheets")
 
   val customQCConfigRoot = new File("custom_qc_configs")
@@ -33,7 +33,7 @@ class IlluminaProcessingUnitFetcherTest extends FlatSpec with Matchers with Befo
   val defaultProgramConfigFile = new File("default_program_config")
 
   val fetcherConfig = new IlluminaProcessingUnitFetcherConfig(
-    runfolderRoot,
+    runfolderRoots,
     sampleSheetRoot,
     customQCConfigRoot,
     defaultQCConfigFile,
@@ -42,10 +42,11 @@ class IlluminaProcessingUnitFetcherTest extends FlatSpec with Matchers with Befo
     log)
 
   val listOfDirsThatNeedSetupAndTeardown =
-    List(runfolderRoot,
-      sampleSheetRoot,
-      customProgramConfigRoot,
-      customQCConfigRoot)
+    runfolderRoots ++
+      List(
+        sampleSheetRoot,
+        customProgramConfigRoot,
+        customQCConfigRoot)
 
   val runfolders = List(
     "140806_D00457_0045_AC47TFACXX",
@@ -54,7 +55,7 @@ class IlluminaProcessingUnitFetcherTest extends FlatSpec with Matchers with Befo
     "140821_D00458_0030_BC4F53ANXX",
     "140822_M00485_0150_000000000-A9YTW",
     "140924_M00485_0159_000000000-AA5R1").
-    map(x => new File(runfolderRoot + "/" + x))
+    map(x => new File(runfolderRoots(0) + "/" + x))
 
   def createMinimalRunParametersXml(runfolder: File) = {
     val runParameters = new File(runfolder + "/runParameters.xml")
@@ -284,9 +285,11 @@ class IlluminaProcessingUnitFetcherTest extends FlatSpec with Matchers with Befo
   it should " throw a FileNotFoundException exception if there is no RunParameters.xml file available in the runfolder" in {
 
     // remove all the RunParameters.xml
-    runfolderRoot.listFiles().flatMap(x => x.listFiles()).
-      find(p => p.getName() == "runParameters.xml").
-      foreach(f => f.delete())
+    for (runfolder <- runfolderRoots) {
+      runfolder.listFiles().flatMap(x => x.listFiles()).
+        find(p => p.getName() == "runParameters.xml").
+        foreach(f => f.delete())
+    }
 
     intercept[FileNotFoundException] {
       val fetcher = new IlluminaProcessingUnitFetcher()

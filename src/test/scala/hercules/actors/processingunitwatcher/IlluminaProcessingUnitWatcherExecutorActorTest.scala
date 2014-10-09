@@ -57,7 +57,7 @@ class IlluminaProcessingUnitWatcherExecutorActorTest
   // Use this function to by pass the default configuration.
   def getTestConfig(): IlluminaProcessingUnitWatcherConfig = {
     val config = new IlluminaProcessingUnitWatcherConfig(
-      "runfolder",
+      List("runfolder"),
       "samplesheet",
       "customQcConfigRoot",
       "defaultQcConfig",
@@ -75,7 +75,7 @@ class IlluminaProcessingUnitWatcherExecutorActorTest
 
   "A IlluminaProcessingUnitWatcherExecutorActor" should "load correct default configs" in {
     val expected =
-      new IlluminaProcessingUnitWatcherConfig("/seqdata/biotank1/runfolders/",
+      new IlluminaProcessingUnitWatcherConfig(List("/seqdata/biotank1/runfolders/"),
         "/srv/samplesheet/processning/",
         "/srv/qc_config/custom/",
         "/srv/qc_config/sisyphus_qc.xml",

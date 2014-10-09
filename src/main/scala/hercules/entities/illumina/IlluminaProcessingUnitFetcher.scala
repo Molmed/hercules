@@ -80,8 +80,8 @@ class IlluminaProcessingUnitFetcher() extends ProcessingUnitFetcher[IlluminaProc
     def searchForRunfolders(): Seq[File] = {
       // Make sure to only get folders which begin with a date (or six digits
       // to be precise)
-      listSubDirectories(config.runfolderRoot).filter(p =>
-        p.getName.matches("""^\d{6}.*$"""))
+      config.runfolderRoots.flatMap(dir => listSubDirectories(dir).filter(p =>
+        p.getName.matches("""^\d{6}.*$""")))
     }
 
     /**

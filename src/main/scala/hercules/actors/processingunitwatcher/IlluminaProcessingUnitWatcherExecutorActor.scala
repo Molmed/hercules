@@ -3,6 +3,7 @@ package hercules.actors.processingunitwatcher
 import java.io.File
 import java.io.FileNotFoundException
 
+import scala.collection.JavaConversions._
 import scala.concurrent.duration.DurationInt
 
 import com.typesafe.config.ConfigFactory
@@ -27,7 +28,7 @@ object IlluminaProcessingUnitWatcherExecutorActor {
     val generalConfig = ConfigFactory.load()
     val conf = generalConfig.getConfig("remote.actors").withFallback(generalConfig)
 
-    val runfolderPath = conf.getString("general.runFolderPath")
+    val runfolderPaths = conf.getStringList("general.runFolderPath").toList
     val samplesheetPath = conf.getString("general.samplesheetPath")
 
     val customQCConfigurationRoot = conf.getString("general.customQCConfigurationFilesRoot")
@@ -37,7 +38,7 @@ object IlluminaProcessingUnitWatcherExecutorActor {
     val defaultProgramConfigurationFile = conf.getString("general.defaultProgramConfigFile")
     val interval = conf.getInt("general.checkForRunfoldersInterval")
 
-    val config = new IlluminaProcessingUnitWatcherConfig(runfolderPath,
+    val config = new IlluminaProcessingUnitWatcherConfig(runfolderPaths,
       samplesheetPath,
       customQCConfigurationRoot,
       defaultQCConfigFile,
@@ -102,7 +103,7 @@ class IlluminaProcessingUnitWatcherExecutorActor(
       log.info("Looking for new runfolders!")
 
       val fetcherConfig = new IlluminaProcessingUnitFetcherConfig(
-        new File(config.runfolderRootPath),
+        config.runfolderRootPaths.map(x => new File(x)),
         new File(config.samplesheetPath),
         new File(config.qcControlConfigPath),
         new File(config.defaultQCConfigFile),

@@ -12,7 +12,7 @@ package hercules.config.processing
  * @param checkForRunfoldersInterval	A interval in seconds to wait between checking for new runfolders
  */
 case class IlluminaProcessingUnitWatcherConfig(
-    val runfolderRootPath: String,
+    val runfolderRootPaths: List[String],
     val samplesheetPath: String,
     val qcControlConfigPath: String,
     val defaultQCConfigFile: String,
