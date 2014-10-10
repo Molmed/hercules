@@ -85,7 +85,7 @@ class IlluminaDemultiplexingActor(
   def receive = {
 
     case RequestDemultiplexingProcessingUnitMessage =>
-      log.info("Received a RequestDemultiplexingProcessingUnitMessage and passing it on to the master.")
+      log.debug("Received a RequestDemultiplexingProcessingUnitMessage and passing it on to the master.")
       clusterClient ! SendToAll("/user/master/active",
         HerculesMainProtocol.RequestDemultiplexingProcessingUnitMessage)
 
@@ -93,23 +93,29 @@ class IlluminaDemultiplexingActor(
 
       //@TODO It is probably reasonable to have some other mechanism than checking if it
       // can spot the file if it can spot the file or not. But for now, this will have to do.
-      log.info("Received a StartDemultiplexingProcessingUnitMessage.")
+      log.debug("Received a StartDemultiplexingProcessingUnitMessage.")
 
       val pathToTheRunfolder = new File(message.unit.uri)
       if (pathToTheRunfolder.exists()) {
-        log.info("Found the runfolder and will acknowlede message to sender: " + sender)
+        log.debug("Found the runfolder and will acknowlede message to sender: " + sender)
         sender ! Acknowledge
         demultiplexingRouter ! message
       } else {
-        log.info("Didn't find the runfolder. Will REJECT: " + message.unit)
+        log.debug("Didn't find the runfolder. Will REJECT: " + message.unit)
         sender ! Reject
       }
     }
 
     case message: FinishedDemultiplexingProcessingUnitMessage =>
-      log.info("Got a FinishedDemultiplexingProcessingUnitMessage will forward it to the master.")
+      log.debug("Got a FinishedDemultiplexingProcessingUnitMessage will forward it to the master.")
       clusterClient ! SendToAll("/user/master/active",
         message)
+
+    case message: FailedDemultiplexingProcessingUnitMessage => {
+      log.debug("Got a FailedDemultiplexingProcessingUnitMessage will forward it to the master.")
+      clusterClient ! SendToAll("/user/master/active",
+        message)
+    }
   }
 
 }

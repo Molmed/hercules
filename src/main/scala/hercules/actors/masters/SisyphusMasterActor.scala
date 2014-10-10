@@ -137,7 +137,6 @@ class SisyphusMasterActor(config: MasterActorConfig) extends PersistentActor wit
     }
 
     case message: FoundProcessingUnitMessage => {
-      notice.info("New processingunit found: " + message.unit.name)
       self ! AddToMessageNotYetProcessed(message)
     }
 
@@ -156,14 +155,12 @@ class SisyphusMasterActor(config: MasterActorConfig) extends PersistentActor wit
         // be added here!
         log.debug("Noted that " + unit.name + " has finished " +
           " demultiplexing. Right now I'll do nothing about.")
-        notice.info("Demultiplexing finished for processingunit: " + unit.name)
       }
 
       case message: FailedDemultiplexingProcessingUnitMessage => {
         log.warning("Noted that " + message.unit.name + " has failed " +
           " demultiplexing. Will move it into the list of failed jobs.")
         self ! AddToFailedMessages(message)
-        notice.critical(s"Failed demultiplexing for: $message.unit with the reason: $message.reason")
       }
 
       case RequestDemultiplexingProcessingUnitMessage => {

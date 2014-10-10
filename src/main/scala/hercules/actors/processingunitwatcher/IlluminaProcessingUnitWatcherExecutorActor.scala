@@ -125,8 +125,10 @@ class IlluminaProcessingUnitWatcherExecutorActor(
       }
     }
     case ProcessingUnitSequenceMessage(seq) => {
-      for (unit <- seq)
+      for (unit <- seq) {
+        notice.info("New processingunit found: " + unit.name)
         context.parent ! HerculesMainProtocol.FoundProcessingUnitMessage(unit)
+      }
     }
   }
 

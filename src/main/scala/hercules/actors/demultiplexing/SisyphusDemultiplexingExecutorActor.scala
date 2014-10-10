@@ -26,12 +26,14 @@ class SisyphusDemultiplexingExecutorActor(demultiplexer: Demultiplexer) extends 
     case StartDemultiplexingProcessingUnitMessage(unit) => {
 
       log.info(s"Starting to demultiplex: $unit!")
+      notice.info(s"Starting to demultiplex: $unit!")
 
       val DemultiplexingResult(success, logFile) =
         demultiplexer.demultiplex(unit)
 
       if (success) {
         log.info("Successfully demultiplexed: " + unit)
+        notice.info("Demultiplexing finished for processingunit: " + unit)
         sender ! FinishedDemultiplexingProcessingUnitMessage(unit)
       } else {
         log.info("Failed in demultiplexing: " + unit)
@@ -41,6 +43,7 @@ class SisyphusDemultiplexingExecutorActor(demultiplexer: Demultiplexer) extends 
             Source.fromFile(logFile.get).getLines.mkString
           else
             ""
+        notice.critical(s"Failed demultiplexing for: $unit with the reason: $logText")
         sender ! FailedDemultiplexingProcessingUnitMessage(unit, logText)
       }
 
