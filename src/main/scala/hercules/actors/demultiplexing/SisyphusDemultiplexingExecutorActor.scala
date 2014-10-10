@@ -30,10 +30,11 @@ class SisyphusDemultiplexingExecutorActor(demultiplexer: Demultiplexer) extends 
 
       log.info(s"Starting to demultiplex: $unit!")
 
-      /** Run the demultiplexing as a blocking operation for now, in order not to accept additional jobs.
-        * @TODO Use become and/or acknowledge/reject to accept new jobs instead? 
-        * @TODO set a (configurable) maximum duration for the demultiplexing call?
-        */
+      /**
+       * Run the demultiplexing as a blocking operation for now, in order not to accept additional jobs.
+       * @TODO Use become and/or acknowledge/reject to accept new jobs instead?
+       * @TODO set a (configurable) maximum duration for the demultiplexing call?
+       */
       val DemultiplexingResult(success, logFile): DemultiplexingResult =
         Await.result[DemultiplexingResult](
           demultiplexer.demultiplex(unit),

@@ -30,6 +30,8 @@ class Sisyphus() extends Demultiplexer with ExternalProgram {
 
   def demultiplex(unit: ProcessingUnit)(implicit executor: ExecutionContext): Future[DemultiplexingResult] = {
     future {
+      // Do a cleanup before attempting to start demultiplexing
+      cleanup(unit)
       val (success, logFile) = run(unit)
       new DemultiplexingResult(success, Some(logFile))
     }
