@@ -17,7 +17,7 @@ import hercules.test.utils.StepParent
 import hercules.demultiplexing.DemultiplexingResult
 import akka.actor.PoisonPill
 import hercules.protocols.HerculesMainProtocol
-import scala.concurrent.duration._
+import scala.concurrent.{ duration, Future, ExecutionContext }
 import java.io.PrintWriter
 
 class SisyphusDemultiplexingExecutorActorTest extends TestKit(ActorSystem("SisyphusDemultiplexingExecutorActorTest"))
@@ -25,6 +25,8 @@ class SisyphusDemultiplexingExecutorActorTest extends TestKit(ActorSystem("Sisyp
     with FlatSpecLike
     with BeforeAndAfterAll
     with Matchers {
+
+  import duration._
 
   // The processing unit to send that we will return
   val processingUnit: IlluminaProcessingUnit =
@@ -48,8 +50,8 @@ class SisyphusDemultiplexingExecutorActorTest extends TestKit(ActorSystem("Sisyp
 
     def cleanup(unit: hercules.entities.ProcessingUnit): Unit =
       cleanUpRan = true
-    def demultiplex(unit: hercules.entities.ProcessingUnit): hercules.demultiplexing.DemultiplexingResult =
-      new DemultiplexingResult(succeed, Some(logFile))
+    def demultiplex(unit: hercules.entities.ProcessingUnit)(implicit executor: ExecutionContext): Future[hercules.demultiplexing.DemultiplexingResult] =
+      Future.successful(new DemultiplexingResult(succeed, Some(logFile)))
   }
 
   override def afterAll(): Unit = {
