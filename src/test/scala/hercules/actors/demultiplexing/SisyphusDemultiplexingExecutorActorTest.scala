@@ -45,13 +45,14 @@ class SisyphusDemultiplexingExecutorActorTest extends TestKit(ActorSystem("Sisyp
 
   // A fake fetcher class which will just return the processing untis
   // defined above.
-  class FakeDemultiplexer(succeed: Boolean) extends Demultiplexer {
+  class FakeDemultiplexer(succeed: Boolean, exception: Option[Throwable] = None) extends Demultiplexer {
     var cleanUpRan: Boolean = false
 
     def cleanup(unit: hercules.entities.ProcessingUnit): Unit =
       cleanUpRan = true
     def demultiplex(unit: hercules.entities.ProcessingUnit)(implicit executor: ExecutionContext): Future[hercules.demultiplexing.DemultiplexingResult] =
-      Future.successful(new DemultiplexingResult(succeed, Some(logFile)))
+      if (exception.isEmpty) Future.successful(new DemultiplexingResult(succeed, Some(logFile)))
+      else Future.failed(exception.get)
   }
 
   override def afterAll(): Unit = {
@@ -75,6 +76,21 @@ class SisyphusDemultiplexingExecutorActorTest extends TestKit(ActorSystem("Sisyp
   it should "send a fail message if the demultiplexing failed " in {
 
     val demultiplexer = new FakeDemultiplexer(succeed = false)
+
+    val demultiplexerActor = system.actorOf(
+      SisyphusDemultiplexingExecutorActor.props(demultiplexer))
+
+    demultiplexerActor ! HerculesMainProtocol.StartDemultiplexingProcessingUnitMessage(processingUnit)
+    expectMsg(3 second, HerculesMainProtocol.FailedDemultiplexingProcessingUnitMessage(processingUnit, logText))
+    demultiplexerActor ! PoisonPill
+
+  }
+
+  it should "send a fail message if the demultiplexing generated an exception " in {
+
+    val demultiplexer = new FakeDemultiplexer(
+      succeed = false,
+      exception = Some(new Exception("Test-case-generated exception")))
 
     val demultiplexerActor = system.actorOf(
       SisyphusDemultiplexingExecutorActor.props(demultiplexer))
