@@ -20,6 +20,8 @@ object HerculesMainProtocol {
   case object Start extends HerculesMessage
   case object Stop extends HerculesMessage
   case object Restart extends HerculesMessage
+  case object Idle extends HerculesMessage
+  case object Busy extends HerculesMessage
 
   case object Acknowledge
   case class Reject(reason: Option[String] = None)
@@ -67,6 +69,8 @@ object HerculesMainProtocol {
   case class SendNotificationUnitMessage(unit: NotificationUnit) extends NotificationUnitMessage
   case class SentNotificationUnitMessage(unit: NotificationUnit) extends NotificationUnitMessage
   case class FailedNotificationUnitMessage(unit: NotificationUnit, reason: String) extends NotificationUnitMessage
+
+  case class RequestExecutorAvailabilityMessage extends HerculesMessage
 
   //@TODO Extend this with all messages that we should to be able to send!
 

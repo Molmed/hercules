@@ -7,6 +7,7 @@ import akka.actor.Props
 import akka.actor.actorRef2Scala
 import akka.contrib.pattern.ClusterClient.SendToAll
 import akka.routing.RoundRobinRouter
+import akka.pattern.{ ask, pipe }
 import hercules.actors.utils.MasterLookup
 import hercules.protocols.HerculesMainProtocol
 import hercules.protocols.HerculesMainProtocol.Acknowledge
@@ -70,40 +71,19 @@ class IlluminaDemultiplexingActor(
 
   import context.dispatcher
 
-  //@TODO Make request new work period configurable.
-  // Request new work periodically
-  val requestWork =
-    context.system.scheduler.schedule(10.seconds, 10.seconds, self, {
-      HerculesMainProtocol.RequestDemultiplexingProcessingUnitMessage
-    })
-
-  // Make sure that the scheduled event stops if the actors does.
-  override def postStop() = {
-    requestWork.cancel()
-  }
-
   def receive = {
 
+    // Forward a request demultiplexing message to master
     case RequestDemultiplexingProcessingUnitMessage =>
-      log.info("Received a RequestDemultiplexingProcessingUnitMessage and passing it on to the master.")
+      log.debug("Received a RequestDemultiplexingProcessingUnitMessage and passing it on to the master.")
       clusterClient ! SendToAll("/user/master/active",
-        HerculesMainProtocol.RequestDemultiplexingProcessingUnitMessage)
+        RequestDemultiplexingProcessingUnitMessage)
 
     case message: StartDemultiplexingProcessingUnitMessage => {
 
-      //@TODO It is probably reasonable to have some other mechanism than checking if it
-      // can spot the file if it can spot the file or not. But for now, this will have to do.
-      log.info("Received a StartDemultiplexingProcessingUnitMessage.")
+      log.debug("Received a StartDemultiplexingProcessingUnitMessage.")
+      demultiplexingRouter.ask(message)(5.seconds).pipeTo(sender)
 
-      val pathToTheRunfolder = new File(message.unit.uri)
-      if (pathToTheRunfolder.exists()) {
-        log.info("Found the runfolder and will acknowlede message to sender: " + sender)
-        sender ! Acknowledge
-        demultiplexingRouter ! message
-      } else {
-        log.info("Didn't find the runfolder. Will REJECT: " + message.unit)
-        sender ! Reject
-      }
     }
 
     case message: FinishedDemultiplexingProcessingUnitMessage =>

@@ -9,6 +9,7 @@ import java.util.Date
 import scala.sys.process.ProcessLogger
 import scala.sys.process.stringToProcess
 import scala.concurrent._
+import scala.io.Source
 
 import org.apache.commons.io.FileUtils
 
@@ -33,7 +34,12 @@ class Sisyphus() extends Demultiplexer with ExternalProgram {
       // Do a cleanup before attempting to start demultiplexing
       cleanup(unit)
       val (success, logFile) = run(unit)
-      new DemultiplexingResult(success, Some(logFile))
+      val logText =
+        if (logFile.exists())
+          Source.fromFile(logFile).getLines.mkString
+        else
+          ""
+      new DemultiplexingResult(success, Some(logText))
     }
   }
 
