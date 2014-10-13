@@ -87,9 +87,15 @@ class IlluminaDemultiplexingActor(
     }
 
     case message: FinishedDemultiplexingProcessingUnitMessage =>
-      log.info("Got a FinishedDemultiplexingProcessingUnitMessage will forward it to the master.")
+      log.debug("Got a FinishedDemultiplexingProcessingUnitMessage will forward it to the master.")
       clusterClient ! SendToAll("/user/master/active",
         message)
+
+    case message: FailedDemultiplexingProcessingUnitMessage => {
+      log.debug("Got a FailedDemultiplexingProcessingUnitMessage will forward it to the master.")
+      clusterClient ! SendToAll("/user/master/active",
+        message)
+    }
   }
 
 }

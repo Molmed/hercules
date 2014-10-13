@@ -51,7 +51,7 @@ class SisyphusDemultiplexingExecutorActorTest extends TestKit(ActorSystem("Sisyp
     def cleanup(unit: hercules.entities.ProcessingUnit): Unit =
       cleanUpRan = true
     def demultiplex(unit: hercules.entities.ProcessingUnit)(implicit executor: ExecutionContext): Future[hercules.demultiplexing.DemultiplexingResult] =
-      if (exception.isEmpty) Future.successful(new DemultiplexingResult(succeed, Some(logText)))
+      if (exception.isEmpty) Future.successful(new DemultiplexingResult(unit, succeed, Some(logText)))
       else Future.failed(exception.get)
   }
 

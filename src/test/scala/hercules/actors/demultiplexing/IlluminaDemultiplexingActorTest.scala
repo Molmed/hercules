@@ -167,4 +167,25 @@ class IlluminaDemultiplexingActorTest extends TestKit(
     }
 
   }
+
+  it should "pass any FailedDemultiplexingProcessingUnitMessage on to the master" in {
+
+    demultiplexer.tell(
+      HerculesMainProtocol.
+        FailedDemultiplexingProcessingUnitMessage(
+          processingUnit,
+          "I'm a complete failure! Please forgive me..."),
+      testActor)
+
+    within(10.seconds) {
+      expectMsg(
+        FakeMaster.
+          MasterWrapped(
+            HerculesMainProtocol.
+              FailedDemultiplexingProcessingUnitMessage(
+                processingUnit,
+                "I'm a complete failure! Please forgive me...")))
+    }
+
+  }
 }

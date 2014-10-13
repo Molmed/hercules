@@ -86,6 +86,7 @@ class SisyphusDemultiplexingExecutorActor(demultiplexer: Demultiplexer) extends 
       if (pathToTheRunfolder.exists()) {
 
         log.info(s"Starting to demultiplex: $unit!")
+        notice.info(s"Starting to demultiplex: $unit!")
         // Acknowledge to sender that we will process this and become busy
         sender ! Acknowledge
         context.become(busyWorker)
@@ -94,8 +95,15 @@ class SisyphusDemultiplexingExecutorActor(demultiplexer: Demultiplexer) extends 
         // @TODO Handle exception
         demultiplexer.demultiplex(unit).map(
           (r: DemultiplexingResult) =>
-            if (r.success) FinishedDemultiplexingProcessingUnitMessage(unit)
-            else FailedDemultiplexingProcessingUnitMessage(unit, r.logText.getOrElse("Unknown reason"))
+            if (r.success) {
+              log.info("Successfully demultiplexed: " + r.unit)
+              notice.info("Demultiplexing finished for processingunit: " + r.unit)
+              FinishedDemultiplexingProcessingUnitMessage(r.unit)
+            } else {
+              log.info("Failed in demultiplexing: " + r.unit)
+              notice.critical(s"Failed demultiplexing for: $r.unit with the reason: $r.logText")
+              FailedDemultiplexingProcessingUnitMessage(r.unit, r.logText.getOrElse("Unknown reason"))
+            }
         ).pipeTo(self)
       } else {
         sender ! Reject

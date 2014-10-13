@@ -39,7 +39,7 @@ class Sisyphus() extends Demultiplexer with ExternalProgram {
           Source.fromFile(logFile).getLines.mkString
         else
           ""
-      new DemultiplexingResult(success, Some(logText))
+      new DemultiplexingResult(unit, success, Some(logText))
     }
   }
 
