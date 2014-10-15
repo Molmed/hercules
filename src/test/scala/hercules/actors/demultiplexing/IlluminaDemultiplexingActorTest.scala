@@ -84,7 +84,11 @@ class IlluminaDemultiplexingActorTest extends TestKit(
 
   class FakeExecutor extends DemultiplexingExecutorActor {
     def receive = {
-      case _ => log.info("Got a message in the FakeExecutor")
+      // Just acknowledge any StartDemultiplexingProcessingUnitMessage
+      case HerculesMainProtocol.StartDemultiplexingProcessingUnitMessage(unit) =>
+        sender ! HerculesMainProtocol.Acknowledge
+      case _ =>
+        log.info("Got a message in the FakeExecutor")
     }
   }
 
@@ -137,25 +141,14 @@ class IlluminaDemultiplexingActorTest extends TestKit(
     }
   }
 
-  it should "acknowledge request to start demultiplexing if it can find the unit" in {
+  it should "forward a request to start demultiplexing to the executor and pass the response to the sender" in {
 
-    // Create the dir so that it can be found.
-    runfolder.mkdirs()
     demultiplexer.tell(HerculesMainProtocol.StartDemultiplexingProcessingUnitMessage(processingUnit), testActor)
 
     within(10.seconds) {
       expectMsg(HerculesMainProtocol.Acknowledge)
     }
 
-    runfolder.delete()
-  }
-
-  it should "reject request to start demultiplexing if it cannot find the unit" in {
-    demultiplexer.tell(HerculesMainProtocol.StartDemultiplexingProcessingUnitMessage(processingUnit), testActor)
-
-    within(10.seconds) {
-      expectMsg(HerculesMainProtocol.Reject)
-    }
   }
 
   it should "pass any FinishedDemultiplexingProcessingUnitMessage on to the master" in {

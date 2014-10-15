@@ -23,6 +23,8 @@ import hercules.utils.Formats
 import hercules.entities.illumina.HiSeqProcessingUnit
 import hercules.entities.illumina.MiSeqProcessingUnit
 
+import hercules.exceptions.HerculesExceptions
+
 class Sisyphus() extends Demultiplexer with ExternalProgram {
 
   val config = ConfigFactory.load()
@@ -31,9 +33,14 @@ class Sisyphus() extends Demultiplexer with ExternalProgram {
 
   def demultiplex(unit: ProcessingUnit)(implicit executor: ExecutionContext): Future[DemultiplexingResult] = {
     future {
-      // Do a cleanup before attempting to start demultiplexing
-      cleanup(unit)
-      val (success, logFile) = run(unit)
+      val (success, logFile) = try {
+        // Do a cleanup before attempting to start demultiplexing
+        cleanup(unit)
+        run(unit)
+      } catch {
+        case e: Exception =>
+          throw HerculesExceptions.ExternalProgramException(e.getMessage(), unit)
+      }
       val logText =
         if (logFile.exists())
           Source.fromFile(logFile).getLines.mkString

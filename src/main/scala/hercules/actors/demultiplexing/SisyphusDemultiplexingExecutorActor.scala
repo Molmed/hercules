@@ -6,15 +6,21 @@ import akka.pattern.pipe
 import hercules.actors.HerculesActor
 import hercules.protocols.HerculesMainProtocol._
 import hercules.external.program.Sisyphus
-import scala.concurrent.{ duration, Future }
+import scala.concurrent.duration._
+import scala.concurrent.Future
+import scala.util.Random
 import java.io.File
 import hercules.demultiplexing.Demultiplexer
 import hercules.demultiplexing.DemultiplexingResult
+import hercules.exceptions.HerculesExceptions
 
 object SisyphusDemultiplexingExecutorActor {
 
   def props(demultiplexer: Demultiplexer = new Sisyphus()): Props =
-    Props(new SisyphusDemultiplexingExecutorActor(demultiplexer))
+    Props(
+      new SisyphusDemultiplexingExecutorActor(
+        demultiplexer,
+        60.seconds))
 
 }
 
@@ -22,17 +28,16 @@ object SisyphusDemultiplexingExecutorActor {
  * Concrete executor implementation for demultiplexing using Sisyphus
  * This one can lock while doing it work.
  */
-class SisyphusDemultiplexingExecutorActor(demultiplexer: Demultiplexer) extends DemultiplexingActor {
+class SisyphusDemultiplexingExecutorActor(demultiplexer: Demultiplexer, requestWorkInterval: FiniteDuration) extends DemultiplexingActor {
 
   import context.dispatcher
-  import duration._
 
   //@TODO Make request new work period configurable.
-  // Request new work periodically
   val requestWork =
     context.system.scheduler.schedule(
-      30.seconds,
-      10.seconds,
+      (requestWorkInterval +
+        Random.nextInt(requestWorkInterval.toSeconds.toInt).seconds),
+      requestWorkInterval,
       self,
       { RequestDemultiplexingProcessingUnitMessage })
 
@@ -104,9 +109,12 @@ class SisyphusDemultiplexingExecutorActor(demultiplexer: Demultiplexer) extends 
               notice.critical(s"Failed demultiplexing for: $r.unit with the reason: $r.logText")
               FailedDemultiplexingProcessingUnitMessage(r.unit, r.logText.getOrElse("Unknown reason"))
             }
-        ).pipeTo(self)
+        ).recover {
+            case e: HerculesExceptions.ExternalProgramException =>
+              FailedDemultiplexingProcessingUnitMessage(e.unit, e.message)
+          }.pipeTo(self)
       } else {
-        sender ! Reject
+        sender ! Reject(Some(s"The run folder path $pathToTheRunfolder could not be found"))
       }
     }
   }
