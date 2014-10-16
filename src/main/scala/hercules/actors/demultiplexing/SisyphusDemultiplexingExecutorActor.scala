@@ -3,19 +3,24 @@ package hercules.actors.demultiplexing
 import akka.actor.Props
 import akka.event.LoggingReceive
 import akka.pattern.pipe
+
 import hercules.actors.HerculesActor
-import hercules.protocols.HerculesMainProtocol._
-import hercules.external.program.Sisyphus
-import scala.concurrent.duration._
-import scala.concurrent.Future
-import scala.util.Random
-import java.io.File
+import hercules.actors.demultiplexing.IlluminaDemultiplexingActor.IlluminaDemultiplexingActorProtocol._
 import hercules.demultiplexing.Demultiplexer
 import hercules.demultiplexing.DemultiplexingResult
 import hercules.exceptions.HerculesExceptions
+import hercules.external.program.Sisyphus
+import hercules.protocols.HerculesMainProtocol._
+
+import java.io.File
+
+import scala.concurrent.duration._
+import scala.concurrent.Future
+import scala.util.Random
 
 object SisyphusDemultiplexingExecutorActor {
 
+  //@TODO Make request new work period configurable.
   def props(demultiplexer: Demultiplexer = new Sisyphus()): Props =
     Props(
       new SisyphusDemultiplexingExecutorActor(
@@ -32,11 +37,10 @@ class SisyphusDemultiplexingExecutorActor(demultiplexer: Demultiplexer, requestW
 
   import context.dispatcher
 
-  //@TODO Make request new work period configurable.
+  // Schedule a recurrent request for work when idle
   val requestWork =
     context.system.scheduler.schedule(
-      (requestWorkInterval +
-        Random.nextInt(requestWorkInterval.toSeconds.toInt).seconds),
+      requestWorkInterval,
       requestWorkInterval,
       self,
       { RequestDemultiplexingProcessingUnitMessage })
@@ -56,7 +60,7 @@ class SisyphusDemultiplexingExecutorActor(demultiplexer: Demultiplexer, requestW
 
     // Reject any incoming demultiplex requests while we are busy
     case StartDemultiplexingProcessingUnitMessage(unit) =>
-      sender ! Reject
+      sender ! Reject(Some("Executor is busy"))
 
     // Incoming demultiplexing results are passed up to parent and we become idle
     case message @ (_: FinishedDemultiplexingProcessingUnitMessage | _: FailedDemultiplexingProcessingUnitMessage) => {
@@ -66,8 +70,10 @@ class SisyphusDemultiplexingExecutorActor(demultiplexer: Demultiplexer, requestW
       message match {
         case msg: FinishedDemultiplexingProcessingUnitMessage =>
           log.info("Successfully demultiplexed: " + msg.unit)
+          notice.info("Demultiplexing finished for processingunit: " + msg.unit)
         case msg: FailedDemultiplexingProcessingUnitMessage =>
           log.info("Failed in demultiplexing: " + msg.unit)
+          notice.critical(s"Failed demultiplexing for: $msg.unit with the reason: $msg.logText")
       }
     }
   }
@@ -97,18 +103,10 @@ class SisyphusDemultiplexingExecutorActor(demultiplexer: Demultiplexer, requestW
         context.become(busyWorker)
 
         // Run the demultiplexing and pipe the result, when available, to self as a message 
-        // @TODO Handle exception
         demultiplexer.demultiplex(unit).map(
           (r: DemultiplexingResult) =>
-            if (r.success) {
-              log.info("Successfully demultiplexed: " + r.unit)
-              notice.info("Demultiplexing finished for processingunit: " + r.unit)
-              FinishedDemultiplexingProcessingUnitMessage(r.unit)
-            } else {
-              log.info("Failed in demultiplexing: " + r.unit)
-              notice.critical(s"Failed demultiplexing for: $r.unit with the reason: $r.logText")
-              FailedDemultiplexingProcessingUnitMessage(r.unit, r.logText.getOrElse("Unknown reason"))
-            }
+            if (r.success) FinishedDemultiplexingProcessingUnitMessage(r.unit)
+            else FailedDemultiplexingProcessingUnitMessage(r.unit, r.logText.getOrElse("Unknown reason"))
         ).recover {
             case e: HerculesExceptions.ExternalProgramException =>
               FailedDemultiplexingProcessingUnitMessage(e.unit, e.message)

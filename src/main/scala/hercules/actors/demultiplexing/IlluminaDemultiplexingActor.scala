@@ -8,12 +8,9 @@ import akka.actor.actorRef2Scala
 import akka.contrib.pattern.ClusterClient.SendToAll
 import akka.routing.RoundRobinRouter
 import akka.pattern.{ ask, pipe }
+import akka.util.Timeout
 import hercules.actors.utils.MasterLookup
-import hercules.protocols.HerculesMainProtocol
-import hercules.protocols.HerculesMainProtocol.Acknowledge
-import hercules.protocols.HerculesMainProtocol.FinishedDemultiplexingProcessingUnitMessage
-import hercules.protocols.HerculesMainProtocol.Reject
-import hercules.protocols.HerculesMainProtocol.StringMessage
+import hercules.protocols.HerculesMainProtocol._
 import akka.actor.ActorSystem
 import com.typesafe.config.Config
 
@@ -46,6 +43,11 @@ object IlluminaDemultiplexingActor extends MasterLookup {
 
     Props(new IlluminaDemultiplexingActor(clusterClient, demultiplexingExecutor))
   }
+  
+  object IlluminaDemultiplexingActorProtocol {
+      case object Idle
+      case object Busy
+  }
 }
 
 /**
@@ -60,8 +62,8 @@ class IlluminaDemultiplexingActor(
     clusterClient: ActorRef,
     demultiplexingExecutor: Props) extends DemultiplexingActor {
 
-  import HerculesMainProtocol._
-
+  implicit val timeout = Timeout(5.seconds)
+  
   //@TODO Make the number of demultiplexing instances started configurable.
   val demultiplexingRouter =
     context.actorOf(
@@ -81,9 +83,8 @@ class IlluminaDemultiplexingActor(
 
     case message: StartDemultiplexingProcessingUnitMessage => {
 
-      // @TODO Should we ask another executor if the first one rejects the request because it is busy?
       log.debug("Received a StartDemultiplexingProcessingUnitMessage.")
-      demultiplexingRouter.ask(message)(5.seconds).pipeTo(sender)
+      demultiplexingRouter.ask(message).pipeTo(sender)
 
     }
 

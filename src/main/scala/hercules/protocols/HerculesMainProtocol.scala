@@ -20,8 +20,6 @@ object HerculesMainProtocol {
   case object Start extends HerculesMessage
   case object Stop extends HerculesMessage
   case object Restart extends HerculesMessage
-  case object Idle extends HerculesMessage
-  case object Busy extends HerculesMessage
 
   case object Acknowledge
   case class Reject(reason: Option[String] = None)
