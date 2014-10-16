@@ -10,6 +10,8 @@ version := "0.1"
 
 scalaVersion := "2.10.2"
 
+resolvers += "rediscala" at "http://dl.bintray.com/etaty/maven"
+
 libraryDependencies ++= {
   Seq(
   "com.typesafe.akka" %% "akka-contrib" % "2.3.4",
@@ -23,7 +25,9 @@ libraryDependencies ++= {
   "ch.qos.logback" % "logback-classic" % "1.0.13",
   "io.spray" %% "spray-can" % "1.3.1",
   "io.spray" %% "spray-routing" % "1.3.1",
-  "io.spray" %% "spray-json" % "1.3.0")
+  "io.spray" %% "spray-json" % "1.3.0",
+  "com.etaty.rediscala" %% "rediscala" % "1.4.0"
+  )
 }
 
 instrumentSettings
