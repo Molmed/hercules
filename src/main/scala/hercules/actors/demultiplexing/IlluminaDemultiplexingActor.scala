@@ -43,10 +43,10 @@ object IlluminaDemultiplexingActor extends MasterLookup {
 
     Props(new IlluminaDemultiplexingActor(clusterClient, demultiplexingExecutor))
   }
-  
+
   object IlluminaDemultiplexingActorProtocol {
-      case object Idle
-      case object Busy
+    case object Idle
+    case object Busy
   }
 }
 
@@ -63,7 +63,7 @@ class IlluminaDemultiplexingActor(
     demultiplexingExecutor: Props) extends DemultiplexingActor {
 
   implicit val timeout = Timeout(5.seconds)
-  
+
   //@TODO Make the number of demultiplexing instances started configurable.
   val demultiplexingRouter =
     context.actorOf(

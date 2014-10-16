@@ -7,7 +7,7 @@ import spray.http.StatusCodes._
 import akka.pattern.ask
 import akka.contrib.pattern.ClusterClient.SendToAll
 import akka.util.Timeout
-import scala.util.{Success,Failure}
+import scala.util.{ Success, Failure }
 import hercules.protocols.HerculesMainProtocol._
 import hercules.actors.masters.{ MasterState, MasterStateProtocol }
 
@@ -39,18 +39,18 @@ class DemultiplexingService(cluster: ActorRef)(implicit executionContext: Execut
                 "/user/master/active",
                 RestartDemultiplexingProcessingUnitMessage(id))
             ).map {
-              case Success(msg) =>
-                msg match {
-                  case Acknowledge =>
-                    Accepted
-                  case Reject(reason) =>
-                    NotFound
-                  case _ =>
-                    InternalServerError
-                }
-              case Failure(reason) =>
-                InternalServerError
-            }
+                case Success(msg) =>
+                  msg match {
+                    case Acknowledge =>
+                      Accepted
+                    case Reject(reason) =>
+                      NotFound
+                    case _ =>
+                      InternalServerError
+                  }
+                case Failure(reason) =>
+                  InternalServerError
+              }
           }
         }
       }
@@ -65,12 +65,12 @@ class DemultiplexingService(cluster: ActorRef)(implicit executionContext: Execut
       delete {
         detach() {
           complete {
-            val request = 
+            val request =
               cluster.ask(
                 SendToAll(
-                  "/user/master/active", 
+                  "/user/master/active",
                   RequestMasterState(Some(id)))
-                )
+              )
             val response = request.map {
               case Success(state) => {
                 state match {
@@ -81,13 +81,13 @@ class DemultiplexingService(cluster: ActorRef)(implicit executionContext: Execut
                       OK
                     } else {
                       NotFound
-                    } 
+                    }
                   }
-                  case _ => 
+                  case _ =>
                     InternalServerError
                 }
               }
-              case Failure(reason) => 
+              case Failure(reason) =>
                 InternalServerError
             }
             response
@@ -96,8 +96,8 @@ class DemultiplexingService(cluster: ActorRef)(implicit executionContext: Execut
       }
     }
 
-  /**  
-   * Forget any previous demultiplex results for the specified unit. 
+  /**
+   * Forget any previous demultiplex results for the specified unit.
    * This should make it discoverable again by the
    * ProcessUnitWatcher and trigger a new demultiplexing job
    * @TODO Implement this functionality in master

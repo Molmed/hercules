@@ -5,8 +5,8 @@ import akka.contrib.pattern.ClusterClient.SendToAll
 import akka.pattern.ask
 import akka.util.Timeout
 
-import scala.concurrent.{ Await, duration,  ExecutionContext}
-import scala.util.{Failure,Success}
+import scala.concurrent.{ Await, duration, ExecutionContext }
+import scala.util.{ Failure, Success }
 
 import spray.http.StatusCodes._
 import spray.routing.Directives
@@ -24,12 +24,12 @@ class StatusService(cluster: ActorRef)(implicit executionContext: ExecutionConte
       get {
         detach() {
           complete {
-            val request = 
+            val request =
               cluster.ask(
                 SendToAll(
-                  "/user/master/active", 
+                  "/user/master/active",
                   RequestMasterState())
-                )
+              )
             val response = request.map {
               case Success(state) => {
                 state match {
@@ -38,19 +38,19 @@ class StatusService(cluster: ActorRef)(implicit executionContext: ExecutionConte
                     registerCustom(
                       200,
                       reason = "OK",
-                      defaultMessage = 
-                          "messagesNotYetProcessed: {" +
+                      defaultMessage =
+                        "messagesNotYetProcessed: {" +
                           s.messagesNotYetProcessed.map { _.unit.uri }.mkString(",") +
                           "}, messagesInProcessing: {" +
                           s.messagesInProcessing.map { _.unit.uri }.mkString(",") +
                           "} ,failedMessages: {" +
                           s.failedMessages.map { _.unit.uri }.mkString("}"))
                   }
-                  case _ => 
+                  case _ =>
                     InternalServerError
                 }
               }
-              case Failure(reason) => 
+              case Failure(reason) =>
                 InternalServerError
             }
             response

@@ -1,27 +1,27 @@
 package hercules.actors.demultiplexing
 
+import akka.actor.{ ActorSystem, PoisonPill, Props }
+import akka.testkit.{ ImplicitSender, TestActorRef, TestKit, TestProbe }
+
+import hercules.actors.demultiplexing.IlluminaDemultiplexingActor._
+import hercules.demultiplexing.Demultiplexer
+import hercules.entities.illumina.{ HiSeqProcessingUnit, IlluminaProcessingUnit }
+import hercules.config.processingunit.IlluminaProcessingUnitConfig
+import hercules.demultiplexing.DemultiplexingResult
+import hercules.exceptions.HerculesExceptions
+import hercules.protocols.HerculesMainProtocol
+import hercules.test.utils.StepParent
+
+import java.io.File
+import java.io.PrintWriter
+import java.net.URI
+
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.FlatSpecLike
 import org.scalatest.Matchers
 import org.scalatest.Assertions.assert
-import akka.actor.ActorSystem
-import akka.testkit.ImplicitSender
-import akka.testkit.TestKit
-import akka.testkit.{ TestProbe, TestActorRef, TestKit, ImplicitSender }
-import hercules.demultiplexing.Demultiplexer
-import hercules.entities.illumina.HiSeqProcessingUnit
-import hercules.entities.illumina.IlluminaProcessingUnit
-import hercules.config.processingunit.IlluminaProcessingUnitConfig
-import java.io.File
-import java.net.URI
-import akka.actor.Props
-import hercules.test.utils.StepParent
-import hercules.demultiplexing.DemultiplexingResult
-import akka.actor.PoisonPill
-import hercules.protocols.HerculesMainProtocol
-import hercules.exceptions.HerculesExceptions
+
 import scala.concurrent.{ duration, Future, ExecutionContext }
-import java.io.PrintWriter
 
 class SisyphusDemultiplexingExecutorActorTest extends TestKit(ActorSystem("SisyphusDemultiplexingExecutorActorTest"))
     with ImplicitSender
@@ -94,7 +94,7 @@ class SisyphusDemultiplexingExecutorActorTest extends TestKit(ActorSystem("Sisyp
   "A SisyphusDemultiplexingExecutorActor" should " respond with Idle status when idle" in {
 
     successDemuxActor ! HerculesMainProtocol.RequestExecutorAvailabilityMessage
-    expectMsg(3 second, HerculesMainProtocol.Idle)
+    expectMsg(3 second, IlluminaDemultiplexingActorProtocol.Idle)
   }
 
   it should " forward a handled RequestDemultiplexingProcessingUnitMessage to the parent" in {
