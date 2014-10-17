@@ -38,8 +38,7 @@ object EmailNotifierActor {
   }
 }
 
-class EmailNotifierActor(
-    var state: NotifierState = new NotifierState()) extends NotifierActor {
+class EmailNotifierActor() extends NotifierActor {
 
   // Get a EmailNotifierConfig object
   val emailConfig = EmailNotificationConfig.getEmailNotificationConfig(
@@ -55,24 +54,8 @@ class EmailNotifierActor(
   import context.dispatcher
   import NotificationChannelProtocol._
   import HerculesMainProtocol._
-  import NotifierActor.NotifierStateProtocol._
 
-  // Periodically attempt to resend failed messages up to a limit
-  val resendFailed =
-    context.system.scheduler.schedule(
-      Duration.create(emailConfig.retryInterval, "seconds"),
-      Duration.create(emailConfig.retryInterval, "seconds"),
-      self,
-      RetryFailedNotificationUnitsMessage)
-
-  // Make sure that the scheduled event stops if the actors does.
-  override def postStop() = {
-    resendFailed.cancel()
-  }
-
-  def receive = retryIgnorer
-
-  def retryIgnorer: Receive = LoggingReceive {
+  def receive = LoggingReceive {
 
     // We've received a request to send a notification
     case message: SendNotificationUnitMessage => message.unit match {
@@ -100,26 +83,12 @@ class EmailNotifierActor(
             log.warning("Giving up trying to send " + unit.getClass.getSimpleName)
           }
           case _ =>
-            state = state.manipulateState(AddToFailedNotifications(unit))
-            // When we add a failed notification, start monitoring retry requests
-            context.become(retryIgnorer orElse retryReceiver)
+            context.system.scheduler.scheduleOnce(
+                Duration.create(emailConfig.retryInterval, "seconds"), 
+                self, 
+                SendNotificationUnitMessage(unit))
         }
       }
-    }
-  }
-
-  def retryReceiver: Receive = LoggingReceive {
-    // If we receive an instruction to retry failed messages, iterate over that set and send messages that have not met the limit for maximum number of retries
-    case RetryFailedNotificationUnitsMessage => {
-      // Send a notification message and remove the unit from the list
-      state.failedNotifications.foreach(
-        unit => {
-          self ! SendNotificationUnitMessage(unit)
-          state = state.manipulateState(RemoveFromFailedNotifications(unit))
-        })
-      // If we have no more failed notifications to handle, start ignore incoming retry requests
-      if (state.failedNotifications.isEmpty)
-        context.become(retryIgnorer)
     }
   }
 }

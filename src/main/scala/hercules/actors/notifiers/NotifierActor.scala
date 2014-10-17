@@ -24,7 +24,4 @@ object NotifierActor {
  * the NotifierActor trait. Note that it does not extend the HerculesActor since
  * that would cause circular dependencies (?)
  */
-trait NotifierActor extends Actor with ActorLogging {
-  sealed trait NotifierActorMessage
-  case object RetryFailedNotificationUnitsMessage extends NotifierActorMessage
-}
+trait NotifierActor extends Actor with ActorLogging
