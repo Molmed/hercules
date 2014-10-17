@@ -9,6 +9,7 @@ import akka.contrib.pattern.ClusterClient.SendToAll
 import akka.routing.RoundRobinRouter
 import akka.pattern.{ ask, pipe }
 import akka.util.Timeout
+import akka.event.LoggingReceive
 import hercules.actors.utils.MasterLookup
 import hercules.protocols.HerculesMainProtocol._
 import akka.actor.ActorSystem
@@ -166,8 +167,7 @@ class IlluminaDemultiplexingActor(
 
     case message: FailedDemultiplexingProcessingUnitMessage => {
       switchBehavior(-1)
-      clusterClient ! SendToAll("/user/master/active",
-        message)
+      clusterClient ! SendToAll("/user/master/active", message)
     }
   }
 

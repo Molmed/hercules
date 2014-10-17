@@ -29,7 +29,7 @@ object SisyphusDemultiplexingExecutorActor {
  */
 class SisyphusDemultiplexingExecutorActor(demultiplexer: Demultiplexer) extends DemultiplexingActor {
 
-  def receive = {
+  def receive = LoggingReceive {
 
     case StartDemultiplexingProcessingUnitMessage(unit) => {
 

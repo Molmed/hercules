@@ -10,6 +10,8 @@ import com.typesafe.config.ConfigFactory
 
 import akka.actor.Props
 import akka.actor.actorRef2Scala
+import akka.event.LoggingReceive
+
 import hercules.actors.HerculesActor
 import hercules.config.processing.IlluminaProcessingUnitWatcherConfig
 import hercules.config.processingunit.IlluminaProcessingUnitFetcherConfig
@@ -97,10 +99,10 @@ class IlluminaProcessingUnitWatcherExecutorActor(
   }
 
   // Just pass the message on to the parent (the IlluminaProcessingUnitWatcherActor)
-  def receive = {
+  def receive = LoggingReceive {
 
     case CheckForRunfolders => {
-      log.info("Looking for new runfolders!")
+      log.debug("Looking for new runfolders!")
 
       val fetcherConfig = new IlluminaProcessingUnitFetcherConfig(
         config.runfolderRootPaths.map(x => new File(x)),
@@ -120,6 +122,7 @@ class IlluminaProcessingUnitWatcherExecutorActor(
       } catch {
         case e @ (_: FileNotFoundException | _: IllegalArgumentException | _: AssertionError | _: Exception) => {
           notice.warning("Failed with " + e.getClass.getSimpleName + " when checking for ready processing units: " + e.getMessage)
+          log.error("Failed with " + e.getClass.getSimpleName + " when checking for ready processing units: " + e.getMessage)
           throw e
         }
       }

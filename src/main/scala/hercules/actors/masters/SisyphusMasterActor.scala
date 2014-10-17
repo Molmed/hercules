@@ -189,7 +189,7 @@ class SisyphusMasterActor(config: MasterActorConfig) extends PersistentActor wit
       // Refer to change state messages.
       case message: RestartDemultiplexingProcessingUnitMessage => {
         if (state.failedMessages.exists(p => p.unit.name == message.unitName)) {
-          log.info(
+          log.debug(
             "For a message to restart " + message.unitName +
               " moving it into the messages to process list.")
           notice.info("Restarting demultiplexing for processingunit: " + message.unitName)

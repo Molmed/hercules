@@ -4,6 +4,7 @@ import akka.actor.ActorRef
 import akka.actor.Props
 import akka.actor.actorRef2Scala
 import akka.contrib.pattern.ClusterClient.SendToAll
+import akka.event.LoggingReceive
 import hercules.actors.utils.MasterLookup
 import hercules.protocols.HerculesMainProtocol
 import akka.actor.ActorSystem
@@ -45,9 +46,9 @@ class IlluminaProcessingUnitWatcherActor(clusterClient: ActorRef, executor: Prop
     executor,
     "IlluminaProcessingUnitExecutor")
 
-  def receive = {
+  def receive = LoggingReceive {
     case message: HerculesMainProtocol.FoundProcessingUnitMessage => {
-      log.info("Got a FoundProcessingUnitMessage")
+      log.debug("Got a FoundProcessingUnitMessage")
       clusterClient ! SendToAll("/user/master/active", message)
     }
   }
