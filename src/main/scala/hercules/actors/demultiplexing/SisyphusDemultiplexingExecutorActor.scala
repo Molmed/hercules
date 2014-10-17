@@ -3,7 +3,6 @@ package hercules.actors.demultiplexing
 import akka.actor.Props
 import akka.event.LoggingReceive
 import akka.pattern.pipe
-
 import hercules.actors.HerculesActor
 import hercules.actors.demultiplexing.IlluminaDemultiplexingActor.IlluminaDemultiplexingActorProtocol._
 import hercules.demultiplexing.Demultiplexer
@@ -11,84 +10,34 @@ import hercules.demultiplexing.DemultiplexingResult
 import hercules.exceptions.HerculesExceptions
 import hercules.external.program.Sisyphus
 import hercules.protocols.HerculesMainProtocol._
-
 import java.io.File
-
 import scala.concurrent.duration._
 import scala.concurrent.Future
 import scala.util.Random
+import akka.util.Timeout
 
 object SisyphusDemultiplexingExecutorActor {
 
-  //@TODO Make request new work period configurable.
   def props(demultiplexer: Demultiplexer = new Sisyphus()): Props =
     Props(
       new SisyphusDemultiplexingExecutorActor(
-        demultiplexer,
-        60.seconds))
-
+        demultiplexer))
 }
 
 /**
  * Concrete executor implementation for demultiplexing using Sisyphus
  * This one can lock while doing it work.
  */
-class SisyphusDemultiplexingExecutorActor(demultiplexer: Demultiplexer, requestWorkInterval: FiniteDuration) extends DemultiplexingActor {
+class SisyphusDemultiplexingExecutorActor(demultiplexer: Demultiplexer) extends DemultiplexingActor {
 
-  import context.dispatcher
+  //@TODO Make configurable timeout for maximum time demultiplexing can take.
+  implicit val timeout = Timeout(10.hours)
 
-  // Schedule a recurrent request for work when idle
-  val requestWork =
-    context.system.scheduler.schedule(
-      requestWorkInterval,
-      requestWorkInterval,
-      self,
-      { RequestDemultiplexingProcessingUnitMessage })
-
-  // Make sure that the scheduled event stops if the actors does.
-  override def postStop() = {
-    requestWork.cancel()
-  }
-
-  def receive = idleWorker
-
-  // Behavior when busy
-  def busyWorker: Receive = LoggingReceive {
-
-    case RequestExecutorAvailabilityMessage =>
-      sender ! Busy
-
-    // Reject any incoming demultiplex requests while we are busy
-    case StartDemultiplexingProcessingUnitMessage(unit) =>
-      sender ! Reject(Some("Executor is busy"))
-
-    // Incoming demultiplexing results are passed up to parent and we become idle
-    case message @ (_: FinishedDemultiplexingProcessingUnitMessage | _: FailedDemultiplexingProcessingUnitMessage) => {
-      context.parent ! message
-      context.become(idleWorker)
-
-      message match {
-        case msg: FinishedDemultiplexingProcessingUnitMessage =>
-          log.info("Successfully demultiplexed: " + msg.unit.name)
-          notice.info("Demultiplexing finished for processingunit: " + msg.unit.name)
-        case msg: FailedDemultiplexingProcessingUnitMessage =>
-          log.info("Failed in demultiplexing: " + msg.unit.name)
-          notice.critical(s"Failed demultiplexing for: $msg.unit.name with the reason: $msg.logText")
-      }
-    }
-  }
-
-  // Behavior when idle
-  def idleWorker: Receive = LoggingReceive {
-
-    case RequestExecutorAvailabilityMessage =>
-      sender ! Idle
-
-    // Pass a request for work up to parent
-    case RequestDemultiplexingProcessingUnitMessage =>
-      context.parent ! RequestDemultiplexingProcessingUnitMessage
+  def receive = {
 
     case StartDemultiplexingProcessingUnitMessage(unit) => {
+
+      val originalSender = sender
 
       //@TODO It is probably reasonable to have some other mechanism than checking if it
       // can spot the file if it can spot the file or not. But for now, this will have to do.
@@ -98,23 +47,27 @@ class SisyphusDemultiplexingExecutorActor(demultiplexer: Demultiplexer, requestW
 
         log.info(s"Starting to demultiplex: $unit!")
         notice.info(s"Starting to demultiplex: $unit!")
-        // Acknowledge to sender that we will process this and become busy
+
+        // Acknowledge to sender that we will process this
         sender ! Acknowledge
-        context.become(busyWorker)
+
+        //@TODO Not 100% sure that it's good to do it this way, but we'll try it for now.
+        import context.dispatcher
 
         // Run the demultiplexing and pipe the result, when available, to self as a message 
         demultiplexer.demultiplex(unit).map(
           (r: DemultiplexingResult) =>
             if (r.success) FinishedDemultiplexingProcessingUnitMessage(r.unit)
-            else FailedDemultiplexingProcessingUnitMessage(r.unit, r.logText.getOrElse("Unknown reason"))
-        ).recover {
+            else FailedDemultiplexingProcessingUnitMessage(r.unit, r.logText.getOrElse("Unknown reason"))).recover {
             case e: HerculesExceptions.ExternalProgramException =>
               FailedDemultiplexingProcessingUnitMessage(e.unit, e.message)
-          }.pipeTo(self)
+          }.pipeTo(originalSender)
 
       } else {
         sender ! Reject(Some(s"The run folder path $pathToTheRunfolder could not be found"))
       }
     }
+
   }
 }
+
