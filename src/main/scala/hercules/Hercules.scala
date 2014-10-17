@@ -3,7 +3,6 @@ package hercules
 import hercules.actors.demultiplexing.IlluminaDemultiplexingActor
 import hercules.actors.masters.SisyphusMasterActor
 import hercules.actors.processingunitwatcher.IlluminaProcessingUnitWatcherActor
-import hercules.actors.interactive.InteractiveActor
 import hercules.api.RestAPI
 import com.typesafe.config.Config
 import com.typesafe.config.ConfigFactory
@@ -28,7 +27,6 @@ object Hercules extends App {
   case object RunMaster extends Role
   case object RunDemultiplexer extends Role
   case object RunRunfolderWatcher extends Role
-  case object RunInteractive extends Role
   case object RestApi extends Role
   case object RunHelp extends Role
 
@@ -98,8 +96,6 @@ object Hercules extends App {
               IlluminaDemultiplexingActor.startIlluminaDemultiplexingActor()
             case RunRunfolderWatcher =>
               IlluminaProcessingUnitWatcherActor.startIlluminaProcessingUnitWatcherActor()
-            case RunInteractive =>
-              InteractiveActor.startInteractive(config.command.get, config.unitName.get)
             case RestApi =>
               RestAPI
           }
