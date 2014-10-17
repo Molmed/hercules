@@ -69,11 +69,11 @@ class SisyphusDemultiplexingExecutorActor(demultiplexer: Demultiplexer, requestW
 
       message match {
         case msg: FinishedDemultiplexingProcessingUnitMessage =>
-          log.info("Successfully demultiplexed: " + msg.unit)
-          notice.info("Demultiplexing finished for processingunit: " + msg.unit)
+          log.info("Successfully demultiplexed: " + msg.unit.name)
+          notice.info("Demultiplexing finished for processingunit: " + msg.unit.name)
         case msg: FailedDemultiplexingProcessingUnitMessage =>
-          log.info("Failed in demultiplexing: " + msg.unit)
-          notice.critical(s"Failed demultiplexing for: $msg.unit with the reason: $msg.logText")
+          log.info("Failed in demultiplexing: " + msg.unit.name)
+          notice.critical(s"Failed demultiplexing for: $msg.unit.name with the reason: $msg.logText")
       }
     }
   }
@@ -111,6 +111,7 @@ class SisyphusDemultiplexingExecutorActor(demultiplexer: Demultiplexer, requestW
             case e: HerculesExceptions.ExternalProgramException =>
               FailedDemultiplexingProcessingUnitMessage(e.unit, e.message)
           }.pipeTo(self)
+
       } else {
         sender ! Reject(Some(s"The run folder path $pathToTheRunfolder could not be found"))
       }

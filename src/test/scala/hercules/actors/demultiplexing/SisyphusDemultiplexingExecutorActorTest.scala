@@ -1,8 +1,8 @@
 package hercules.actors.demultiplexing
 
-import akka.actor.{ ActorSystem, PoisonPill, Props }
+import akka.actor.{ Actor, ActorSystem, PoisonPill, Props }
+import akka.event.LoggingReceive
 import akka.testkit.{ ImplicitSender, TestActorRef, TestKit, TestProbe }
-
 import hercules.actors.demultiplexing.IlluminaDemultiplexingActor._
 import hercules.demultiplexing.Demultiplexer
 import hercules.entities.illumina.{ HiSeqProcessingUnit, IlluminaProcessingUnit }
@@ -11,17 +11,15 @@ import hercules.demultiplexing.DemultiplexingResult
 import hercules.exceptions.HerculesExceptions
 import hercules.protocols.HerculesMainProtocol
 import hercules.test.utils.StepParent
-
 import java.io.File
 import java.io.PrintWriter
 import java.net.URI
-
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.FlatSpecLike
 import org.scalatest.Matchers
 import org.scalatest.Assertions.assert
-
 import scala.concurrent.{ duration, Future, ExecutionContext }
+import hercules.demultiplexing.DemultiplexingResult
 
 class SisyphusDemultiplexingExecutorActorTest extends TestKit(ActorSystem("SisyphusDemultiplexingExecutorActorTest"))
     with ImplicitSender
@@ -49,14 +47,21 @@ class SisyphusDemultiplexingExecutorActorTest extends TestKit(ActorSystem("Sisyp
 
   // A fake fetcher class which will just return the processing untis
   // defined above.
-  class FakeDemultiplexer(succeed: Boolean, exception: Option[Throwable] = None) extends Demultiplexer {
+  class FakeDemultiplexer(succeed: Boolean, exception: Option[Throwable] = None, block: Duration = Duration.Zero) extends Demultiplexer {
     var cleanUpRan: Boolean = false
 
     def cleanup(unit: hercules.entities.ProcessingUnit): Unit =
       cleanUpRan = true
-    def demultiplex(unit: hercules.entities.ProcessingUnit)(implicit executor: ExecutionContext): Future[hercules.demultiplexing.DemultiplexingResult] =
-      if (exception.isEmpty) Future.successful(new DemultiplexingResult(unit, succeed, Some(logText)))
+    def demultiplex(unit: hercules.entities.ProcessingUnit)(implicit executor: ExecutionContext): Future[hercules.demultiplexing.DemultiplexingResult] = {
+      // Block for the specified duration before returning the desired result
+      def blockUntil(): Future[DemultiplexingResult] = {
+        Thread.sleep(block.toMillis)
+        Future(new DemultiplexingResult(unit, succeed, Some(logText)))(executor)
+      }
+
+      if (exception.isEmpty) blockUntil()
       else Future.failed(exception.get)
+    }
   }
 
   val parent = TestProbe()
@@ -77,15 +82,20 @@ class SisyphusDemultiplexingExecutorActorTest extends TestKit(ActorSystem("Sisyp
     SisyphusDemultiplexingExecutorActor.props(
       new FakeDemultiplexer(
         succeed = false,
-        Some(HerculesExceptions.ExternalProgramException(exceptionText, processingUnit)))),
+        exception = Some(HerculesExceptions.ExternalProgramException(exceptionText, processingUnit)))),
     parent.ref,
     "SisyphusDemultiplexingExecutorActor_Exception")
 
+  val blockedDemuxActor = TestActorRef(
+    SisyphusDemultiplexingExecutorActor.props(
+      new FakeDemultiplexer(
+        succeed = true,
+        block = 1.minutes
+      )).withDispatcher("test.actors.test-dispatcher"),
+    "SisyphusDemultiplexingExecutorActor_Blocked")
+
   override def afterAll(): Unit = {
-    successDemuxActor.stop()
-    failDemuxActor.stop()
-    exceptionDemuxActor.stop()
-    system.shutdown()
+    TestKit.shutdownActorSystem(system)
     logFile.delete()
     runfolder.delete()
     Thread.sleep(1000)
@@ -93,7 +103,7 @@ class SisyphusDemultiplexingExecutorActorTest extends TestKit(ActorSystem("Sisyp
 
   "A SisyphusDemultiplexingExecutorActor" should " respond with Idle status when idle" in {
 
-    successDemuxActor ! HerculesMainProtocol.RequestExecutorAvailabilityMessage
+    successDemuxActor ! IlluminaDemultiplexingActorProtocol.RequestExecutorAvailabilityMessage
     expectMsg(3 second, IlluminaDemultiplexingActorProtocol.Idle)
   }
 
@@ -104,7 +114,7 @@ class SisyphusDemultiplexingExecutorActorTest extends TestKit(ActorSystem("Sisyp
 
   }
 
-  it should " reject a StartDemultiplexingProcessingUnitMessage if the runfolder could not be found " in {
+  it should " reject a StartDemultiplexingProcessingUnitMessage if the runfolder could not be found" in {
 
     runfolder.delete()
     successDemuxActor ! HerculesMainProtocol.StartDemultiplexingProcessingUnitMessage(processingUnit)
@@ -112,7 +122,7 @@ class SisyphusDemultiplexingExecutorActorTest extends TestKit(ActorSystem("Sisyp
 
   }
 
-  it should " accept a StartDemultiplexingProcessingUnitMessage if idle and the runfolder can be found " in {
+  it should " accept a StartDemultiplexingProcessingUnitMessage if idle and the runfolder can be found" in {
 
     runfolder.mkdir()
     successDemuxActor ! HerculesMainProtocol.StartDemultiplexingProcessingUnitMessage(processingUnit)
@@ -123,23 +133,52 @@ class SisyphusDemultiplexingExecutorActorTest extends TestKit(ActorSystem("Sisyp
   it should " forward success message to parent if the demultiplexing was successful" in {
 
     parent.expectMsg(3 second, HerculesMainProtocol.FinishedDemultiplexingProcessingUnitMessage(processingUnit))
+    successDemuxActor.stop()
 
   }
 
-  it should "forward a fail message to parent if the demultiplexing failed " in {
+  it should " forward a fail message to parent if the demultiplexing failed" in {
 
     failDemuxActor ! HerculesMainProtocol.StartDemultiplexingProcessingUnitMessage(processingUnit)
+    expectMsg(3 second, HerculesMainProtocol.Acknowledge)
     parent.expectMsg(3 second, HerculesMainProtocol.FailedDemultiplexingProcessingUnitMessage(processingUnit, logText))
+    failDemuxActor.stop()
 
   }
 
-  it should "send a fail message if the demultiplexing generated an exception " in {
+  it should " send a fail message if the demultiplexing generated an exception" in {
 
     exceptionDemuxActor ! HerculesMainProtocol.StartDemultiplexingProcessingUnitMessage(processingUnit)
+    expectMsg(3 second, HerculesMainProtocol.Acknowledge)
     parent.expectMsg(3 second, HerculesMainProtocol.FailedDemultiplexingProcessingUnitMessage(processingUnit, exceptionText))
+    exceptionDemuxActor.stop()
 
   }
 
-  // @TODO How can we check the internal state of the actor, i.e. that the become/unbecome logic is working?
+  it should " become busy when a demultiplexing job is running" in {
+
+    runfolder.mkdir()
+    blockedDemuxActor ! HerculesMainProtocol.StartDemultiplexingProcessingUnitMessage(processingUnit)
+    expectMsg(3 second, HerculesMainProtocol.Acknowledge)
+    blockedDemuxActor ! IlluminaDemultiplexingActorProtocol.RequestExecutorAvailabilityMessage
+    expectMsg(3 second, IlluminaDemultiplexingActorProtocol.Busy)
+
+  }
+
+  it should " reject another demultiplex job when busy" in {
+
+    blockedDemuxActor ! HerculesMainProtocol.StartDemultiplexingProcessingUnitMessage(processingUnit)
+    expectMsg(3 second, HerculesMainProtocol.Reject(Some("Executor is busy")))
+
+  }
+
+  it should " become idle after demultiplex job has finished" in {
+
+    blockedDemuxActor ! HerculesMainProtocol.FinishedDemultiplexingProcessingUnitMessage(processingUnit)
+    parent.expectMsg(3 second, HerculesMainProtocol.FinishedDemultiplexingProcessingUnitMessage(processingUnit))
+    blockedDemuxActor ! IlluminaDemultiplexingActorProtocol.RequestExecutorAvailabilityMessage
+    expectMsg(3 second, IlluminaDemultiplexingActorProtocol.Idle)
+    blockedDemuxActor.stop()
+  }
 
 }

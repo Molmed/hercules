@@ -47,6 +47,7 @@ object IlluminaDemultiplexingActor extends MasterLookup {
   object IlluminaDemultiplexingActorProtocol {
     case object Idle
     case object Busy
+    case object RequestExecutorAvailabilityMessage
   }
 }
 
