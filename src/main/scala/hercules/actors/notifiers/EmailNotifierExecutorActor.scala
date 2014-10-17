@@ -29,8 +29,7 @@ class EmailNotifierExecutorActor(
           // Keep the reference to sender available for the future
           val parentActor = sender
           // If we manage to send the message, send a confirmation
-          val emailDelivery = EmailNotificationUnit.sendNotification(
-            unit,
+          val emailDelivery = unit.sendNotification(
             emailConfig.recipients,
             emailConfig.sender,
             emailConfig.prefix,
@@ -48,6 +47,10 @@ class EmailNotifierExecutorActor(
             }
           }
         }
+        case _ =>
+          // We don't know how to handle non-EmailNotificationUnits
+          log.warning("An " + this.getClass.getSimpleName + " does not know how to send a " + message.unit.getClass.getSimpleName)
+          sender ! FailedNotificationUnitMessage(message.unit, "Unhandled unit type: " + message.unit.getClass.getSimpleName)
       }
     }
   }

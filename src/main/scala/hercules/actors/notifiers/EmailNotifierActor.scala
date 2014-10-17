@@ -10,7 +10,7 @@ import hercules.config.notification.EmailNotificationConfig
 import hercules.entities.notification._
 import hercules.protocols._
 import hercules.config.notification._
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{ Config, ConfigFactory }
 
 object EmailNotifierActor {
 
@@ -20,10 +20,15 @@ object EmailNotifierActor {
    */
 
   def startInstance(
-    system: ActorSystem): ActorRef = {
+    system: ActorSystem,
+    config: Config = ConfigFactory.load()): ActorRef = {
+    val conf = EmailNotificationConfig.getEmailNotificationConfig(
+      config.getConfig("notifications.email"))
+    val executor: ActorRef = system.actorOf(
+      EmailNotifierExecutorActor.props(conf))
     // Append a random string to the actor name to ensure it is unique
     system.actorOf(
-      props(),
+      props(conf, executor),
       "EmailNotifierActor_" + List.fill(8)((Random.nextInt(25) + 97).toChar).mkString
     )
   }
@@ -33,23 +38,16 @@ object EmailNotifierActor {
    * @param clusterClient A reference to a cluster client thorough which the
    *                      actor will communicate with the rest of the cluster.
    */
-  def props(): Props = {
-    Props(new EmailNotifierActor())
+  def props(
+    conf: EmailNotificationConfig,
+    executor: ActorRef): Props = {
+    Props(new EmailNotifierActor(conf, executor))
   }
 }
 
-class EmailNotifierActor() extends NotifierActor {
-
-  // Get a EmailNotifierConfig object
-  val emailConfig = EmailNotificationConfig.getEmailNotificationConfig(
-    ConfigFactory.load().getConfig("notifications.email")
-  )
-  // Spawn an executor object that will do the work for us
-  val executor = context.actorOf(
-    EmailNotifierExecutorActor.props(
-      emailConfig),
-    "EmailNotifierExecutorActor"
-  )
+class EmailNotifierActor(
+    val emailConfig: EmailNotificationConfig,
+    val executor: ActorRef) extends NotifierActor {
 
   import context.dispatcher
   import NotificationChannelProtocol._
@@ -84,9 +82,9 @@ class EmailNotifierActor() extends NotifierActor {
           }
           case _ =>
             context.system.scheduler.scheduleOnce(
-                Duration.create(emailConfig.retryInterval, "seconds"), 
-                self, 
-                SendNotificationUnitMessage(unit))
+              Duration.create(emailConfig.retryInterval, "seconds"),
+              self,
+              SendNotificationUnitMessage(unit))
         }
       }
     }
