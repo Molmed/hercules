@@ -15,6 +15,7 @@ import akka.actor.ActorSystem
 import com.typesafe.config.Config
 import scala.concurrent.duration._
 import akka.event.LoggingReceive
+import scala.util.Random
 
 object IlluminaDemultiplexingActor extends MasterLookup {
 
@@ -30,7 +31,7 @@ object IlluminaDemultiplexingActor extends MasterLookup {
 
     val clusterClient = getMasterClusterClient(system, clusterClientCustomConfig, getClusterClient)
     val props = IlluminaDemultiplexingActor.props(clusterClient, executor)
-    system.actorOf(props, "demultiplexer")
+    system.actorOf(props, "demultiplexer-" + Random.nextInt())
   }
 
   /**
@@ -123,7 +124,7 @@ class IlluminaDemultiplexingActor(
       log.debug(s"runningExecutorInstances=$runningExecutorInstances")
       runningExecutorInstances += 1
 
-      if (runningExecutorInstances > maximumNbrOfExectorInstances) {
+      if (runningExecutorInstances >= maximumNbrOfExectorInstances) {
         log.debug("Has gotten enough work - will become cannotAcceptWork.")
         context.become(cannotAcceptWork)
       }

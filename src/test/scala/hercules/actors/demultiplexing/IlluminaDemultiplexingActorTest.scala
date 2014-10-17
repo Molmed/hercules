@@ -33,6 +33,7 @@ import akka.japi.Util.immutableSeq
 import akka.contrib.pattern.ClusterReceptionist
 import hercules.test.utils.FakeMaster
 import akka.actor.ActorRefFactory
+import org.scalatest.BeforeAndAfterEach
 
 class IlluminaDemultiplexingActorTest extends TestKit(
   ActorSystem(
@@ -43,6 +44,7 @@ class IlluminaDemultiplexingActorTest extends TestKit(
       withFallback(ConfigFactory.load())))
     with FlatSpecLike
     with BeforeAndAfterAll
+    with BeforeAndAfterEach
     with Matchers {
 
   val runfolder = new File("runfolder1")
@@ -120,12 +122,25 @@ class IlluminaDemultiplexingActorTest extends TestKit(
 
   val fakeExecutor = FakeExecutor.props()
 
-  val demultiplexer = IlluminaDemultiplexingActor.
+  var demultiplexer = IlluminaDemultiplexingActor.
     startIlluminaDemultiplexingActor(
       system = masterSystem,
       executor = fakeExecutor,
       clusterClientCustomConfig = () => watcherConfig,
       getClusterClient = (_, _) => clusterClient)
+
+  override def beforeEach(): Unit = {
+    demultiplexer = IlluminaDemultiplexingActor.
+      startIlluminaDemultiplexingActor(
+        system = masterSystem,
+        executor = fakeExecutor,
+        clusterClientCustomConfig = () => watcherConfig,
+        getClusterClient = (_, _) => clusterClient)
+  }
+
+  override def afterEach(): Unit = {
+    system.stop(demultiplexer)
+  }
 
   override def afterAll(): Unit = {
     system.shutdown()
@@ -184,6 +199,8 @@ class IlluminaDemultiplexingActorTest extends TestKit(
   }
 
   it should "reject if it's gotten to much work!" in {
+    // @TODO This assumes that the only 2 jobs should be accepted at any one time.
+
     demultiplexer.tell(HerculesMainProtocol.StartDemultiplexingProcessingUnitMessage(processingUnit), testActor)
     demultiplexer.tell(HerculesMainProtocol.StartDemultiplexingProcessingUnitMessage(processingUnit), testActor)
     demultiplexer.tell(HerculesMainProtocol.StartDemultiplexingProcessingUnitMessage(processingUnit), testActor)
@@ -193,5 +210,35 @@ class IlluminaDemultiplexingActorTest extends TestKit(
       expectMsg(HerculesMainProtocol.Reject)
     }
 
+  }
+
+  it should "become available again if work finished and pass result to master" in {
+    // @TODO This assumes that the only 2 jobs should be accepted at any one time.
+
+    demultiplexer.tell(HerculesMainProtocol.StartDemultiplexingProcessingUnitMessage(processingUnit), testActor)
+    demultiplexer.tell(HerculesMainProtocol.StartDemultiplexingProcessingUnitMessage(processingUnit), testActor)
+    demultiplexer.tell(HerculesMainProtocol.StartDemultiplexingProcessingUnitMessage(processingUnit), testActor)
+    demultiplexer.tell(HerculesMainProtocol.FinishedDemultiplexingProcessingUnitMessage(processingUnit), testActor)
+    within(10.seconds) {
+      expectMsg(HerculesMainProtocol.Acknowledge)
+      expectMsg(HerculesMainProtocol.Acknowledge)
+      expectMsg(HerculesMainProtocol.Reject)
+      expectMsg(FakeMaster.MasterWrapped(HerculesMainProtocol.FinishedDemultiplexingProcessingUnitMessage(processingUnit)))
+    }
+  }
+
+  it should "become available again if work failed and pass result to master" in {
+    // @TODO This assumes that the only 2 jobs should be accepted at any one time.
+
+    demultiplexer.tell(HerculesMainProtocol.StartDemultiplexingProcessingUnitMessage(processingUnit), testActor)
+    demultiplexer.tell(HerculesMainProtocol.StartDemultiplexingProcessingUnitMessage(processingUnit), testActor)
+    demultiplexer.tell(HerculesMainProtocol.StartDemultiplexingProcessingUnitMessage(processingUnit), testActor)
+    demultiplexer.tell(HerculesMainProtocol.FailedDemultiplexingProcessingUnitMessage(processingUnit, reason = ""), testActor)
+    within(10.seconds) {
+      expectMsg(HerculesMainProtocol.Acknowledge)
+      expectMsg(HerculesMainProtocol.Acknowledge)
+      expectMsg(HerculesMainProtocol.Reject)
+      expectMsg(FakeMaster.MasterWrapped(HerculesMainProtocol.FailedDemultiplexingProcessingUnitMessage(processingUnit, reason = "")))
+    }
   }
 }
