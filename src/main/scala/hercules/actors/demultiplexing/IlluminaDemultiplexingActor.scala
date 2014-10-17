@@ -45,12 +45,6 @@ object IlluminaDemultiplexingActor extends MasterLookup {
 
     Props(new IlluminaDemultiplexingActor(clusterClient, demultiplexingExecutor))
   }
-
-  object IlluminaDemultiplexingActorProtocol {
-    case object Idle
-    case object Busy
-    case object RequestExecutorAvailabilityMessage
-  }
 }
 
 /**
@@ -68,7 +62,7 @@ class IlluminaDemultiplexingActor(
 
   //@TODO Make configurable
   implicit val timeout = Timeout(10.seconds)
-  val totalNbrOfExectorInstances = 2
+  val maximumNbrOfExectorInstances = 2
 
   var runningExecutorInstances = 0
 
@@ -91,52 +85,29 @@ class IlluminaDemultiplexingActor(
   val demultiplexingRouter =
     context.actorOf(
       demultiplexingExecutor.
-        withRouter(RoundRobinRouter(nrOfInstances = totalNbrOfExectorInstances)),
+        withRouter(RoundRobinRouter(nrOfInstances = maximumNbrOfExectorInstances)),
       "SisyphusDemultiplexingExecutor")
 
   import context.dispatcher
 
-  def receive = {
-
-    // Forward a request demultiplexing message to master if we want more work!
-    case RequestDemultiplexingProcessingUnitMessage =>
-      log.debug("Received a RequestDemultiplexingProcessingUnitMessage and passing it on to the master.")
-      if (runningExecutorInstances <= totalNbrOfExectorInstances)
-        clusterClient ! SendToAll("/user/master/active",
-          RequestDemultiplexingProcessingUnitMessage)
-
-    case message: StartDemultiplexingProcessingUnitMessage => {
-
-      log.debug("Received a StartDemultiplexingProcessingUnitMessage.")
-      if (runningExecutorInstances <= totalNbrOfExectorInstances) {
-        (demultiplexingRouter ? message)
-
-        sender ! Acknowledge
-      } else
-        sender ! Reject(Some("All executors are busy!"))
-    }
-
-    case message: FinishedDemultiplexingProcessingUnitMessage =>
-      log.debug("Got a FinishedDemultiplexingProcessingUnitMessage will forward it to the master.")
-      clusterClient ! SendToAll("/user/master/active",
-        message)
-
-    case message: FailedDemultiplexingProcessingUnitMessage => {
-      log.debug("Got a FailedDemultiplexingProcessingUnitMessage will forward it to the master.")
-      clusterClient ! SendToAll("/user/master/active",
-        message)
-    }
-
-    case _ => commonBehaviour
-  }
+  def receive = canAcceptWork
 
   def cannotAcceptWork: Receive = LoggingReceive {
     // Forward a request demultiplexing message to master if we want more work!
     case RequestDemultiplexingProcessingUnitMessage =>
       log.debug("Right now all executors are busy. Won't request more work.")
 
-    case message: StartDemultiplexingProcessingUnitMessage =>
+    case message: StartDemultiplexingProcessingUnitMessage => {
       log.debug("Right now all executors are busy. Cannot start any more work.")
+      sender ! Reject
+    }
+
+    case message @ (_: FinishedDemultiplexingProcessingUnitMessage | _: FailedDemultiplexingProcessingUnitMessage) => {
+      runningExecutorInstances -= 1
+      if (runningExecutorInstances < maximumNbrOfExectorInstances)
+        context.become(canAcceptWork)
+      clusterClient ! SendToAll("/user/master/active", message)
+    }
   }
 
   def canAcceptWork: Receive = LoggingReceive {
@@ -149,23 +120,17 @@ class IlluminaDemultiplexingActor(
     case message: StartDemultiplexingProcessingUnitMessage => {
       val originalSender = sender
 
-      (demultiplexingRouter ? message).map {
-        case Acknowledge => {
-          runningExecutorInstances += 1
-          if (runningExecutorInstances > totalNbrOfExectorInstances)
-            context.become(cannotAcceptWork)
-          Acknowledge
-        }
-        case Reject => {
-          Reject
-        }
-      } pipeTo (originalSender)
+      log.debug(s"runningExecutorInstances=$runningExecutorInstances")
+      runningExecutorInstances += 1
+
+      if (runningExecutorInstances > maximumNbrOfExectorInstances) {
+        log.debug("Has gotten enough work - will become cannotAcceptWork.")
+        context.become(cannotAcceptWork)
+      }
+
+      (demultiplexingRouter ? message).pipeTo(originalSender)
     }
 
-    case _ => commonBehaviour
-  }
-
-  def commonBehaviour: Receive = LoggingReceive {
     case message: FinishedDemultiplexingProcessingUnitMessage => {
       runningExecutorInstances -= 1
       clusterClient ! SendToAll("/user/master/active", message)

@@ -32,6 +32,7 @@ import akka.contrib.pattern.ClusterClient.SendToAll
 import akka.japi.Util.immutableSeq
 import akka.contrib.pattern.ClusterReceptionist
 import hercules.test.utils.FakeMaster
+import akka.actor.ActorRefFactory
 
 class IlluminaDemultiplexingActorTest extends TestKit(
   ActorSystem(
@@ -178,6 +179,18 @@ class IlluminaDemultiplexingActorTest extends TestKit(
               FailedDemultiplexingProcessingUnitMessage(
                 processingUnit,
                 "I'm a complete failure! Please forgive me...")))
+    }
+
+  }
+
+  it should "reject if it's gotten to much work!" in {
+    demultiplexer.tell(HerculesMainProtocol.StartDemultiplexingProcessingUnitMessage(processingUnit), testActor)
+    demultiplexer.tell(HerculesMainProtocol.StartDemultiplexingProcessingUnitMessage(processingUnit), testActor)
+    demultiplexer.tell(HerculesMainProtocol.StartDemultiplexingProcessingUnitMessage(processingUnit), testActor)
+    within(10.seconds) {
+      expectMsg(HerculesMainProtocol.Acknowledge)
+      expectMsg(HerculesMainProtocol.Acknowledge)
+      expectMsg(HerculesMainProtocol.Reject)
     }
 
   }

@@ -4,7 +4,6 @@ import akka.actor.Props
 import akka.event.LoggingReceive
 import akka.pattern.pipe
 import hercules.actors.HerculesActor
-import hercules.actors.demultiplexing.IlluminaDemultiplexingActor.IlluminaDemultiplexingActorProtocol._
 import hercules.demultiplexing.Demultiplexer
 import hercules.demultiplexing.DemultiplexingResult
 import hercules.exceptions.HerculesExceptions
@@ -29,9 +28,6 @@ object SisyphusDemultiplexingExecutorActor {
  * This one can lock while doing it work.
  */
 class SisyphusDemultiplexingExecutorActor(demultiplexer: Demultiplexer) extends DemultiplexingActor {
-
-  //@TODO Make configurable timeout for maximum time demultiplexing can take.
-  implicit val timeout = Timeout(10.hours)
 
   def receive = {
 
