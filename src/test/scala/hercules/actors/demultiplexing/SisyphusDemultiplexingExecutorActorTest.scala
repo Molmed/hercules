@@ -1,39 +1,45 @@
 package hercules.actors.demultiplexing
 
+import akka.actor.{ Actor, ActorSystem, PoisonPill, Props }
+import akka.event.LoggingReceive
+import akka.testkit.{ ImplicitSender, TestActorRef, TestKit, TestProbe }
+import hercules.actors.demultiplexing.IlluminaDemultiplexingActor._
+import hercules.demultiplexing.Demultiplexer
+import hercules.entities.illumina.{ HiSeqProcessingUnit, IlluminaProcessingUnit }
+import hercules.config.processingunit.IlluminaProcessingUnitConfig
+import hercules.demultiplexing.DemultiplexingResult
+import hercules.exceptions.HerculesExceptions
+import hercules.protocols.HerculesMainProtocol
+import hercules.test.utils.StepParent
+import java.io.File
+import java.io.PrintWriter
+import java.net.URI
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.FlatSpecLike
 import org.scalatest.Matchers
-import akka.actor.ActorSystem
-import akka.testkit.ImplicitSender
-import akka.testkit.TestKit
-import hercules.demultiplexing.Demultiplexer
-import hercules.entities.illumina.HiSeqProcessingUnit
-import hercules.entities.illumina.IlluminaProcessingUnit
-import hercules.config.processingunit.IlluminaProcessingUnitConfig
-import java.io.File
-import java.net.URI
-import akka.actor.Props
-import hercules.test.utils.StepParent
+import org.scalatest.Assertions.assert
+import scala.concurrent.{ duration, Future, ExecutionContext }
 import hercules.demultiplexing.DemultiplexingResult
-import akka.actor.PoisonPill
-import hercules.protocols.HerculesMainProtocol
-import scala.concurrent.duration._
-import java.io.PrintWriter
+import HerculesMainProtocol._
 
-class SisyphusDemultiplexingExecutorActorTest extends TestKit(ActorSystem("SisyphusDemultiplexingExecutorActorTest"))
-    with ImplicitSender
+class SisyphusDemultiplexingExecutorActorTest(_system: ActorSystem) extends TestKit(_system)
     with FlatSpecLike
     with BeforeAndAfterAll
     with Matchers {
 
+  import duration._
+
+  def this() = this(ActorSystem("SisyphusDemultiplexingExecutorActorTest"))
+
   // The processing unit to send that we will return
+  val runfolder = new File("runfolder1")
   val processingUnit: IlluminaProcessingUnit =
     new HiSeqProcessingUnit(
       new IlluminaProcessingUnitConfig(
         new File("Samplesheet1"),
         new File("DefaultQC"),
         Some(new File("DefaultProg"))),
-      new URI("/path/to/runfolder1"))
+      runfolder.toURI)
 
   val logFile = new File("fake.log")
   val writer = new PrintWriter(logFile)
@@ -41,45 +47,72 @@ class SisyphusDemultiplexingExecutorActorTest extends TestKit(ActorSystem("Sisyp
   writer.println(logText)
   writer.close()
 
+  val externalProgramFailedReason = "External program failed!"
+
   // A fake fetcher class which will just return the processing untis
   // defined above.
-  class FakeDemultiplexer(succeed: Boolean) extends Demultiplexer {
+  class FakeDemultiplexer(succeed: Boolean, exception: Option[Throwable] = None, block: Duration = Duration.Zero) extends Demultiplexer {
     var cleanUpRan: Boolean = false
+
+    import ExecutionContext.Implicits.global
 
     def cleanup(unit: hercules.entities.ProcessingUnit): Unit =
       cleanUpRan = true
-    def demultiplex(unit: hercules.entities.ProcessingUnit): hercules.demultiplexing.DemultiplexingResult =
-      new DemultiplexingResult(succeed, Some(logFile))
+
+    def demultiplex(unit: hercules.entities.ProcessingUnit)(implicit executor: ExecutionContext): Future[hercules.demultiplexing.DemultiplexingResult] = {
+      // Block for the specified duration before returning the desired result
+      def blockUntil(): Future[DemultiplexingResult] = {
+        Thread.sleep(block.toMillis)
+        Future(new DemultiplexingResult(unit, succeed, Some(logText)))
+      }
+
+      if (exception.isEmpty) blockUntil()
+      else Future.failed(exception.get)
+    }
   }
+
+  val successfullDemultiplexer = new FakeDemultiplexer(succeed = true)
+  val unsuccessfullDemultiplexer = new FakeDemultiplexer(succeed = false)
+  val exceptionDemultiplexer =
+    new FakeDemultiplexer(
+      succeed = false,
+      exception =
+        Some(new HerculesExceptions.ExternalProgramException(externalProgramFailedReason, processingUnit)))
+
+  val goodExecutorActor = system.actorOf(SisyphusDemultiplexingExecutorActor.props(successfullDemultiplexer))
+  val badExecutorActor = system.actorOf(SisyphusDemultiplexingExecutorActor.props(unsuccessfullDemultiplexer))
+  val exceptionExecutorActor = system.actorOf(SisyphusDemultiplexingExecutorActor.props(exceptionDemultiplexer))
+
+  runfolder.mkdir()
 
   override def afterAll(): Unit = {
-    system.shutdown()
+    TestKit.shutdownActorSystem(system)
     logFile.delete()
-    Thread.sleep(1000)
+    runfolder.delete()
   }
 
-  "A SisyphusDemultiplexingExecutorActor" should " send success message if the demultiplexing was successful" in {
-
-    val demultiplexer = new FakeDemultiplexer(succeed = true)
-
-    val demultiplexerActor = system.actorOf(
-      SisyphusDemultiplexingExecutorActor.props(demultiplexer))
-
-    demultiplexerActor ! HerculesMainProtocol.StartDemultiplexingProcessingUnitMessage(processingUnit)
-    expectMsg(3 second, HerculesMainProtocol.FinishedDemultiplexingProcessingUnitMessage(processingUnit))
-    demultiplexerActor ! PoisonPill
+  "A SisyphusDemultiplexingExecutorActor" should " start demultiplexing when given a StartDemultiplexingProcessingUnitMessage" in {
+    goodExecutorActor.tell(StartDemultiplexingProcessingUnitMessage(processingUnit), testActor)
+    expectMsg(3.seconds, Acknowledge)
+    expectMsg(3.seconds, FinishedDemultiplexingProcessingUnitMessage(processingUnit))
   }
 
-  it should "send a fail message if the demultiplexing failed " in {
+  it should "reject if the processing unit cannot be found" in {
+    runfolder.delete()
+    goodExecutorActor.tell(StartDemultiplexingProcessingUnitMessage(processingUnit), testActor)
+    expectMsg(3.seconds, Reject(Some("The run folder path " + runfolder.getAbsolutePath() + " could not be found")))
+    runfolder.mkdir()
+  }
 
-    val demultiplexer = new FakeDemultiplexer(succeed = false)
+  it should "send a FailedDemultiplexingProcessingUnitMessage if demultiplexing failes" in {
+    badExecutorActor.tell(StartDemultiplexingProcessingUnitMessage(processingUnit), testActor)
+    expectMsg(3.seconds, Acknowledge)
+    expectMsg(3.seconds, FailedDemultiplexingProcessingUnitMessage(processingUnit, reason = logText))
+  }
 
-    val demultiplexerActor = system.actorOf(
-      SisyphusDemultiplexingExecutorActor.props(demultiplexer))
-
-    demultiplexerActor ! HerculesMainProtocol.StartDemultiplexingProcessingUnitMessage(processingUnit)
-    expectMsg(3 second, HerculesMainProtocol.FailedDemultiplexingProcessingUnitMessage(processingUnit, logText))
-    demultiplexerActor ! PoisonPill
-
+  it should "send a FailedDemultiplexingProcessingUnitMessage if an exception is thrown by the Demultiplexer" in {
+    exceptionExecutorActor.tell(StartDemultiplexingProcessingUnitMessage(processingUnit), testActor)
+    expectMsg(3.seconds, Acknowledge)
+    expectMsg(3.seconds, FailedDemultiplexingProcessingUnitMessage(processingUnit, reason = externalProgramFailedReason))
   }
 }

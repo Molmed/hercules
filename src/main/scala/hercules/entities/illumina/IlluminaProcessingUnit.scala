@@ -13,5 +13,5 @@ trait IlluminaProcessingUnit extends ProcessingUnit {
 
   val processingUnitConfig: IlluminaProcessingUnitConfig
   val uri: URI
-  def name: String = new File(uri).getName()
+  def name: String = new File(uri.getPath).getName
 }
