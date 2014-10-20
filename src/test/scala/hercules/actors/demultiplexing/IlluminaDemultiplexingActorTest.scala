@@ -80,16 +80,20 @@ class IlluminaDemultiplexingActorTest extends TestKit(
   }
 
   object FakeExecutor {
-    def props(): Props = {
-      Props(new FakeExecutor())
+    def props(reject: Boolean = false): Props = {
+      Props(new FakeExecutor(reject))
     }
   }
 
-  class FakeExecutor extends DemultiplexingExecutorActor {
+  class FakeExecutor(reject: Boolean) extends DemultiplexingExecutorActor {
     def receive = {
       // Just acknowledge any StartDemultiplexingProcessingUnitMessage
       case HerculesMainProtocol.StartDemultiplexingProcessingUnitMessage(unit) =>
-        sender ! HerculesMainProtocol.Acknowledge
+        log.debug("FakeExecutor got start message will acknowledge.")
+        if (reject)
+          sender ! HerculesMainProtocol.Reject
+        else
+          sender ! HerculesMainProtocol.Acknowledge
       case _ =>
         log.info("Got a message in the FakeExecutor")
     }
@@ -140,6 +144,7 @@ class IlluminaDemultiplexingActorTest extends TestKit(
 
   override def afterEach(): Unit = {
     system.stop(demultiplexer)
+    Thread.sleep(500)
   }
 
   override def afterAll(): Unit = {
@@ -170,10 +175,25 @@ class IlluminaDemultiplexingActorTest extends TestKit(
   it should "pass any FinishedDemultiplexingProcessingUnitMessage on to the master" in {
 
     demultiplexer.tell(HerculesMainProtocol.FinishedDemultiplexingProcessingUnitMessage(processingUnit), testActor)
-
     within(10.seconds) {
       expectMsg(FakeMaster.MasterWrapped(HerculesMainProtocol.FinishedDemultiplexingProcessingUnitMessage(processingUnit)))
     }
+
+  }
+
+  it should "pass on if the executor rejects the message" in {
+
+    val rejectingExecutor = FakeExecutor.props(reject = true)
+
+    demultiplexer = IlluminaDemultiplexingActor.
+      startIlluminaDemultiplexingActor(
+        system = masterSystem,
+        executor = rejectingExecutor,
+        clusterClientCustomConfig = () => watcherConfig,
+        getClusterClient = (_, _) => clusterClient)
+
+    demultiplexer.tell(HerculesMainProtocol.StartDemultiplexingProcessingUnitMessage(processingUnit), testActor)
+    expectMsg(HerculesMainProtocol.Reject)
 
   }
 
@@ -202,43 +222,42 @@ class IlluminaDemultiplexingActorTest extends TestKit(
     // @TODO This assumes that the only 2 jobs should be accepted at any one time.
 
     demultiplexer.tell(HerculesMainProtocol.StartDemultiplexingProcessingUnitMessage(processingUnit), testActor)
+    expectMsg(HerculesMainProtocol.Acknowledge)
     demultiplexer.tell(HerculesMainProtocol.StartDemultiplexingProcessingUnitMessage(processingUnit), testActor)
+    expectMsg(HerculesMainProtocol.Acknowledge)
     demultiplexer.tell(HerculesMainProtocol.StartDemultiplexingProcessingUnitMessage(processingUnit), testActor)
-    within(10.seconds) {
-      expectMsg(HerculesMainProtocol.Acknowledge)
-      expectMsg(HerculesMainProtocol.Acknowledge)
-      expectMsg(HerculesMainProtocol.Reject)
-    }
-
+    expectMsg(HerculesMainProtocol.Reject)
   }
 
   it should "become available again if work finished and pass result to master" in {
     // @TODO This assumes that the only 2 jobs should be accepted at any one time.
 
     demultiplexer.tell(HerculesMainProtocol.StartDemultiplexingProcessingUnitMessage(processingUnit), testActor)
+    expectMsg(HerculesMainProtocol.Acknowledge)
     demultiplexer.tell(HerculesMainProtocol.StartDemultiplexingProcessingUnitMessage(processingUnit), testActor)
+    expectMsg(HerculesMainProtocol.Acknowledge)
     demultiplexer.tell(HerculesMainProtocol.StartDemultiplexingProcessingUnitMessage(processingUnit), testActor)
+    expectMsg(HerculesMainProtocol.Reject)
     demultiplexer.tell(HerculesMainProtocol.FinishedDemultiplexingProcessingUnitMessage(processingUnit), testActor)
-    within(10.seconds) {
-      expectMsg(HerculesMainProtocol.Acknowledge)
-      expectMsg(HerculesMainProtocol.Acknowledge)
-      expectMsg(HerculesMainProtocol.Reject)
-      expectMsg(FakeMaster.MasterWrapped(HerculesMainProtocol.FinishedDemultiplexingProcessingUnitMessage(processingUnit)))
-    }
+    expectMsg(FakeMaster.MasterWrapped(HerculesMainProtocol.FinishedDemultiplexingProcessingUnitMessage(processingUnit)))
+    demultiplexer.tell(HerculesMainProtocol.StartDemultiplexingProcessingUnitMessage(processingUnit), testActor)
+    expectMsg(HerculesMainProtocol.Acknowledge)
+
   }
 
   it should "become available again if work failed and pass result to master" in {
     // @TODO This assumes that the only 2 jobs should be accepted at any one time.
 
     demultiplexer.tell(HerculesMainProtocol.StartDemultiplexingProcessingUnitMessage(processingUnit), testActor)
+    expectMsg(HerculesMainProtocol.Acknowledge)
     demultiplexer.tell(HerculesMainProtocol.StartDemultiplexingProcessingUnitMessage(processingUnit), testActor)
+    expectMsg(HerculesMainProtocol.Acknowledge)
     demultiplexer.tell(HerculesMainProtocol.StartDemultiplexingProcessingUnitMessage(processingUnit), testActor)
+    expectMsg(HerculesMainProtocol.Reject)
     demultiplexer.tell(HerculesMainProtocol.FailedDemultiplexingProcessingUnitMessage(processingUnit, reason = ""), testActor)
-    within(10.seconds) {
-      expectMsg(HerculesMainProtocol.Acknowledge)
-      expectMsg(HerculesMainProtocol.Acknowledge)
-      expectMsg(HerculesMainProtocol.Reject)
-      expectMsg(FakeMaster.MasterWrapped(HerculesMainProtocol.FailedDemultiplexingProcessingUnitMessage(processingUnit, reason = "")))
-    }
+    expectMsg(FakeMaster.MasterWrapped(HerculesMainProtocol.FailedDemultiplexingProcessingUnitMessage(processingUnit, reason = "")))
+    demultiplexer.tell(HerculesMainProtocol.StartDemultiplexingProcessingUnitMessage(processingUnit), testActor)
+    expectMsg(HerculesMainProtocol.Acknowledge)
+
   }
 }

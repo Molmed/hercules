@@ -91,9 +91,38 @@ class IlluminaDemultiplexingActor(
 
   import context.dispatcher
 
+  /**
+   * Will change the behavior depending on if the maximum number of jobs is
+   * running or not.
+   */
+  def switchBehavior(incrementOfRunningInstances: Int): Unit = {
+
+    runningExecutorInstances += incrementOfRunningInstances
+    if (runningExecutorInstances < 0)
+      runningExecutorInstances = 0
+
+    require(
+      runningExecutorInstances >= 0 &&
+        !(runningExecutorInstances > maximumNbrOfExectorInstances),
+      s"Not allowed value for number of $runningExecutorInstances. " +
+        s"Max was: $maximumNbrOfExectorInstances")
+
+    if (runningExecutorInstances < maximumNbrOfExectorInstances) {
+      log.debug(s"Has $runningExecutorInstances running instances of " +
+        s"max: $maximumNbrOfExectorInstances will accept more work.")
+
+      context.become(canAcceptWork)
+    } else {
+      log.debug(s"Has $runningExecutorInstances running instances of " +
+        s"max: $maximumNbrOfExectorInstances will reject more work.")
+      context.become(cannotAcceptWork)
+    }
+  }
+
   def receive = canAcceptWork
 
   def cannotAcceptWork: Receive = LoggingReceive {
+
     // Forward a request demultiplexing message to master if we want more work!
     case RequestDemultiplexingProcessingUnitMessage =>
       log.debug("Right now all executors are busy. Won't request more work.")
@@ -104,9 +133,7 @@ class IlluminaDemultiplexingActor(
     }
 
     case message @ (_: FinishedDemultiplexingProcessingUnitMessage | _: FailedDemultiplexingProcessingUnitMessage) => {
-      runningExecutorInstances -= 1
-      if (runningExecutorInstances < maximumNbrOfExectorInstances)
-        context.become(canAcceptWork)
+      switchBehavior(-1)
       clusterClient ! SendToAll("/user/master/active", message)
     }
   }
@@ -121,24 +148,24 @@ class IlluminaDemultiplexingActor(
     case message: StartDemultiplexingProcessingUnitMessage => {
       val originalSender = sender
 
-      log.debug(s"runningExecutorInstances=$runningExecutorInstances")
-      runningExecutorInstances += 1
-
-      if (runningExecutorInstances >= maximumNbrOfExectorInstances) {
-        log.debug("Has gotten enough work - will become cannotAcceptWork.")
-        context.become(cannotAcceptWork)
-      }
-
-      (demultiplexingRouter ? message).pipeTo(originalSender)
+      (demultiplexingRouter ? message).map {
+        case Acknowledge =>
+          switchBehavior(1)
+          Acknowledge
+        case Reject =>
+          log.debug("Executor rejected work.")
+          switchBehavior(-1)
+          Reject
+      }.pipeTo(originalSender)
     }
 
     case message: FinishedDemultiplexingProcessingUnitMessage => {
-      runningExecutorInstances -= 1
+      switchBehavior(-1)
       clusterClient ! SendToAll("/user/master/active", message)
     }
 
     case message: FailedDemultiplexingProcessingUnitMessage => {
-      runningExecutorInstances -= 1
+      switchBehavior(-1)
       clusterClient ! SendToAll("/user/master/active",
         message)
     }
