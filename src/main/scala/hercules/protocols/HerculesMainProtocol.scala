@@ -60,7 +60,7 @@ object HerculesMainProtocol {
    * The base trait for the messages encapsulating the notifications to be
    * sent out. Contains the NotificationUnit.
    */
-  trait NotificationUnitMessage extends HerculesMessage {
+  sealed trait NotificationUnitMessage extends HerculesMessage {
     val unit: NotificationUnit
   }
 

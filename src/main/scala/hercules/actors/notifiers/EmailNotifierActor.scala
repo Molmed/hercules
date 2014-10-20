@@ -10,7 +10,7 @@ import hercules.config.notification.EmailNotificationConfig
 import hercules.entities.notification._
 import hercules.protocols._
 import hercules.config.notification._
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{ Config, ConfigFactory }
 
 object EmailNotifierActor {
 
@@ -20,10 +20,15 @@ object EmailNotifierActor {
    */
 
   def startInstance(
-    system: ActorSystem): ActorRef = {
+    system: ActorSystem,
+    config: Config = ConfigFactory.load()): ActorRef = {
+    val conf = EmailNotificationConfig.getEmailNotificationConfig(
+      config.getConfig("notifications.email"))
+    val executor: ActorRef = system.actorOf(
+      EmailNotifierExecutorActor.props(conf))
     // Append a random string to the actor name to ensure it is unique
     system.actorOf(
-      props(),
+      props(conf, executor),
       "EmailNotifierActor_" + List.fill(8)((Random.nextInt(25) + 97).toChar).mkString
     )
   }
@@ -33,46 +38,22 @@ object EmailNotifierActor {
    * @param clusterClient A reference to a cluster client thorough which the
    *                      actor will communicate with the rest of the cluster.
    */
-  def props(): Props = {
-    Props(new EmailNotifierActor())
+  def props(
+    conf: EmailNotificationConfig,
+    executor: ActorRef): Props = {
+    Props(new EmailNotifierActor(conf, executor))
   }
 }
 
 class EmailNotifierActor(
-    var state: NotifierState = new NotifierState()) extends NotifierActor {
-
-  // Get a EmailNotifierConfig object
-  val emailConfig = EmailNotificationConfig.getEmailNotificationConfig(
-    ConfigFactory.load().getConfig("notifications.email")
-  )
-  // Spawn an executor object that will do the work for us
-  val executor = context.actorOf(
-    EmailNotifierExecutorActor.props(
-      emailConfig),
-    "EmailNotifierExecutorActor"
-  )
+    val emailConfig: EmailNotificationConfig,
+    val executor: ActorRef) extends NotifierActor {
 
   import context.dispatcher
   import NotificationChannelProtocol._
   import HerculesMainProtocol._
-  import NotifierActor.NotifierStateProtocol._
 
-  // Periodically attempt to resend failed messages up to a limit
-  val resendFailed =
-    context.system.scheduler.schedule(
-      Duration.create(emailConfig.retryInterval, "seconds"),
-      Duration.create(emailConfig.retryInterval, "seconds"),
-      self,
-      RetryFailedNotificationUnitsMessage)
-
-  // Make sure that the scheduled event stops if the actors does.
-  override def postStop() = {
-    resendFailed.cancel()
-  }
-
-  def receive = retryIgnorer
-
-  def retryIgnorer: Receive = LoggingReceive {
+  def receive = LoggingReceive {
 
     // We've received a request to send a notification
     case message: SendNotificationUnitMessage => message.unit match {
@@ -100,26 +81,12 @@ class EmailNotifierActor(
             log.warning("Giving up trying to send " + unit.getClass.getSimpleName)
           }
           case _ =>
-            state = state.manipulateState(AddToFailedNotifications(unit))
-            // When we add a failed notification, start monitoring retry requests
-            context.become(retryIgnorer orElse retryReceiver)
+            context.system.scheduler.scheduleOnce(
+              Duration.create(emailConfig.retryInterval, "seconds"),
+              self,
+              SendNotificationUnitMessage(unit))
         }
       }
-    }
-  }
-
-  def retryReceiver: Receive = LoggingReceive {
-    // If we receive an instruction to retry failed messages, iterate over that set and send messages that have not met the limit for maximum number of retries
-    case RetryFailedNotificationUnitsMessage => {
-      // Send a notification message and remove the unit from the list
-      state.failedNotifications.foreach(
-        unit => {
-          self ! SendNotificationUnitMessage(unit)
-          state = state.manipulateState(RemoveFromFailedNotifications(unit))
-        })
-      // If we have no more failed notifications to handle, start ignore incoming retry requests
-      if (state.failedNotifications.isEmpty)
-        context.become(retryIgnorer)
     }
   }
 }

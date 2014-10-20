@@ -47,7 +47,7 @@ object EmailNotificationConfig {
 /**
  * Base class for configuring an email notification
  */
-case class EmailNotificationConfig(
+class EmailNotificationConfig(
     val recipients: Seq[String],
     val sender: String,
     val smtpHost: String,
