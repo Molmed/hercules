@@ -38,11 +38,11 @@ class EmailNotifierExecutorActor(
           )
           emailDelivery onComplete {
             case Success(_) => {
-              log.info(unit.getClass.getName + " sent successfully")
+              log.debug(unit + " sent successfully")
               parentActor ! SentNotificationUnitMessage(unit)
             }
             case Failure(t) => {
-              log.warning("Sending " + unit.getClass.getName + " failed for the " + (unit.attempts + 1) + " time")
+              log.warning("Sending " + unit + " failed for the " + (unit.attempts + 1) + " time")
               parentActor ! FailedNotificationUnitMessage(unit.copy(attempts = unit.attempts + 1), t.getMessage)
             }
           }
