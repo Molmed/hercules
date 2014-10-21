@@ -3,8 +3,11 @@ package hercules.entities
 import hercules.config.processingunit.ProcessingUnitConfig
 import hercules.config.processingunit.ProcessingUnitFetcherConfig
 
-trait ProcessingUnitFetcher[A <: ProcessingUnitFetcherConfig, B <: ProcessingUnit] {
-  def isReadyForProcessing(unit: B): Boolean
+trait ProcessingUnitFetcher {
+  type FetherConfigType <: ProcessingUnitFetcherConfig
+  type ProcessingUnitType <: ProcessingUnit
+
+  def isReadyForProcessing(unit: ProcessingUnitType): Boolean
   def checkForReadyProcessingUnits(
-    config: A): Seq[B]
+    config: FetherConfigType): Seq[ProcessingUnitType]
 }
