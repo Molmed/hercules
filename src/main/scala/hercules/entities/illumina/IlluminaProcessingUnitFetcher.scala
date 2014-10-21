@@ -19,7 +19,10 @@ object IlluminaProcessingUnitFetcher {
 
 }
 
-class IlluminaProcessingUnitFetcher() extends ProcessingUnitFetcher[IlluminaProcessingUnitFetcherConfig, IlluminaProcessingUnit] {
+class IlluminaProcessingUnitFetcher() extends ProcessingUnitFetcher {
+
+  type FetherConfigType = IlluminaProcessingUnitFetcherConfig
+  type ProcessingUnitType = IlluminaProcessingUnit
 
   /**
    * Indicate if the unit is ready to be processed.
