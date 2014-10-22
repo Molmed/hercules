@@ -31,26 +31,19 @@ class StatusService(cluster: ActorRef)(implicit executionContext: ExecutionConte
                   RequestMasterState())
               )
             val response = request.map {
-              case Success(state) => {
-                state match {
-                  case s: MasterState => {
-                    // @TODO Let some json marshaller handle the response instead
-                    registerCustom(
-                      200,
-                      reason = "OK",
-                      defaultMessage =
-                        "messagesNotYetProcessed: {" +
-                          s.messagesNotYetProcessed.map { _.unit.uri }.mkString(",") +
-                          "}, messagesInProcessing: {" +
-                          s.messagesInProcessing.map { _.unit.uri }.mkString(",") +
-                          "} ,failedMessages: {" +
-                          s.failedMessages.map { _.unit.uri }.mkString("}"))
-                  }
-                  case _ =>
-                    InternalServerError
-                }
+              case MasterState(messagesNotYetProcessed, messagesInProcessing, failedMessages) => {
+                // @TODO Let some json marshaller handle the response instead
+                val status =
+                  "messagesNotYetProcessed: {" +
+                    messagesNotYetProcessed.map { _.unit.uri }.mkString(",") +
+                    "}, messagesInProcessing: {" +
+                    messagesInProcessing.map { _.unit.uri }.mkString(",") +
+                    "} ,failedMessages: {" +
+                    failedMessages.map { _.unit.uri }.mkString("}")
+                OK
               }
-              case Failure(reason) =>
+            }.recover {
+              case e: Exception =>
                 InternalServerError
             }
             response

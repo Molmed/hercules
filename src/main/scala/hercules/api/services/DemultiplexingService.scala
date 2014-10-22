@@ -39,16 +39,12 @@ class DemultiplexingService(cluster: ActorRef)(implicit executionContext: Execut
                 "/user/master/active",
                 RestartDemultiplexingProcessingUnitMessage(id))
             ).map {
-                case Success(msg) =>
-                  msg match {
-                    case Acknowledge =>
-                      Accepted
-                    case Reject(reason) =>
-                      NotFound
-                    case _ =>
-                      InternalServerError
-                  }
-                case Failure(reason) =>
+                case Acknowledge =>
+                  Accepted
+                case Reject(reason) =>
+                  NotFound
+              }.recover {
+                case e: Exception =>
                   InternalServerError
               }
           }
@@ -72,22 +68,17 @@ class DemultiplexingService(cluster: ActorRef)(implicit executionContext: Execut
                   RequestMasterState(Some(id)))
               )
             val response = request.map {
-              case Success(state) => {
-                state match {
-                  case s: MasterState => {
-                    val matchingMessage = s.failedMessages.find(x => x.unit.name == id)
-                    if (!matchingMessage.isEmpty) {
-                      cluster.tell(SendToAll("/user/master/active", RemoveFromFailedMessages(matchingMessage.get)), Actor.noSender)
-                      OK
-                    } else {
-                      NotFound
-                    }
-                  }
-                  case _ =>
-                    InternalServerError
+              case MasterState(_, _, failedMessages) => {
+                val matchingMessage = failedMessages.find(x => x.unit.name == id)
+                if (!matchingMessage.isEmpty) {
+                  cluster.tell(SendToAll("/user/master/active", RemoveFromFailedMessages(matchingMessage.get)), Actor.noSender)
+                  OK
+                } else {
+                  NotFound
                 }
               }
-              case Failure(reason) =>
+            }.recover {
+              case e: Exception =>
                 InternalServerError
             }
             response
