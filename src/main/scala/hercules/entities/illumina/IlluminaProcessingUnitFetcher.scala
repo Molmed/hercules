@@ -38,15 +38,28 @@ class IlluminaProcessingUnitFetcher() extends ProcessingUnitFetcher {
 
     val filesInRunFolder = runfolderPath.listFiles()
 
-    val hasNoFoundFile =
-      filesInRunFolder.forall(file => {
-        !(file.getName() == "found")
-      })
+    val hasNoFoundFile = !unit.discovered()
 
     val hasRTAComplete =
       filesInRunFolder.exists(x => x.getName() == "RTAComplete.txt")
 
     hasNoFoundFile && hasRTAComplete
+  }
+
+  /**
+   *  Searches for runfolders corresponding to the supplied ProcessingUnit and,
+   *  if found, returns the appropriate IlluminaProcessingUnit. This is useful
+   *  for e.g. replacing a ProcessingUnitPlaceholder for a full ProcessingUnit,
+   *  updating the configuration of a ProcessingUnit
+   *  or going from one ProcessingUnit subclass to another.
+   *  @param unit A ProcessingUnit to search for
+   *  @param config
+   *  @return An Option[ProcessingUnit] containing the match or None if not found
+   */
+  def searchForProcessingUnit(
+    unit: ProcessingUnit,
+    config: IlluminaProcessingUnitFetcherConfig): Option[IlluminaProcessingUnit] = {
+    getProcessingUnits(config).find { _.name == unit.name }
   }
 
   /**
@@ -64,6 +77,19 @@ class IlluminaProcessingUnitFetcher() extends ProcessingUnitFetcher {
    *
    */
   def checkForReadyProcessingUnits(
+    config: IlluminaProcessingUnitFetcherConfig): Seq[IlluminaProcessingUnit] = {
+
+    for {
+      unit <- getProcessingUnits(config)
+      if isReadyForProcessing(unit)
+    } yield {
+      unit.discovered(Some(true))
+      unit
+    }
+  }
+
+  // Get all available ProcessingUnits, regardless if they are ready for processing
+  private def getProcessingUnits(
     config: IlluminaProcessingUnitFetcherConfig): Seq[IlluminaProcessingUnit] = {
 
     val log = config.log
@@ -108,14 +134,6 @@ class IlluminaProcessingUnitFetcher() extends ProcessingUnitFetcher {
           runfolder.getName() + " in : " + config.sampleSheetRoot)
 
       samplesheet
-    }
-
-    /**
-     * Add a found file, in the runfolder.
-     */
-    def markAsFound(runfolder: File): Boolean = {
-      log.debug("Marking: " + runfolder.getName() + " as found.")
-      (new File(runfolder + "/found")).createNewFile()
     }
 
     /**
@@ -280,9 +298,7 @@ class IlluminaProcessingUnitFetcher() extends ProcessingUnitFetcher {
       qcConfig <- getQCConfig(runfolder)
       programConfig <- getProgramConfig(runfolder)
       illuminaProcessingUnit <- constructCorrectProcessingUnitType(runfolder, samplesheet, qcConfig, programConfig)
-      if isReadyForProcessing(illuminaProcessingUnit)
     } yield {
-      markAsFound(runfolder)
       illuminaProcessingUnit
     }
   }

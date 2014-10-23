@@ -3,6 +3,9 @@ package hercules.actors.processingunitwatcher
 import akka.actor.ActorRef
 import akka.actor.Props
 import akka.actor.actorRef2Scala
+import akka.pattern.{ ask, pipe }
+import scala.concurrent.duration._
+import akka.util.Timeout
 import akka.contrib.pattern.ClusterClient.SendToAll
 import akka.event.LoggingReceive
 import hercules.actors.utils.MasterLookup
@@ -42,14 +45,25 @@ object IlluminaProcessingUnitWatcherActor extends MasterLookup {
 class IlluminaProcessingUnitWatcherActor(clusterClient: ActorRef, executor: Props)
     extends ProcessingUnitWatcherActor {
 
-  context.actorOf(
+  import HerculesMainProtocol._
+  import context.dispatcher
+  implicit val timeout = Timeout(5.seconds)
+
+  val child = context.actorOf(
     executor,
     "IlluminaProcessingUnitExecutor")
 
   def receive = LoggingReceive {
-    case message: HerculesMainProtocol.FoundProcessingUnitMessage => {
+    case message: FoundProcessingUnitMessage => {
       log.debug("Got a FoundProcessingUnitMessage")
       clusterClient ! SendToAll("/user/master/active", message)
+    }
+    case message: ForgetProcessingUnitMessage => {
+      log.debug("Got a ForgetProcessingUnitMessage")
+      ask(child, message).recover {
+        case e: Exception =>
+          Reject(Some(s"Executer encountered exception $e.getMessage"))
+      }.pipeTo(sender)
     }
   }
 }

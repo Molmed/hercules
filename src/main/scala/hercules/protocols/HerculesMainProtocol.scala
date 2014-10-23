@@ -41,7 +41,9 @@ object HerculesMainProtocol {
     val unit: ProcessingUnit
   }
 
+  case object RequestProcessingUnitMessage extends HerculesMessage
   case class FoundProcessingUnitMessage(unit: ProcessingUnit) extends ProcessingUnitMessage
+  case class ForgetProcessingUnitMessage(unit: ProcessingUnit) extends ProcessingUnitMessage
 
   sealed trait DemultiplexingMessage extends HerculesMessage
   case object RequestDemultiplexingProcessingUnitMessage extends DemultiplexingMessage

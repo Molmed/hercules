@@ -2,6 +2,7 @@ package hercules.actors.masters
 
 import scala.concurrent.duration.DurationInt
 import com.typesafe.config.ConfigFactory
+import akka.actor.ActorRef
 import akka.actor.ActorSystem
 import akka.actor.PoisonPill
 import akka.actor.Props
@@ -17,6 +18,7 @@ import akka.persistence.SaveSnapshotSuccess
 import akka.persistence.SnapshotOffer
 import akka.util.Timeout
 import hercules.config.masters.MasterActorConfig
+import hercules.entities.{ ProcessingUnit, ProcessingUnitPlaceholder }
 import hercules.protocols.HerculesMainProtocol._
 import hercules.actors.masters.MasterStateProtocol._
 
@@ -137,10 +139,31 @@ class SisyphusMasterActor(config: MasterActorConfig) extends PersistentActor wit
     }
 
     case message: FoundProcessingUnitMessage => {
-      self ! AddToMessageNotYetProcessed(message)
+      self ! AddToMessageNotYetProcessed(Some(message))
     }
 
     case message: DemultiplexingMessage => receiveDemultiplexingMessage(message)
+
+    // A ProcessingUnitWatcherActor is asking for something to do
+    case RequestProcessingUnitMessage => {
+      import context.dispatcher
+      implicit val timeout = Timeout(5 seconds)
+
+      val unitsToProcess = SisyphusMasterActor.findMessagesOfType[ForgetProcessingUnitMessage](state.messagesNotYetProcessed)
+      for (unitMessage <- unitsToProcess) {
+        log.debug("Sending ProcessingUnit messages...")
+        (sender ? unitMessage).map {
+          case Acknowledge => {
+            log.debug(s"$unitMessage was accepted by ProcessingUnitWatcher. Removing from work queue.")
+            // ugh...
+            self ! AddToMessagesInProcessing(Some(unitMessage))
+            RemoveFromMessageNotYetProcessed(Some(unitMessage))
+          }
+          case Reject =>
+            log.debug(s"$unitMessage was not accepted by ProcessingUnitWatcher. Keep it in the work queue.")
+        } pipeTo (self)
+      }
+    }
   }
 
   //@TODO Make sure that this warns if the entire setup if DemultiplexingMessage
@@ -154,20 +177,52 @@ class SisyphusMasterActor(config: MasterActorConfig) extends PersistentActor wit
         //@TODO Later more behaviour downstream of demultiplexing should
         // be added here!
         log.debug("Noted that " + unit.name + " has finished " +
-          " demultiplexing. Right now I'll do nothing about.")
+          " demultiplexing. I'll remove it from the messagesInProcessing set.")
+        self ! RemoveFromMessagesInProcessing(state.findStateOfUnit(Some(unit.name)).messagesInProcessing.headOption)
       }
 
       case message: FailedDemultiplexingProcessingUnitMessage => {
         log.warning("Noted that " + message.unit.name + " has failed " +
           " demultiplexing. Will move it into the list of failed jobs.")
-        self ! AddToFailedMessages(message)
+        self ! RemoveFromMessagesInProcessing(state.findStateOfUnit(Some(message.unit.name)).messagesInProcessing.headOption)
+        self ! AddToFailedMessages(Some(message))
       }
 
       // Forget that the demultiplexing of a unit has taken place
       case ForgetDemultiplexingProcessingUnitMessage(id) => {
-        
+
+        val unitState = state.findStateOfUnit(Some(id))
+        if (SisyphusMasterActor.findMessagesOfType[StartDemultiplexingProcessingUnitMessage](
+          unitState.messagesInProcessing
+        ).nonEmpty) {
+          Reject(Some(s"ProcessingUnit $id is being processed"))
+        } else {
+          // If the unit is queued for processing, remove it before forgetting
+          if (unitState.messagesNotYetProcessed.nonEmpty) {
+            self ! RemoveFromMessageNotYetProcessed(
+              SisyphusMasterActor.findMessagesOfType[FoundProcessingUnitMessage](
+                unitState.messagesNotYetProcessed)
+                .headOption)
+          }
+          // If the unit has failed processing, remove it before forgetting
+          if (unitState.failedMessages.nonEmpty) {
+            self ! RemoveFromFailedMessages(
+              SisyphusMasterActor.findMessagesOfType[FailedDemultiplexingProcessingUnitMessage](
+                unitState.failedMessages)
+                .headOption)
+          }
+          // Add the request to forget the unit to the MessagesNotYetProcessed queue
+          self ! AddToMessageNotYetProcessed(
+            Some(
+              ForgetProcessingUnitMessage(
+                ProcessingUnitPlaceholder(id))))
+
+          // Acknowledge that we handled the message, although it could still be rejected 
+          // by a ProcessingUnitWatcherActor further down the line
+          sender ! Acknowledge
+        }
       }
-      
+
       case RequestDemultiplexingProcessingUnitMessage => {
 
         log.debug("Processing RequestDemultiplexingProcessingUnitMessage!")
@@ -180,10 +235,13 @@ class SisyphusMasterActor(config: MasterActorConfig) extends PersistentActor wit
 
         for (unitMessage <- unitsReadyForDemultiplexing) {
           log.debug("Sending...")
-          (sender ? StartDemultiplexingProcessingUnitMessage(unitMessage.unit)).map {
+          val startMsg = StartDemultiplexingProcessingUnitMessage(unitMessage.unit)
+          (sender ? startMsg).map {
             case Acknowledge => {
               log.debug(s"$unitMessage was accepted by demultiplexer removing from work queue.")
-              RemoveFromMessageNotYetProcessed(unitMessage)
+              // ugh...
+              self ! AddToMessagesInProcessing(Some(startMsg))
+              RemoveFromMessageNotYetProcessed(Some(unitMessage))
             }
             case Reject =>
               log.debug(s"$unitMessage was not accepted by demultiplexer. Keep it in the work queue.")
@@ -193,14 +251,18 @@ class SisyphusMasterActor(config: MasterActorConfig) extends PersistentActor wit
 
       // Refer to change state messages.
       case message: RestartDemultiplexingProcessingUnitMessage => {
-        if (state.failedMessages.exists(p => p.unit.name == message.unitName)) {
+        val matchingMessage =
+          SisyphusMasterActor.findMessagesOfType[FailedDemultiplexingProcessingUnitMessage](
+            state.findStateOfUnit(
+              Some(message.unitName)
+            ).failedMessages)
+            .headOption
+        if (matchingMessage.nonEmpty) {
           log.debug(
             "For a message to restart " + message.unitName +
               " moving it into the messages to process list.")
           notice.info("Restarting demultiplexing for processingunit: " + message.unitName)
-          val matchingMessage = state.failedMessages.find(x => x.unit.name == message.unitName).get
-          val startDemultiplexingMessage = new StartDemultiplexingProcessingUnitMessage(matchingMessage.unit)
-          self ! AddToMessageNotYetProcessed(startDemultiplexingMessage)
+          self ! AddToMessageNotYetProcessed(Some(FoundProcessingUnitMessage(matchingMessage.get.unit)))
           self ! RemoveFromFailedMessages(matchingMessage)
           sender ! Acknowledge
         } else {

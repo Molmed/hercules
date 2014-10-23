@@ -9,9 +9,12 @@ object MasterStateProtocol {
   // to be able to able to replay the actors state.
   sealed trait SetStateMessage
 
-  case class AddToMessageNotYetProcessed(message: ProcessingUnitMessage) extends SetStateMessage
-  case class RemoveFromMessageNotYetProcessed(message: ProcessingUnitMessage) extends SetStateMessage
+  case class AddToMessageNotYetProcessed(message: Option[ProcessingUnitMessage]) extends SetStateMessage
+  case class RemoveFromMessageNotYetProcessed(message: Option[ProcessingUnitMessage]) extends SetStateMessage
 
-  case class AddToFailedMessages(message: ProcessingUnitMessage) extends SetStateMessage
-  case class RemoveFromFailedMessages(message: ProcessingUnitMessage) extends SetStateMessage
+  case class AddToMessagesInProcessing(message: Option[ProcessingUnitMessage]) extends SetStateMessage
+  case class RemoveFromMessagesInProcessing(message: Option[ProcessingUnitMessage]) extends SetStateMessage
+
+  case class AddToFailedMessages(message: Option[ProcessingUnitMessage]) extends SetStateMessage
+  case class RemoveFromFailedMessages(message: Option[ProcessingUnitMessage]) extends SetStateMessage
 }
