@@ -40,11 +40,11 @@ case class MasterState(
     if (unitName.isDefined)
       MasterState(
         messagesNotYetProcessed =
-          messagesNotYetProcessed.filter(p => p.unit.name == unitName),
+          messagesNotYetProcessed.filter(p => p.unit.name == unitName.get),
         messagesInProcessing =
-          messagesInProcessing.filter(p => p.unit.name == unitName),
+          messagesInProcessing.filter(p => p.unit.name == unitName.get),
         failedMessages =
-          failedMessages.filter(p => p.unit.name == unitName))
+          failedMessages.filter(p => p.unit.name == unitName.get))
     else
       this
   }
