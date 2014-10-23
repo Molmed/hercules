@@ -5,7 +5,6 @@ import akka.contrib.pattern.ClusterClient.SendToAll
 import akka.testkit.{ TestKit, TestProbe }
 
 import hercules.actors.masters.MasterStateProtocol
-import hercules.api.services.StatusService
 import hercules.protocols.HerculesMainProtocol._
 
 import org.scalatest.{ BeforeAndAfterAll, FlatSpecLike, Matchers }

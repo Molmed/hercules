@@ -37,7 +37,7 @@ case class MasterState(
    * @return a MasteState filtered for unitName (if present)
    */
   def findStateOfUnit(unitName: Option[String]): MasterState = {
-    if (unitName.isDefined && unitName.nonEmpty)
+    if (unitName.isDefined)
       MasterState(
         messagesNotYetProcessed =
           messagesNotYetProcessed.filter(p => p.unit.name == unitName.get),
