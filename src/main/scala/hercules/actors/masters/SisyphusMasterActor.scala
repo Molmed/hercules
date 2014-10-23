@@ -163,6 +163,11 @@ class SisyphusMasterActor(config: MasterActorConfig) extends PersistentActor wit
         self ! AddToFailedMessages(message)
       }
 
+      // Forget that the demultiplexing of a unit has taken place
+      case ForgetDemultiplexingProcessingUnitMessage(id) => {
+        
+      }
+      
       case RequestDemultiplexingProcessingUnitMessage => {
 
         log.debug("Processing RequestDemultiplexingProcessingUnitMessage!")
