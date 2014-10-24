@@ -154,7 +154,7 @@ class IlluminaProcessingUnitWatcherExecutorActor(
         }
       }.recover {
         case e: Exception =>
-          Reject(Some(s"IlluminaProcessingUnitWatcherExecutorActor encountered exception while processing ForgetProcessingUnitMessage: $e.getMessage"))
+          Reject(Some("IlluminaProcessingUnitWatcherExecutorActor encountered exception while processing ForgetProcessingUnitMessage: " + e.getMessage))
       }.pipeTo(context.parent)
     }
   }
