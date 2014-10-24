@@ -5,6 +5,7 @@ import akka.contrib.pattern.ClusterClient.SendToAll
 import akka.testkit.{ TestKit, TestProbe }
 
 import hercules.actors.masters.MasterStateProtocol
+import hercules.entities.ProcessingUnitPlaceholder
 import hercules.protocols.HerculesMainProtocol._
 
 import org.scalatest.{ BeforeAndAfterAll, FlatSpecLike, Matchers }
@@ -70,7 +71,11 @@ class DemultiplexingServiceTest
         RequestMasterState(Some("testId"))),
       SendToAll(
         "/user/master/active",
-        RemoveFromFailedMessages(StartDemultiplexingProcessingUnitMessage(MockProcessingUnit("testId")))))
+        RemoveFromFailedMessages(
+          Some(
+            FailedDemultiplexingProcessingUnitMessage(
+              ProcessingUnitPlaceholder("testId"),
+              "Testing failure")))))
   }
 
   "A DELETE request to /demultiplex/[id]/remove on a non-existing unit" should "return a NotFound status code" in {

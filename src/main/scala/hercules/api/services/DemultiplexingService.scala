@@ -68,21 +68,17 @@ class DemultiplexingService(cluster: ActorRef)(implicit executionContext: Execut
                   RequestMasterState(Some(id)))
               )
             val response = request.map {
-              case Success(state) => {
-                state match {
-                  case s: MasterState => {
-                    val matchingMessage = s.failedMessages.find(x => x.unit.name == id)
-                    if (!matchingMessage.isEmpty) {
-                      cluster.tell(SendToAll("/user/master/active", RemoveFromFailedMessages(matchingMessage)), Actor.noSender)
-                      OK
-                    } else {
-                      NotFound
-                    }
-                  }
-                  case _ =>
-                    InternalServerError
+              case ms: MasterState => {
+                val matchingMessage = ms.findStateOfUnit(Some(id)).failedMessages.headOption
+                if (!matchingMessage.isEmpty) {
+                  cluster.tell(SendToAll("/user/master/active", RemoveFromFailedMessages(matchingMessage)), Actor.noSender)
+                  OK
+                } else {
+                  NotFound
                 }
               }
+              case _ =>
+                InternalServerError
             }.recover {
               case e: Exception =>
                 InternalServerError

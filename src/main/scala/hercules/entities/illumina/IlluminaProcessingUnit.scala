@@ -29,7 +29,7 @@ trait IlluminaProcessingUnit extends ProcessingUnit {
     else {
       if (state.get) indicatorFile.createNewFile
       else indicatorFile.delete
+      discovered()
     }
-    discovered()
   }
 }
