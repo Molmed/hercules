@@ -4,10 +4,12 @@ import java.io.File
 import java.io.FileNotFoundException
 import scala.collection.JavaConversions._
 import scala.concurrent.duration.DurationInt
+import scala.concurrent.Future
 import com.typesafe.config.ConfigFactory
 import akka.actor.Props
 import akka.actor.actorRef2Scala
 import akka.event.{ LoggingAdapter, LoggingReceive }
+import akka.pattern.pipe
 import hercules.actors.HerculesActor
 import hercules.config.processing.IlluminaProcessingUnitWatcherConfig
 import hercules.config.processingunit.IlluminaProcessingUnitFetcherConfig
@@ -142,13 +144,18 @@ class IlluminaProcessingUnitWatcherExecutorActor(
     case ForgetProcessingUnitMessage(unit) => {
       val fetcherConfig = IlluminaProcessingUnitWatcherExecutorActor.fetcherConfig(config, log)
       // Attempt to fetch a IlluminaProcessingUnit corresponding to the supplied ProcessingUnitPlaceholder 
-      val hit: Option[IlluminaProcessingUnit] = fetcher.searchForProcessingUnit(unit, fetcherConfig)
-      if (hit.nonEmpty) {
-        if (!hit.get.discovered(Some(false))) Acknowledge
-        else Reject(Some(s"ProcessingUnit corresponding to $unit was found but could not be undiscovered"))
-      } else {
-        Reject(Some(s"Could not locate ProcessingUnit corresponding to $unit"))
-      }
+      Future {
+        val hit: Option[IlluminaProcessingUnit] = fetcher.searchForProcessingUnit(unit, fetcherConfig)
+        if (hit.nonEmpty) {
+          if (!hit.get.discovered(Some(false))) Acknowledge
+          else Reject(Some(s"ProcessingUnit corresponding to $unit was found but could not be undiscovered"))
+        } else {
+          Reject(Some(s"Could not locate ProcessingUnit corresponding to $unit"))
+        }
+      }.recover {
+        case e: Exception =>
+          Reject(Some(s"IlluminaProcessingUnitWatcherExecutorActor encountered exception while processing ForgetProcessingUnitMessage: $e.getMessage"))
+      }.pipeTo(context.parent)
     }
   }
 

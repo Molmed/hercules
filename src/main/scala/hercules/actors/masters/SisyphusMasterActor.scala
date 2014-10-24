@@ -154,9 +154,7 @@ class SisyphusMasterActor(config: MasterActorConfig) extends PersistentActor wit
         log.debug("Sending ProcessingUnit messages...")
         (sender ? unitMessage).map {
           case Acknowledge => {
-            log.debug(s"$unitMessage was accepted by ProcessingUnitWatcher. Removing from work queue.")
-            // ugh...
-            self ! AddToMessagesInProcessing(Some(unitMessage))
+            log.debug(s"$unitMessage was executed successfully by ProcessingUnitWatcher. Removing from work queue.")
             RemoveFromMessageNotYetProcessed(Some(unitMessage))
           }
           case Reject =>

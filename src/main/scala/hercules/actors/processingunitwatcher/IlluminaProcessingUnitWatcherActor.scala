@@ -47,23 +47,39 @@ class IlluminaProcessingUnitWatcherActor(clusterClient: ActorRef, executor: Prop
 
   import HerculesMainProtocol._
   import context.dispatcher
-  implicit val timeout = Timeout(5.seconds)
+  implicit val timeout = Timeout(10.seconds)
 
   val child = context.actorOf(
     executor,
     "IlluminaProcessingUnitExecutor")
 
+  // Schedule a recurrent request for work
+  val askForWork =
+    context.system.scheduler.schedule(
+      60.seconds,
+      60.seconds,
+      self,
+      { RequestProcessingUnitMessage })
+
+  // Make sure that the scheduled event stops if the actors does.
+  override def postStop() = {
+    askForWork.cancel()
+  }
+
   def receive = LoggingReceive {
+    // Pass a request for work up to master
+    case RequestProcessingUnitMessage =>
+      clusterClient ! SendToAll("/user/master/active", RequestProcessingUnitMessage)
     case message: FoundProcessingUnitMessage => {
       log.debug("Got a FoundProcessingUnitMessage")
       clusterClient ! SendToAll("/user/master/active", message)
     }
     case message: ForgetProcessingUnitMessage => {
+      val s = sender
       log.debug("Got a ForgetProcessingUnitMessage")
-      ask(child, message).recover {
-        case e: Exception =>
-          Reject(Some(s"Executer encountered exception $e.getMessage"))
-      }.pipeTo(sender)
+      ask(child, message).map {
+        SendToAll("/user/master/active", _)
+      }.pipeTo(clusterClient)
     }
   }
 }

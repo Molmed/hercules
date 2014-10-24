@@ -45,6 +45,7 @@ class IlluminaProcessingUnitWatcherActorTest
     with BeforeAndAfterAll
     with Matchers {
 
+  import HerculesMainProtocol._
   val generalConfig = ConfigFactory.load()
 
   // The processing units that we will return
@@ -63,41 +64,60 @@ class IlluminaProcessingUnitWatcherActorTest
       new URI("/path/to/runfolder2")))
 
   object FakeExecutor {
-    def props(): Props = {
-      Props(new FakeExecutor())
+    def props(
+      success: Boolean = true,
+      exception: Option[Exception] = None,
+      startTest: Boolean = true): Props = {
+      Props(new FakeExecutor(success, exception, startTest))
     }
   }
 
-  class FakeExecutor() extends Actor with ActorLogging {
+  class FakeExecutor(
+      val success: Boolean,
+      val exception: Option[Exception],
+      val startTest: Boolean) extends Actor with ActorLogging {
 
     import context.dispatcher
-    context.system.scheduler.scheduleOnce(1 second, self, "StartTest")
+    if (startTest) {
+      context.system.scheduler.scheduleOnce(1 second, self, "StartTest")
+    }
 
     def receive() = {
       case "StartTest" => {
         log.info("FakeExecutor trying to send message to the clusterClient")
         for (unit <- processingUnits)
-          context.parent ! HerculesMainProtocol.FoundProcessingUnitMessage(unit)
+          context.parent ! FoundProcessingUnitMessage(unit)
+      }
+      case ForgetProcessingUnitMessage(unit) => {
+        if (exception.nonEmpty) sender ! Reject(Some("Executor encountered exception " + exception.get.getMessage))
+        else {
+          if (success) sender ! Acknowledge
+          else sender ! Reject(Some("Testing failure"))
+        }
       }
     }
   }
 
+  val hostname = "127.0.0.1"
+  val port = 2551
+  val user = "ClusterSystem"
+  val contact = s"akka.tcp://$user@$hostname:$port"
   val masterSystem: ActorSystem = {
     val config =
       ConfigFactory.
         parseString(
-          """
+          s"""
     		akka {
-    			remote.netty.tcp.port=2551
-    			remote.netty.tcp.hostname=127.0.0.1  
+    			remote.netty.tcp.port=$port
+    			remote.netty.tcp.hostname=$hostname  
     			cluster.roles=["master"]
     
     			cluster {
-    				seed-nodes = ["akka.tcp://ClusterSystem@127.0.0.1:2551"]
+    				seed-nodes = ["$contact"]
     				auto-down-unreachable-after = 10s
     			}
     		}   
-    		contact-points = ["akka.tcp://ClusterSystem@127.0.0.1:2551"]            
+    		contact-points = ["$contact"]            
             """).
           withFallback(generalConfig)
     ActorSystem("ClusterSystem", config)
@@ -112,6 +132,30 @@ class IlluminaProcessingUnitWatcherActorTest
       Some("master")),
     "master")
 
+  val initialContacts = List(contact).map {
+    case AddressFromURIString(addr) => masterSystem.actorSelection(RootActorPath(addr) / "user" / "receptionist")
+  }.toSet
+
+  masterSystem.actorOf(ClusterClient.props(initialContacts), "clusterClient")
+  val clusterClient = masterSystem.actorOf(ClusterClient.props(initialContacts))
+
+  val watcherPort = port + 1
+  val watcherConfig =
+    ConfigFactory.
+      parseString(
+        s"""
+            remote.netty.tcp.port=$watcherPort
+            remote.netty.tcp.hostname=$hostname
+            """).
+        withFallback(generalConfig)
+
+  val defaultWatcher = IlluminaProcessingUnitWatcherActor.
+    startIlluminaProcessingUnitWatcherActor(
+      system = masterSystem,
+      executor = FakeExecutor.props(),
+      clusterClientCustomConfig = () => watcherConfig,
+      getClusterClient = (_, _) => clusterClient)
+
   override def afterAll(): Unit = {
     system.shutdown()
     masterSystem.shutdown()
@@ -120,34 +164,44 @@ class IlluminaProcessingUnitWatcherActorTest
 
   "A IlluminaProcessingUnitWatcherActor" should " pass any FoundProcessingUnitMessage on to the master" in {
 
-    val initialContacts = List("akka.tcp://ClusterSystem@127.0.0.1:2551").map {
-      case AddressFromURIString(addr) => masterSystem.actorSelection(RootActorPath(addr) / "user" / "receptionist")
-    }.toSet
-
-    masterSystem.actorOf(ClusterClient.props(initialContacts), "clusterClient")
-    val clusterClient = masterSystem.actorOf(ClusterClient.props(initialContacts))
-
-    val watcherConfig =
-      ConfigFactory.
-        parseString(
-          """
-      		remote.netty.tcp.port=2552
-			remote.netty.tcp.hostname=127.0.0.1  
-            """).
-          withFallback(generalConfig)
-
-    val fakeExecutor = FakeExecutor.props()
-
-    val watcher = IlluminaProcessingUnitWatcherActor.
-      startIlluminaProcessingUnitWatcherActor(
-        system = masterSystem,
-        executor = fakeExecutor,
-        clusterClientCustomConfig = () => watcherConfig,
-        getClusterClient = (_, _) => clusterClient)
-
     within(10.seconds) {
-      expectMsg(FakeMaster.MasterWrapped(HerculesMainProtocol.FoundProcessingUnitMessage(processingUnits(0))))
-      expectMsg(FakeMaster.MasterWrapped(HerculesMainProtocol.FoundProcessingUnitMessage(processingUnits(1))))
+      expectMsg(FakeMaster.MasterWrapped(FoundProcessingUnitMessage(processingUnits(0))))
+      expectMsg(FakeMaster.MasterWrapped(FoundProcessingUnitMessage(processingUnits(1))))
     }
   }
+
+  it should "pass a RequestProcessingUnitMessage on to the master" in {
+    defaultWatcher ! RequestProcessingUnitMessage
+    expectMsg(3.seconds, FakeMaster.MasterWrapped(RequestProcessingUnitMessage))
+  }
+
+  it should "pass a ForgetProcessingUnitMessage to the executer and pipe the successful result back to the master" in {
+    defaultWatcher ! ForgetProcessingUnitMessage(processingUnits(0))
+    expectMsg(3.seconds, FakeMaster.MasterWrapped(Acknowledge))
+    defaultWatcher ! PoisonPill
+  }
+  it should "pass a ForgetProcessingUnitMessage to the executer and pipe the failing result back to the master" in {
+    val failingWatcher =
+      masterSystem.actorOf(
+        IlluminaProcessingUnitWatcherActor.props(
+          clusterClient,
+          FakeExecutor.props(success = false, startTest = false)),
+        "IlluminaProcessingUnitWatcherActor_Failing")
+    failingWatcher ! ForgetProcessingUnitMessage(processingUnits(0))
+    expectMsg(3.seconds, FakeMaster.MasterWrapped(Reject(Some("Testing failure"))))
+    failingWatcher ! PoisonPill
+  }
+  it should "pass a ForgetProcessingUnitMessage to the executer and handle a thrown exception and pipe the result back to the master" in {
+    val exception = new Exception("Testing exception")
+    val exceptionWatcher =
+      masterSystem.actorOf(
+        IlluminaProcessingUnitWatcherActor.props(
+          clusterClient,
+          FakeExecutor.props(exception = Some(exception), startTest = false)),
+        "IlluminaProcessingUnitWatcherActor_Exception")
+    exceptionWatcher ! ForgetProcessingUnitMessage(processingUnits(0))
+    expectMsg(3.seconds, FakeMaster.MasterWrapped(Reject(Some("Executor encountered exception " + exception.getMessage))))
+    exceptionWatcher ! PoisonPill
+  }
+
 }
