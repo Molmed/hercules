@@ -3,6 +3,9 @@ package hercules.actors.processingunitwatcher
 import akka.actor.ActorRef
 import akka.actor.Props
 import akka.actor.actorRef2Scala
+import akka.pattern.{ ask, pipe }
+import scala.concurrent.duration._
+import akka.util.Timeout
 import akka.contrib.pattern.ClusterClient.SendToAll
 import akka.event.LoggingReceive
 import hercules.actors.utils.MasterLookup
@@ -42,14 +45,41 @@ object IlluminaProcessingUnitWatcherActor extends MasterLookup {
 class IlluminaProcessingUnitWatcherActor(clusterClient: ActorRef, executor: Props)
     extends ProcessingUnitWatcherActor {
 
-  context.actorOf(
+  import HerculesMainProtocol._
+  import context.dispatcher
+  implicit val timeout = Timeout(10.seconds)
+
+  val child = context.actorOf(
     executor,
     "IlluminaProcessingUnitExecutor")
 
+  // Schedule a recurrent request for work
+  val askForWork =
+    context.system.scheduler.schedule(
+      60.seconds,
+      60.seconds,
+      self,
+      { RequestProcessingUnitMessage })
+
+  // Make sure that the scheduled event stops if the actors does.
+  override def postStop() = {
+    askForWork.cancel()
+  }
+
   def receive = LoggingReceive {
-    case message: HerculesMainProtocol.FoundProcessingUnitMessage => {
+    // Pass a request for work up to master
+    case RequestProcessingUnitMessage =>
+      clusterClient ! SendToAll("/user/master/active", RequestProcessingUnitMessage)
+    case message: FoundProcessingUnitMessage => {
       log.debug("Got a FoundProcessingUnitMessage")
       clusterClient ! SendToAll("/user/master/active", message)
+    }
+    case message: ForgetProcessingUnitMessage => {
+      val s = sender
+      log.debug("Got a ForgetProcessingUnitMessage")
+      ask(child, message).map {
+        SendToAll("/user/master/active", _)
+      }.pipeTo(clusterClient)
     }
   }
 }

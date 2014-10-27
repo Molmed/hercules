@@ -38,15 +38,25 @@ class IlluminaProcessingUnitFetcher() extends ProcessingUnitFetcher {
 
     val filesInRunFolder = runfolderPath.listFiles()
 
-    val hasNoFoundFile =
-      filesInRunFolder.forall(file => {
-        !(file.getName() == "found")
-      })
+    val hasNoFoundFile = !unit.isFound
 
     val hasRTAComplete =
       filesInRunFolder.exists(x => x.getName() == "RTAComplete.txt")
 
     hasNoFoundFile && hasRTAComplete
+  }
+
+  /**
+   *  Searches for runfolders corresponding to the supplied ProcessingUnit name and,
+   *  if found, returns the appropriate IlluminaProcessingUnit.
+   *  @param unitName The name of a ProcessingUnit to search for
+   *  @param config
+   *  @return An Option[ProcessingUnit] containing the match or None if not found
+   */
+  def searchForProcessingUnitName(
+    unitName: String,
+    config: IlluminaProcessingUnitFetcherConfig): Option[IlluminaProcessingUnit] = {
+    getProcessingUnits(config).find { _.name == unitName }
   }
 
   /**
@@ -64,6 +74,19 @@ class IlluminaProcessingUnitFetcher() extends ProcessingUnitFetcher {
    *
    */
   def checkForReadyProcessingUnits(
+    config: IlluminaProcessingUnitFetcherConfig): Seq[IlluminaProcessingUnit] = {
+
+    for {
+      unit <- getProcessingUnits(config)
+      if isReadyForProcessing(unit)
+    } yield {
+      unit.markAsFound
+      unit
+    }
+  }
+
+  // Get all available ProcessingUnits, regardless if they are ready for processing
+  private def getProcessingUnits(
     config: IlluminaProcessingUnitFetcherConfig): Seq[IlluminaProcessingUnit] = {
 
     val log = config.log
@@ -108,14 +131,6 @@ class IlluminaProcessingUnitFetcher() extends ProcessingUnitFetcher {
           runfolder.getName() + " in : " + config.sampleSheetRoot)
 
       samplesheet
-    }
-
-    /**
-     * Add a found file, in the runfolder.
-     */
-    def markAsFound(runfolder: File): Boolean = {
-      log.debug("Marking: " + runfolder.getName() + " as found.")
-      (new File(runfolder + "/found")).createNewFile()
     }
 
     /**
@@ -280,9 +295,7 @@ class IlluminaProcessingUnitFetcher() extends ProcessingUnitFetcher {
       qcConfig <- getQCConfig(runfolder)
       programConfig <- getProgramConfig(runfolder)
       illuminaProcessingUnit <- constructCorrectProcessingUnitType(runfolder, samplesheet, qcConfig, programConfig)
-      if isReadyForProcessing(illuminaProcessingUnit)
     } yield {
-      markAsFound(runfolder)
       illuminaProcessingUnit
     }
   }

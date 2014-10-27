@@ -1,6 +1,6 @@
 package hercules.actors.masters
 
-import hercules.protocols.HerculesMainProtocol.ProcessingUnitMessage
+import hercules.protocols.HerculesMainProtocol.ProcessingMessage
 
 object MasterStateProtocol {
 
@@ -9,9 +9,12 @@ object MasterStateProtocol {
   // to be able to able to replay the actors state.
   sealed trait SetStateMessage
 
-  case class AddToMessageNotYetProcessed(message: ProcessingUnitMessage) extends SetStateMessage
-  case class RemoveFromMessageNotYetProcessed(message: ProcessingUnitMessage) extends SetStateMessage
+  case class AddToMessageNotYetProcessed(message: Option[ProcessingMessage]) extends SetStateMessage
+  case class RemoveFromMessageNotYetProcessed(message: Option[ProcessingMessage]) extends SetStateMessage
 
-  case class AddToFailedMessages(message: ProcessingUnitMessage) extends SetStateMessage
-  case class RemoveFromFailedMessages(message: ProcessingUnitMessage) extends SetStateMessage
+  case class AddToMessagesInProcessing(message: Option[ProcessingMessage]) extends SetStateMessage
+  case class RemoveFromMessagesInProcessing(message: Option[ProcessingMessage]) extends SetStateMessage
+
+  case class AddToFailedMessages(message: Option[ProcessingMessage]) extends SetStateMessage
+  case class RemoveFromFailedMessages(message: Option[ProcessingMessage]) extends SetStateMessage
 }

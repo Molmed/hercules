@@ -35,11 +35,11 @@ class StatusService(cluster: ActorRef)(implicit executionContext: ExecutionConte
                 // @TODO Let some json marshaller handle the response instead
                 val status =
                   "messagesNotYetProcessed: {" +
-                    messagesNotYetProcessed.map { _.unit.uri }.mkString(",") +
+                    messagesNotYetProcessed.mkString(",") +
                     "}, messagesInProcessing: {" +
-                    messagesInProcessing.map { _.unit.uri }.mkString(",") +
+                    messagesInProcessing.mkString(",") +
                     "} ,failedMessages: {" +
-                    failedMessages.map { _.unit.uri }.mkString("}")
+                    failedMessages.mkString("}")
                 OK
               }
             }.recover {

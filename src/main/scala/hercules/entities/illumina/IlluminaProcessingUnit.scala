@@ -14,4 +14,9 @@ trait IlluminaProcessingUnit extends ProcessingUnit {
   val processingUnitConfig: IlluminaProcessingUnitConfig
   val uri: URI
   def name: String = new File(uri.getPath).getName
+  private def indicatorFile: File = new File(uri.getPath + File.separator + "found")
+  def isFound: Boolean = indicatorFile.exists()
+  def markAsFound: Boolean = indicatorFile.createNewFile
+  def markNotFound: Boolean = indicatorFile.delete
+
 }

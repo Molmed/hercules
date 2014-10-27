@@ -1,13 +1,13 @@
 package hercules.actors.masters
 
-import hercules.protocols.HerculesMainProtocol.ProcessingUnitMessage
+import hercules.protocols.HerculesMainProtocol._
 import hercules.entities.ProcessingUnit
 import hercules.actors.masters.MasterStateProtocol._
 
 case class MasterState(
-    val messagesNotYetProcessed: Set[ProcessingUnitMessage] = Set(),
-    val messagesInProcessing: Set[ProcessingUnitMessage] = Set(),
-    val failedMessages: Set[ProcessingUnitMessage] = Set()) {
+    val messagesNotYetProcessed: Set[ProcessingMessage] = Set(),
+    val messagesInProcessing: Set[ProcessingMessage] = Set(),
+    val failedMessages: Set[ProcessingMessage] = Set()) {
 
   /**
    * Manipulate the state of the message sets depending on what message has been
@@ -16,18 +16,31 @@ case class MasterState(
    * @return the MasterState after the manipulation
    */
   def manipulateState(x: SetStateMessage): MasterState = {
+    def add[A](l: Set[A], e: A): Set[A] = l + e
+    def sub[A](l: Set[A], e: A): Set[A] = l - e
+
+    def manipulateStateList[A](lst: Set[A], elem: Option[A], op: (Set[A], A) => Set[A]): Set[A] =
+      if (elem.nonEmpty) op(lst, elem.get)
+      else lst
+
     x match {
       case AddToMessageNotYetProcessed(message) =>
-        this.copy(messagesNotYetProcessed = messagesNotYetProcessed + message)
+        this.copy(messagesNotYetProcessed = manipulateStateList(messagesNotYetProcessed, message, add))
 
       case RemoveFromMessageNotYetProcessed(message) =>
-        this.copy(messagesNotYetProcessed = messagesNotYetProcessed - message)
+        this.copy(messagesNotYetProcessed = manipulateStateList(messagesNotYetProcessed, message, sub))
+
+      case AddToMessagesInProcessing(message) =>
+        this.copy(messagesInProcessing = manipulateStateList(messagesInProcessing, message, add))
+
+      case RemoveFromMessagesInProcessing(message) =>
+        this.copy(messagesInProcessing = manipulateStateList(messagesInProcessing, message, sub))
 
       case AddToFailedMessages(message) =>
-        this.copy(failedMessages = failedMessages + message)
+        this.copy(failedMessages = manipulateStateList(failedMessages, message, add))
 
       case RemoveFromFailedMessages(message) =>
-        this.copy(failedMessages = failedMessages - message)
+        this.copy(failedMessages = manipulateStateList(failedMessages, message, sub))
     }
   }
 
@@ -37,16 +50,26 @@ case class MasterState(
    * @return a MasteState filtered for unitName (if present)
    */
   def findStateOfUnit(unitName: Option[String]): MasterState = {
-    if (unitName.isDefined)
-      MasterState(
-        messagesNotYetProcessed =
-          messagesNotYetProcessed.filter(p => p.unit.name == unitName.get),
-        messagesInProcessing =
-          messagesInProcessing.filter(p => p.unit.name == unitName.get),
-        failedMessages =
-          failedMessages.filter(p => p.unit.name == unitName.get))
-    else
-      this
+    // Predicate to filter out messages based on the unit id contained
+    // within. Always return true if the supplied unitName option is empty.
+    def pred[A <: ProcessingMessage](x: A): Boolean = {
+      unitName.isEmpty || (x match {
+        case msg: ProcessingUnitMessage =>
+          msg.unit.name == unitName.get
+        case msg: ProcessingUnitNameMessage =>
+          msg.unitName == unitName.get
+        case _ => false
+      })
+    }
+
+    MasterState(
+      messagesNotYetProcessed =
+        messagesNotYetProcessed.filter(pred),
+      messagesInProcessing =
+        messagesInProcessing.filter(pred),
+      failedMessages =
+        failedMessages.filter(pred)
+    )
   }
 
   //@TODO It whould be awesome to attach a to Json method here to make it

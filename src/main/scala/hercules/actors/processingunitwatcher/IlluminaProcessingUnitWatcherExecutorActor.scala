@@ -2,16 +2,14 @@ package hercules.actors.processingunitwatcher
 
 import java.io.File
 import java.io.FileNotFoundException
-
 import scala.collection.JavaConversions._
 import scala.concurrent.duration.DurationInt
-
+import scala.concurrent.Future
 import com.typesafe.config.ConfigFactory
-
 import akka.actor.Props
 import akka.actor.actorRef2Scala
-import akka.event.LoggingReceive
-
+import akka.event.{ LoggingAdapter, LoggingReceive }
+import akka.pattern.pipe
 import hercules.actors.HerculesActor
 import hercules.config.processing.IlluminaProcessingUnitWatcherConfig
 import hercules.config.processingunit.IlluminaProcessingUnitFetcherConfig
@@ -52,6 +50,23 @@ object IlluminaProcessingUnitWatcherExecutorActor {
   }
 
   /**
+   *  Create a IlluminaProcessingUnitFetcherConfig based on the supplied
+   *  IlluminaProcessingUnitWatcherConfig and LoggingAdapter
+   *  @param watcherConfig
+   *  @param loggingAdapter
+   *  @return A new IlluminaProcessingUnitFetcherConfig
+   */
+  def fetcherConfig(watcherConfig: IlluminaProcessingUnitWatcherConfig, log: LoggingAdapter): IlluminaProcessingUnitFetcherConfig =
+    new IlluminaProcessingUnitFetcherConfig(
+      watcherConfig.runfolderRootPaths.map(x => new File(x)),
+      new File(watcherConfig.samplesheetPath),
+      new File(watcherConfig.qcControlConfigPath),
+      new File(watcherConfig.defaultQCConfigFile),
+      new File(watcherConfig.programConfigPath),
+      new File(watcherConfig.defaultProgramConfigFile),
+      log)
+
+  /**
    * Factory method for creating a IlluminaProcessingUnitExecutorActor
    * Loads it's configuration from the IlluminaProcessingUnitExecutorActor.conf
    * @param fetcher The type of fetcher to use to get the processing units
@@ -85,7 +100,7 @@ class IlluminaProcessingUnitWatcherExecutorActor(
     extends HerculesActor with ProcessingUnitWatcherActor {
 
   import IlluminaProcessingUnitWatcherExecutorActor.IlluminaProcessingUnitWatcherExecutorActorProtocol._
-
+  import HerculesMainProtocol._
   import context.dispatcher
 
   val checkForRunfolder =
@@ -104,14 +119,7 @@ class IlluminaProcessingUnitWatcherExecutorActor(
     case CheckForRunfolders => {
       log.debug("Looking for new runfolders!")
 
-      val fetcherConfig = new IlluminaProcessingUnitFetcherConfig(
-        config.runfolderRootPaths.map(x => new File(x)),
-        new File(config.samplesheetPath),
-        new File(config.qcControlConfigPath),
-        new File(config.defaultQCConfigFile),
-        new File(config.programConfigPath),
-        new File(config.defaultProgramConfigFile),
-        log)
+      val fetcherConfig = IlluminaProcessingUnitWatcherExecutorActor.fetcherConfig(config, log)
 
       try {
         def result =
@@ -132,6 +140,23 @@ class IlluminaProcessingUnitWatcherExecutorActor(
         notice.info("New processingunit found: " + unit.name)
         context.parent ! HerculesMainProtocol.FoundProcessingUnitMessage(unit)
       }
+    }
+    case ForgetProcessingUnitMessage(unitName) => {
+      val fetcherConfig = IlluminaProcessingUnitWatcherExecutorActor.fetcherConfig(config, log)
+      // Attempt to fetch a IlluminaProcessingUnit corresponding to the supplied ProcessingUnitPlaceholder 
+      Future {
+        val hit: Option[IlluminaProcessingUnit] = fetcher.searchForProcessingUnitName(unitName, fetcherConfig)
+        if (hit.nonEmpty) {
+          hit.get.markNotFound
+          if (!hit.get.isFound) Acknowledge
+          else Reject(Some(s"ProcessingUnit corresponding to $unitName was found but could not be undiscovered"))
+        } else {
+          Reject(Some(s"Could not locate ProcessingUnit corresponding to $unitName"))
+        }
+      }.recover {
+        case e: Exception =>
+          Reject(Some("IlluminaProcessingUnitWatcherExecutorActor encountered exception while processing ForgetProcessingUnitMessage: " + e.getMessage))
+      }.pipeTo(context.parent)
     }
   }
 

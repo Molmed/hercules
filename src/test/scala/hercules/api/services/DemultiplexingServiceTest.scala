@@ -70,7 +70,11 @@ class DemultiplexingServiceTest
         RequestMasterState(Some("testId"))),
       SendToAll(
         "/user/master/active",
-        RemoveFromFailedMessages(StartDemultiplexingProcessingUnitMessage(MockProcessingUnit("testId")))))
+        RemoveFromFailedMessages(
+          Some(
+            FailedDemultiplexingProcessingUnitMessage(
+              MockBackend.ProcessingUnitPlaceholder("testId"),
+              "Testing failure")))))
   }
 
   "A DELETE request to /demultiplex/[id]/remove on a non-existing unit" should "return a NotFound status code" in {
