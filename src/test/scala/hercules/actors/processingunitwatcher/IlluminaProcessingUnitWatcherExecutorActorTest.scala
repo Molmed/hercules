@@ -20,7 +20,6 @@ import hercules.config.processingunit.IlluminaProcessingUnitConfig
 import hercules.config.processingunit.IlluminaProcessingUnitFetcherConfig
 import hercules.entities.illumina.HiSeqProcessingUnit
 import hercules.entities.ProcessingUnit
-import hercules.entities.ProcessingUnitPlaceholder
 import hercules.entities.illumina.IlluminaProcessingUnit
 import hercules.entities.illumina.IlluminaProcessingUnitFetcher
 import hercules.protocols.HerculesMainProtocol
@@ -57,8 +56,8 @@ class IlluminaProcessingUnitWatcherExecutorActorTest
       config: IlluminaProcessingUnitFetcherConfig): Seq[IlluminaProcessingUnit] = {
       processingUnits
     }
-    override def searchForProcessingUnit(
-      unit: ProcessingUnit,
+    override def searchForProcessingUnitName(
+      unitName: String,
       config: IlluminaProcessingUnitFetcherConfig): Option[IlluminaProcessingUnit] = {
       if (exception.nonEmpty) throw exception.get
       else returnUnit
@@ -125,9 +124,9 @@ class IlluminaProcessingUnitWatcherExecutorActorTest
       IlluminaProcessingUnitWatcherExecutorActor.props(fetcher, getTestConfig),
       parent.ref,
       "IlluminaProcessingUnitWatcherExecutorActor_NotFound")
-    val unit = ProcessingUnitPlaceholder("testUnit")
-    watcher ! ForgetProcessingUnitMessage(unit)
-    parent.expectMsg(3.second, Reject(Some(s"Could not locate ProcessingUnit corresponding to $unit")))
+    val unitName = "testUnit"
+    watcher ! ForgetProcessingUnitMessage(unitName)
+    parent.expectMsg(3.second, Reject(Some(s"Could not locate ProcessingUnit corresponding to $unitName")))
     watcher.stop()
   }
 
@@ -139,8 +138,8 @@ class IlluminaProcessingUnitWatcherExecutorActorTest
         getTestConfig),
       parent.ref,
       "IlluminaProcessingUnitWatcherExecutorActor_NotFound")
-    val unit = ProcessingUnitPlaceholder("testUnit")
-    watcher ! ForgetProcessingUnitMessage(unit)
+    val unitName = "testUnit"
+    watcher ! ForgetProcessingUnitMessage(unitName)
     parent.expectMsg(3.second, Reject(Some("IlluminaProcessingUnitWatcherExecutorActor encountered exception while processing ForgetProcessingUnitMessage: " + exception.getMessage)))
     watcher.stop()
   }
@@ -152,9 +151,9 @@ class IlluminaProcessingUnitWatcherExecutorActorTest
         getTestConfig),
       parent.ref,
       "IlluminaProcessingUnitWatcherExecutorActor_NotFound")
-    val unit = ProcessingUnitPlaceholder("testUnit")
-    watcher ! ForgetProcessingUnitMessage(unit)
-    parent.expectMsg(3.second, Reject(Some(s"ProcessingUnit corresponding to $unit was found but could not be undiscovered")))
+    val unitName = "testUnit"
+    watcher ! ForgetProcessingUnitMessage(unitName)
+    parent.expectMsg(3.second, Reject(Some(s"ProcessingUnit corresponding to $unitName was found but could not be undiscovered")))
     watcher.stop()
   }
 
@@ -165,8 +164,8 @@ class IlluminaProcessingUnitWatcherExecutorActorTest
         getTestConfig),
       parent.ref,
       "IlluminaProcessingUnitWatcherExecutorActor_NotFound")
-    val unit = ProcessingUnitPlaceholder("testUnit")
-    watcher ! ForgetProcessingUnitMessage(unit)
+    val unitName = "testUnit"
+    watcher ! ForgetProcessingUnitMessage(unitName)
     parent.expectMsg(3.second, Acknowledge)
     watcher.stop()
   }

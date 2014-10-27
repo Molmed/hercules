@@ -88,7 +88,7 @@ class IlluminaProcessingUnitWatcherActorTest
         for (unit <- processingUnits)
           context.parent ! FoundProcessingUnitMessage(unit)
       }
-      case ForgetProcessingUnitMessage(unit) => {
+      case ForgetProcessingUnitMessage(unitName) => {
         if (exception.nonEmpty) sender ! Reject(Some("Executor encountered exception " + exception.get.getMessage))
         else {
           if (success) sender ! Acknowledge
@@ -176,7 +176,7 @@ class IlluminaProcessingUnitWatcherActorTest
   }
 
   it should "pass a ForgetProcessingUnitMessage to the executer and pipe the successful result back to the master" in {
-    defaultWatcher ! ForgetProcessingUnitMessage(processingUnits(0))
+    defaultWatcher ! ForgetProcessingUnitMessage(processingUnits(0).name)
     expectMsg(3.seconds, FakeMaster.MasterWrapped(Acknowledge))
     defaultWatcher ! PoisonPill
   }
@@ -187,7 +187,7 @@ class IlluminaProcessingUnitWatcherActorTest
           clusterClient,
           FakeExecutor.props(success = false, startTest = false)),
         "IlluminaProcessingUnitWatcherActor_Failing")
-    failingWatcher ! ForgetProcessingUnitMessage(processingUnits(0))
+    failingWatcher ! ForgetProcessingUnitMessage(processingUnits(0).name)
     expectMsg(3.seconds, FakeMaster.MasterWrapped(Reject(Some("Testing failure"))))
     failingWatcher ! PoisonPill
   }
@@ -199,7 +199,7 @@ class IlluminaProcessingUnitWatcherActorTest
           clusterClient,
           FakeExecutor.props(exception = Some(exception), startTest = false)),
         "IlluminaProcessingUnitWatcherActor_Exception")
-    exceptionWatcher ! ForgetProcessingUnitMessage(processingUnits(0))
+    exceptionWatcher ! ForgetProcessingUnitMessage(processingUnits(0).name)
     expectMsg(3.seconds, FakeMaster.MasterWrapped(Reject(Some("Executor encountered exception " + exception.getMessage))))
     exceptionWatcher ! PoisonPill
   }

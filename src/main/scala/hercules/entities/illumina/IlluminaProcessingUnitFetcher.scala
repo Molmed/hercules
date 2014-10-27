@@ -47,19 +47,16 @@ class IlluminaProcessingUnitFetcher() extends ProcessingUnitFetcher {
   }
 
   /**
-   *  Searches for runfolders corresponding to the supplied ProcessingUnit and,
-   *  if found, returns the appropriate IlluminaProcessingUnit. This is useful
-   *  for e.g. replacing a ProcessingUnitPlaceholder for a full ProcessingUnit,
-   *  updating the configuration of a ProcessingUnit
-   *  or going from one ProcessingUnit subclass to another.
-   *  @param unit A ProcessingUnit to search for
+   *  Searches for runfolders corresponding to the supplied ProcessingUnit name and,
+   *  if found, returns the appropriate IlluminaProcessingUnit.
+   *  @param unitName The name of a ProcessingUnit to search for
    *  @param config
    *  @return An Option[ProcessingUnit] containing the match or None if not found
    */
-  def searchForProcessingUnit(
-    unit: ProcessingUnit,
+  def searchForProcessingUnitName(
+    unitName: String,
     config: IlluminaProcessingUnitFetcherConfig): Option[IlluminaProcessingUnit] = {
-    getProcessingUnits(config).find { _.name == unit.name }
+    getProcessingUnits(config).find { _.name == unitName }
   }
 
   /**

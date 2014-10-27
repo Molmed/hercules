@@ -5,7 +5,7 @@ import akka.contrib.pattern.ClusterClient.SendToAll
 import akka.testkit.{ TestActor, TestProbe }
 
 import hercules.actors.masters.{ MasterState, MasterStateProtocol }
-import hercules.entities.ProcessingUnitPlaceholder
+import hercules.entities.ProcessingUnit
 import hercules.protocols.HerculesMainProtocol._
 
 import java.io.File
@@ -24,6 +24,12 @@ object MockBackend {
         messagesInProcessing.map { (id: String) => StartDemultiplexingProcessingUnitMessage(ProcessingUnitPlaceholder(id)) },
         failedMessages.map { (id: String) => FailedDemultiplexingProcessingUnitMessage(ProcessingUnitPlaceholder(id), "Testing failure") }
       ))
+
+  case class ProcessingUnitPlaceholder(val name: String) extends ProcessingUnit {
+    val uri = new File(name).toURI
+    val isFound: Boolean = true
+  }
+
 }
 
 class MockBackend(

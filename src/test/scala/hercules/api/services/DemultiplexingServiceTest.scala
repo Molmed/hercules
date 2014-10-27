@@ -5,7 +5,6 @@ import akka.contrib.pattern.ClusterClient.SendToAll
 import akka.testkit.{ TestKit, TestProbe }
 
 import hercules.actors.masters.MasterStateProtocol
-import hercules.entities.ProcessingUnitPlaceholder
 import hercules.protocols.HerculesMainProtocol._
 
 import org.scalatest.{ BeforeAndAfterAll, FlatSpecLike, Matchers }
@@ -74,7 +73,7 @@ class DemultiplexingServiceTest
         RemoveFromFailedMessages(
           Some(
             FailedDemultiplexingProcessingUnitMessage(
-              ProcessingUnitPlaceholder("testId"),
+              MockBackend.ProcessingUnitPlaceholder("testId"),
               "Testing failure")))))
   }
 

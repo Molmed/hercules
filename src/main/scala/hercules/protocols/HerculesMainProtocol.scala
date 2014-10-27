@@ -33,26 +33,30 @@ object HerculesMainProtocol {
    */
   case class RequestMasterState(unitName: Option[String] = None) extends HerculesMessage
 
+  sealed trait ProcessingMessage extends HerculesMessage
   /**
    * The base trait for the messages encapsulating the state of the
    * ProcessingUnit, which in turn defines what is to be done with it.
    */
-  trait ProcessingUnitMessage extends HerculesMessage {
+  trait ProcessingUnitMessage extends ProcessingMessage {
     val unit: ProcessingUnit
   }
+  trait ProcessingUnitNameMessage extends ProcessingMessage {
+    val unitName: String
+  }
 
-  case object RequestProcessingUnitMessage extends HerculesMessage
+  case object RequestProcessingUnitMessage extends ProcessingMessage
   case class FoundProcessingUnitMessage(unit: ProcessingUnit) extends ProcessingUnitMessage
-  case class ForgetProcessingUnitMessage(unit: ProcessingUnit) extends ProcessingUnitMessage
+  case class ForgetProcessingUnitMessage(unitName: String) extends ProcessingUnitNameMessage
 
-  sealed trait DemultiplexingMessage extends HerculesMessage
+  sealed trait DemultiplexingMessage extends ProcessingMessage
   case object RequestDemultiplexingProcessingUnitMessage extends DemultiplexingMessage
   case class StartDemultiplexingProcessingUnitMessage(unit: ProcessingUnit) extends DemultiplexingMessage with ProcessingUnitMessage
-  case class StopDemultiplexingProcessingUnitMessage(unitName: String) extends DemultiplexingMessage
+  case class StopDemultiplexingProcessingUnitMessage(unitName: String) extends DemultiplexingMessage with ProcessingUnitNameMessage
   case class FinishedDemultiplexingProcessingUnitMessage(unit: ProcessingUnit) extends DemultiplexingMessage with ProcessingUnitMessage
   case class FailedDemultiplexingProcessingUnitMessage(unit: ProcessingUnit, reason: String) extends DemultiplexingMessage with ProcessingUnitMessage
-  case class RestartDemultiplexingProcessingUnitMessage(unitName: String) extends DemultiplexingMessage
-  case class ForgetDemultiplexingProcessingUnitMessage(unitName: String) extends DemultiplexingMessage
+  case class RestartDemultiplexingProcessingUnitMessage(unitName: String) extends DemultiplexingMessage with ProcessingUnitNameMessage
+  case class ForgetDemultiplexingProcessingUnitMessage(unitName: String) extends DemultiplexingMessage with ProcessingUnitNameMessage
 
   case class StartQCProcessingUnitMessage(unit: ProcessingUnit) extends ProcessingUnitMessage
   case class FinishedQCProcessingUnitMessage(unit: ProcessingUnit) extends ProcessingUnitMessage

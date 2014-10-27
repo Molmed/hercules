@@ -141,17 +141,17 @@ class IlluminaProcessingUnitWatcherExecutorActor(
         context.parent ! HerculesMainProtocol.FoundProcessingUnitMessage(unit)
       }
     }
-    case ForgetProcessingUnitMessage(unit) => {
+    case ForgetProcessingUnitMessage(unitName) => {
       val fetcherConfig = IlluminaProcessingUnitWatcherExecutorActor.fetcherConfig(config, log)
       // Attempt to fetch a IlluminaProcessingUnit corresponding to the supplied ProcessingUnitPlaceholder 
       Future {
-        val hit: Option[IlluminaProcessingUnit] = fetcher.searchForProcessingUnit(unit, fetcherConfig)
+        val hit: Option[IlluminaProcessingUnit] = fetcher.searchForProcessingUnitName(unitName, fetcherConfig)
         if (hit.nonEmpty) {
           hit.get.markNotFound
           if (!hit.get.isFound) Acknowledge
-          else Reject(Some(s"ProcessingUnit corresponding to $unit was found but could not be undiscovered"))
+          else Reject(Some(s"ProcessingUnit corresponding to $unitName was found but could not be undiscovered"))
         } else {
-          Reject(Some(s"Could not locate ProcessingUnit corresponding to $unit"))
+          Reject(Some(s"Could not locate ProcessingUnit corresponding to $unitName"))
         }
       }.recover {
         case e: Exception =>

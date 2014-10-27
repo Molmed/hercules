@@ -18,7 +18,7 @@ import akka.persistence.SaveSnapshotSuccess
 import akka.persistence.SnapshotOffer
 import akka.util.Timeout
 import hercules.config.masters.MasterActorConfig
-import hercules.entities.{ ProcessingUnit, ProcessingUnitPlaceholder }
+import hercules.entities.{ ProcessingUnit }
 import hercules.protocols.HerculesMainProtocol._
 import hercules.actors.masters.MasterStateProtocol._
 
@@ -59,7 +59,7 @@ object SisyphusMasterActor {
    * @param messageSeq
    * @return All messages of type A
    */
-  def findMessagesOfType[A <: ProcessingUnitMessage](messageSeq: Set[ProcessingUnitMessage]): Set[A] = {
+  def findMessagesOfType[A <: ProcessingMessage](messageSeq: Set[ProcessingMessage]): Set[A] = {
     messageSeq.filter(p => p.isInstanceOf[A]).map(p => p.asInstanceOf[A])
   }
 }
@@ -138,34 +138,40 @@ class SisyphusMasterActor(config: MasterActorConfig) extends PersistentActor wit
       log.debug("Yeah! We save that that snapshot!")
     }
 
-    case message: FoundProcessingUnitMessage => {
-      self ! AddToMessageNotYetProcessed(Some(message))
-    }
-
     case message: DemultiplexingMessage => receiveDemultiplexingMessage(message)
-
-    // A free ProcessingUnitWatcherActor is requesting work from the master.
-    // If there are any messages not processed that are to be handled by a ProcessingUnitWatcher, 
-    // take them out of the queue and send them.
-    case RequestProcessingUnitMessage => {
-      import context.dispatcher
-      implicit val timeout = Timeout(5 seconds)
-
-      // Right now, only ForgetProcessingUnitMessages are handled by the ProcessingUnitWatcherActor 
-      val unitsToProcess = SisyphusMasterActor.findMessagesOfType[ForgetProcessingUnitMessage](state.messagesNotYetProcessed)
-      for (unitMessage <- unitsToProcess) {
-        log.debug("Sending ProcessingUnit messages...")
-        (sender ? unitMessage).map {
-          case Acknowledge => {
-            log.debug(s"$unitMessage was executed successfully by ProcessingUnitWatcher. Removing from work queue.")
-            RemoveFromMessageNotYetProcessed(Some(unitMessage))
-          }
-          case Reject =>
-            log.debug(s"$unitMessage was not accepted by ProcessingUnitWatcher. Keep it in the work queue.")
-        } pipeTo (self)
-      }
-    }
+    case message: ProcessingMessage     => receiveProcessingMessage(message)
   }
+
+  def receiveProcessingMessage(processMessage: ProcessingMessage): Unit =
+    processMessage match {
+
+      // A free ProcessingUnitWatcherActor is requesting work from the master.
+      // If there are any messages not processed that are to be handled by a ProcessingUnitWatcher, 
+      // take them out of the queue and send them.
+      case RequestProcessingUnitMessage => {
+        import context.dispatcher
+        implicit val timeout = Timeout(5 seconds)
+
+        // Right now, only ForgetProcessingUnitMessages are handled by the ProcessingUnitWatcherActor 
+        val unitsToProcess = SisyphusMasterActor.findMessagesOfType[ForgetProcessingUnitMessage](state.messagesNotYetProcessed)
+        for (unitMessage <- unitsToProcess) {
+          log.debug("Sending ProcessingUnit messages...")
+          (sender ? unitMessage).map {
+            case Acknowledge => {
+              log.debug(s"$unitMessage was executed successfully by ProcessingUnitWatcher. Removing from work queue.")
+              RemoveFromMessageNotYetProcessed(Some(unitMessage))
+            }
+            case Reject =>
+              log.debug(s"$unitMessage was not accepted by ProcessingUnitWatcher. Keep it in the work queue.")
+          } pipeTo (self)
+        }
+      }
+
+      case message: FoundProcessingUnitMessage => {
+        self ! AddToMessageNotYetProcessed(Some(message))
+      }
+
+    }
 
   //@TODO Make sure that this warns if the entire setup if DemultiplexingMessage
   // is not handled. That's the point of having a sealed trait!
@@ -219,8 +225,7 @@ class SisyphusMasterActor(config: MasterActorConfig) extends PersistentActor wit
           // Add the request to forget the unit to the MessagesNotYetProcessed queue
           self ! AddToMessageNotYetProcessed(
             Some(
-              ForgetProcessingUnitMessage(
-                ProcessingUnitPlaceholder(id))))
+              ForgetProcessingUnitMessage(id)))
 
           // Acknowledge that we handled the message. 
           // The progress of the request can be tracked by polling the master state.
