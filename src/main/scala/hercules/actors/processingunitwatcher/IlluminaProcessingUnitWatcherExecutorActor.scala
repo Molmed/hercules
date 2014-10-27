@@ -147,7 +147,8 @@ class IlluminaProcessingUnitWatcherExecutorActor(
       Future {
         val hit: Option[IlluminaProcessingUnit] = fetcher.searchForProcessingUnit(unit, fetcherConfig)
         if (hit.nonEmpty) {
-          if (!hit.get.discovered(Some(false))) Acknowledge
+          hit.get.markNotFound
+          if (!hit.get.isFound) Acknowledge
           else Reject(Some(s"ProcessingUnit corresponding to $unit was found but could not be undiscovered"))
         } else {
           Reject(Some(s"Could not locate ProcessingUnit corresponding to $unit"))

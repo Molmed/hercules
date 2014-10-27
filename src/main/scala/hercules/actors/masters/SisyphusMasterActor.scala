@@ -144,11 +144,14 @@ class SisyphusMasterActor(config: MasterActorConfig) extends PersistentActor wit
 
     case message: DemultiplexingMessage => receiveDemultiplexingMessage(message)
 
-    // A ProcessingUnitWatcherActor is asking for something to do
+    // A free ProcessingUnitWatcherActor is requesting work from the master.
+    // If there are any messages not processed that are to be handled by a ProcessingUnitWatcher, 
+    // take them out of the queue and send them.
     case RequestProcessingUnitMessage => {
       import context.dispatcher
       implicit val timeout = Timeout(5 seconds)
 
+      // Right now, only ForgetProcessingUnitMessages are handled by the ProcessingUnitWatcherActor 
       val unitsToProcess = SisyphusMasterActor.findMessagesOfType[ForgetProcessingUnitMessage](state.messagesNotYetProcessed)
       for (unitMessage <- unitsToProcess) {
         log.debug("Sending ProcessingUnit messages...")
@@ -186,9 +189,13 @@ class SisyphusMasterActor(config: MasterActorConfig) extends PersistentActor wit
         self ! AddToFailedMessages(Some(message))
       }
 
-      // Forget that the demultiplexing of a unit has taken place
+      // Forget that the demultiplexing of a unit has taken place, i.e. remove the indication that
+      // hercules uses to determine whether a ProcessingUnit has already been processed. This will 
+      // cause the ProcessingUnit to be re-discovered and queued for demultiplexing by the normal
+      // mechanism. In case the processing is already underway, nothing will be done.
       case ForgetDemultiplexingProcessingUnitMessage(id) => {
 
+        // Check if the unit is being processed and, if so, Reject the request
         val unitState = state.findStateOfUnit(Some(id))
         if (SisyphusMasterActor.findMessagesOfType[StartDemultiplexingProcessingUnitMessage](
           unitState.messagesInProcessing
@@ -215,12 +222,15 @@ class SisyphusMasterActor(config: MasterActorConfig) extends PersistentActor wit
               ForgetProcessingUnitMessage(
                 ProcessingUnitPlaceholder(id))))
 
-          // Acknowledge that we handled the message, although it could still be rejected 
-          // by a ProcessingUnitWatcherActor further down the line
+          // Acknowledge that we handled the message. 
+          // The progress of the request can be tracked by polling the master state.
           sender ! Acknowledge
         }
       }
 
+      // A DemultiplexingActor is requesting work. We'll look in the messagesNotYetProcessed set
+      // and if there are any waiting demultiplexing jobs, send them to the actor. If the job
+      // is accepted, we'll remove it from the queue, otherwise it will remain there.
       case RequestDemultiplexingProcessingUnitMessage => {
 
         log.debug("Processing RequestDemultiplexingProcessingUnitMessage!")
@@ -247,7 +257,10 @@ class SisyphusMasterActor(config: MasterActorConfig) extends PersistentActor wit
         }
       }
 
-      // Refer to change state messages.
+      // A failed demultiplexing job was requested to be restarted. We will try to find the 
+      // requested job in the failedMessages set and if found, the job will be removed from
+      // the failed messages set and queued in the messagesNotYetProcessed set. Eventually, 
+      // the job will be send to a DemultiplexActor in response to a request for work.
       case message: RestartDemultiplexingProcessingUnitMessage => {
         val matchingMessage =
           SisyphusMasterActor.findMessagesOfType[FailedDemultiplexingProcessingUnitMessage](
@@ -260,6 +273,7 @@ class SisyphusMasterActor(config: MasterActorConfig) extends PersistentActor wit
             "For a message to restart " + message.unitName +
               " moving it into the messages to process list.")
           notice.info("Restarting demultiplexing for processingunit: " + message.unitName)
+          // Wrap the processing unit in a FoundProcessingUnitMessage
           self ! AddToMessageNotYetProcessed(Some(FoundProcessingUnitMessage(matchingMessage.get.unit)))
           self ! RemoveFromFailedMessages(matchingMessage)
           sender ! Acknowledge

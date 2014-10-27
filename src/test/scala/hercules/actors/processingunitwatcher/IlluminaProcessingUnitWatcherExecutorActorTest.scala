@@ -65,17 +65,13 @@ class IlluminaProcessingUnitWatcherExecutorActorTest
     }
   }
 
-  class FakeProcessingUnit(behavior: Boolean => Boolean = (x: Boolean) => !x) extends IlluminaProcessingUnit {
+  class FakeProcessingUnit(behavior: Boolean => Boolean = (x: Boolean) => x) extends IlluminaProcessingUnit {
     val uri = new File("FakeTestUnit").toURI
     val processingUnitConfig = IlluminaProcessingUnitConfig(new File(name), new File(name), None)
     var discoveredState = true
-    override def discovered(state: Option[Boolean] = None): Boolean = {
-      if (state.isEmpty) discoveredState
-      else {
-        discoveredState = behavior(state.get)
-        discovered()
-      }
-    }
+    override def isFound: Boolean = behavior(discoveredState)
+    override def markAsFound: Boolean = { discoveredState = true; true }
+    override def markNotFound: Boolean = { discoveredState = false; true }
   }
 
   val fetcher = new FakeFetcher
@@ -165,7 +161,7 @@ class IlluminaProcessingUnitWatcherExecutorActorTest
   it should "respond to a ForgetProcessingUnitMessage with Acknowledge to parent if the unit could be found and undiscovered" in {
     val watcher = TestActorRef(
       IlluminaProcessingUnitWatcherExecutorActor.props(
-        new FakeFetcher(returnUnit = Some(new FakeProcessingUnit((x: Boolean) => false))),
+        new FakeFetcher(returnUnit = Some(new FakeProcessingUnit())),
         getTestConfig),
       parent.ref,
       "IlluminaProcessingUnitWatcherExecutorActor_NotFound")

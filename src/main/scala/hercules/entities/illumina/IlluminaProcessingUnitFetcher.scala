@@ -38,7 +38,7 @@ class IlluminaProcessingUnitFetcher() extends ProcessingUnitFetcher {
 
     val filesInRunFolder = runfolderPath.listFiles()
 
-    val hasNoFoundFile = !unit.discovered()
+    val hasNoFoundFile = !unit.isFound
 
     val hasRTAComplete =
       filesInRunFolder.exists(x => x.getName() == "RTAComplete.txt")
@@ -83,7 +83,7 @@ class IlluminaProcessingUnitFetcher() extends ProcessingUnitFetcher {
       unit <- getProcessingUnits(config)
       if isReadyForProcessing(unit)
     } yield {
-      unit.discovered(Some(true))
+      unit.markAsFound
       unit
     }
   }

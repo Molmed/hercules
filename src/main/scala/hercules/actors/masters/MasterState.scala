@@ -19,6 +19,10 @@ case class MasterState(
     def add[A](l: Set[A], e: A): Set[A] = l + e
     def sub[A](l: Set[A], e: A): Set[A] = l - e
 
+    def manipulateStateList[A](lst: Set[A], elem: Option[A], op: (Set[A], A) => Set[A]): Set[A] =
+      if (elem.nonEmpty) op(lst, elem.get)
+      else lst
+
     x match {
       case AddToMessageNotYetProcessed(message) =>
         this.copy(messagesNotYetProcessed = manipulateStateList(messagesNotYetProcessed, message, add))
@@ -39,10 +43,6 @@ case class MasterState(
         this.copy(failedMessages = manipulateStateList(failedMessages, message, sub))
     }
   }
-
-  private def manipulateStateList[A](lst: Set[A], elem: Option[A], op: (Set[A], A) => Set[A]): Set[A] =
-    if (elem.nonEmpty) op(lst, elem.get)
-    else lst
 
   /**
    * Gets the master state as is, or filtered for the unitName option.

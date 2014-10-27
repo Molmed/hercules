@@ -9,5 +9,6 @@ trait ProcessingUnit {
 
   val uri: URI
   def name: String
+  def isFound: Boolean
 
 }
