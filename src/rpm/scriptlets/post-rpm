@@ -1,0 +1,32 @@
+
+#
+# Make sure journaling and log locations exist and are reachable
+#
+createdirectories() {
+    mkdir -p ${{chdir}}/snapshots
+    chown ${{daemon_user}}:${{daemon_user}} ${{chdir}}/snapshots
+    mkdir -p ${{chdir}}/journal
+    chown ${{daemon_user}}:${{daemon_user}} ${{chdir}}/journal
+}
+
+createdirectories
+
+#
+# Adding hercules to autostart
+# 
+addservice() {
+    if hash update-rc.d 2>/dev/null; then
+        echo "Adding hercules to autostart using update-rc.d"
+        update-rc.d hercules defaults
+    elif chkconfig 2>/dev/null; then
+        echo "Adding hercules to autostart using chkconfig"
+        chkconfig --add hercules
+        chkconfig hercules on
+    else
+        echo "WARNING: Could not put hercules in autostart"
+    fi
+}
+
+addservice
+service hercules start
+
