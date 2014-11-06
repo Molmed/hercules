@@ -85,6 +85,8 @@ rpmVendor := "ngi-uu"
 
 rpmLicense := Some("MIT")
 
+rpmRequirements := Seq("java-1.7.0-openjdk")
+
 daemonUser in Linux := "hercules" // user which will execute the application
 
 daemonGroup in Linux := "hercules"    // group which will execute the application
