@@ -3,6 +3,7 @@ package hercules.api.services
 import akka.actor.ActorSystem
 import akka.contrib.pattern.ClusterClient.SendToAll
 import akka.testkit.{ TestKit, TestProbe }
+import akka.util.Timeout
 
 import hercules.actors.masters.MasterStateProtocol
 import hercules.protocols.HerculesMainProtocol._
@@ -10,6 +11,7 @@ import hercules.protocols.HerculesMainProtocol._
 import org.scalatest.{ BeforeAndAfterAll, FlatSpecLike, Matchers }
 
 import scala.concurrent.duration._
+import scala.concurrent.ExecutionContext
 
 import spray.testkit.ScalatestRouteTest
 import spray.http.StatusCodes._
@@ -26,7 +28,9 @@ class DemultiplexingServiceTest
   val probe = MockBackend(
     system = this.system,
     failedMessages = Set("testId"))
-  val service = new DemultiplexingService(probe.ref)
+
+  val timeout = Timeout(5.seconds)
+  val service = new MockBackend.DemultiplexingServiceClass()(timeout, system.dispatcher, probe.ref)
 
   override def afterAll(): Unit = {
     system.shutdown()

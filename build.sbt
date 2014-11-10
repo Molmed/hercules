@@ -26,7 +26,8 @@ libraryDependencies ++= {
   "io.spray" %% "spray-can" % "1.3.1",
   "io.spray" %% "spray-routing" % "1.3.1",
   "io.spray" %% "spray-json" % "1.3.0",
-  "io.spray" %% "spray-testkit" % "1.3.1" % "test"
+  "io.spray" %% "spray-testkit" % "1.3.1" % "test",
+  "com.gettyimages" %% "spray-swagger" % "0.5.0"
   )
 }
 

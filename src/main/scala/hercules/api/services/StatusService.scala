@@ -9,46 +9,50 @@ import scala.concurrent.{ Await, duration, ExecutionContext }
 import scala.util.{ Failure, Success }
 
 import spray.http.StatusCodes._
-import spray.routing.Directives
+import spray.routing._
 
-import hercules.protocols.HerculesMainProtocol._
 import hercules.actors.masters.{ MasterState, MasterStateProtocol }
+import hercules.api.{ Api, BootedCore, Core, CoreActors }
 import hercules.entities.ProcessingUnit
+import hercules.protocols.HerculesMainProtocol._
 
-class StatusService(cluster: ActorRef)(implicit executionContext: ExecutionContext) extends Directives {
+trait StatusService extends Directives {
 
   import duration._
-  implicit val timeout = Timeout(5.seconds)
-  val route =
+  implicit val timeout: Timeout
+  implicit val executionContext: ExecutionContext
+  implicit val cluster: ActorRef
+
+  def route = getRoute
+  def getRoute = get {
     path("status") {
-      get {
-        detach() {
-          complete {
-            val request =
-              cluster.ask(
-                SendToAll(
-                  "/user/master/active",
-                  RequestMasterState())
-              )
-            val response = request.map {
-              case MasterState(messagesNotYetProcessed, messagesInProcessing, failedMessages) => {
-                // TODO Let some json marshaller handle the response instead
-                val status =
-                  "messagesNotYetProcessed: {" +
-                    messagesNotYetProcessed.mkString(",") +
-                    "}, messagesInProcessing: {" +
-                    messagesInProcessing.mkString(",") +
-                    "} ,failedMessages: {" +
-                    failedMessages.mkString("}")
-                OK
-              }
-            }.recover {
-              case e: Exception =>
-                InternalServerError
+      detach() {
+        complete {
+          val request =
+            cluster.ask(
+              SendToAll(
+                "/user/master/active",
+                RequestMasterState())
+            )
+          val response = request.map {
+            case MasterState(messagesNotYetProcessed, messagesInProcessing, failedMessages) => {
+              // @TODO Let some json marshaller handle the response instead
+              val status =
+                "messagesNotYetProcessed: {" +
+                  messagesNotYetProcessed.mkString(",") +
+                  "}, messagesInProcessing: {" +
+                  messagesInProcessing.mkString(",") +
+                  "} ,failedMessages: {" +
+                  failedMessages.mkString("}")
+              OK
             }
-            response
+          }.recover {
+            case e: Exception =>
+              InternalServerError
           }
+          response
         }
       }
     }
+  }
 }

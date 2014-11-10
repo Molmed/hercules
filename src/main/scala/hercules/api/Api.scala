@@ -1,9 +1,13 @@
 package hercules.api
 
+import akka.actor.ActorRefFactory
+import akka.util.Timeout
+
+import scala.concurrent.duration.Duration
+
 import spray.routing.RouteConcatenation
 import hercules.actors.api.RoutedHttpService
 import hercules.api.services.DemultiplexingService
-import hercules.api.services.StatusService
 
 /**
  * The REST API layer. It exposes the REST services, but does not provide any
@@ -16,11 +20,15 @@ trait Api extends RouteConcatenation {
   this: CoreActors with Core =>
 
   private implicit val _ = system.dispatcher
+  implicit val timeout = Timeout(Duration(5, "seconds"))
 
-  val routes =
-    new DemultiplexingService(cluster).route ~
-      new StatusService(cluster).route
-
-  val rootService = system.actorOf(RoutedHttpService.props(routes), "hercules-api-service")
+  val rootService = system.actorOf(
+    RoutedHttpService.props(
+      cluster,
+      timeout,
+      system.dispatcher
+    ),
+    "hercules-api-service")
 
 }
+

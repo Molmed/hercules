@@ -1,13 +1,23 @@
 package hercules.actors.api
 
-import akka.actor.Props
+import akka.actor.{ ActorRef, Props }
+import akka.util.Timeout
+
+import scala.concurrent.ExecutionContext
+
 import spray.routing.{ HttpServiceActor, Route }
 import spray.util.{ SprayActorLogging, LoggingContext }
 
+import hercules.api.Api
+import hercules.api.services._
+
 object RoutedHttpService {
 
-  def props(route: Route): Props = {
-    Props(new RoutedHttpService(route))
+  def props(
+    cluster: ActorRef,
+    timeout: Timeout,
+    executionContext: ExecutionContext): Props = {
+    Props(new RoutedHttpService()(cluster, timeout, executionContext))
   }
 }
 /**
@@ -16,7 +26,13 @@ object RoutedHttpService {
  *
  * @param route the (concatenated) route
  */
-class RoutedHttpService(route: Route) extends HttpServiceActor with SprayActorLogging {
+class RoutedHttpService()(
+  implicit val cluster: ActorRef,
+  implicit val timeout: Timeout,
+  implicit val executionContext: ExecutionContext) extends HttpServiceActor
+    with SprayActorLogging
+    //    with StatusService
+    with DemultiplexingService {
 
   def receive: Receive =
     runRoute(route)

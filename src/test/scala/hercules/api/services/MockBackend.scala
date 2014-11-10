@@ -3,6 +3,7 @@ package hercules.api.services
 import akka.actor.{ ActorRef, ActorSystem }
 import akka.contrib.pattern.ClusterClient.SendToAll
 import akka.testkit.{ TestActor, TestProbe }
+import akka.util.Timeout
 
 import hercules.actors.masters.{ MasterState, MasterStateProtocol }
 import hercules.entities.ProcessingUnit
@@ -10,6 +11,8 @@ import hercules.protocols.HerculesMainProtocol._
 
 import java.io.File
 import java.net.URI
+
+import scala.concurrent.ExecutionContext
 
 object MockBackend {
   def apply(
@@ -29,6 +32,15 @@ object MockBackend {
     val uri = new File(name).toURI
     val isFound: Boolean = true
   }
+
+  case class StatusServiceClass(
+    implicit val timeout: Timeout,
+    implicit val executionContext: ExecutionContext,
+    implicit val cluster: ActorRef) extends StatusService
+  case class DemultiplexingServiceClass(
+    implicit val timeout: Timeout,
+    implicit val executionContext: ExecutionContext,
+    implicit val cluster: ActorRef) extends DemultiplexingService
 
 }
 

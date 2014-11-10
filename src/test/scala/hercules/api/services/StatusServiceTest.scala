@@ -3,13 +3,16 @@ package hercules.api.services
 import akka.actor.ActorSystem
 import akka.contrib.pattern.ClusterClient.SendToAll
 import akka.testkit.{ TestKit, TestProbe }
+import akka.util.Timeout
 
 import hercules.actors.masters.MasterStateProtocol
+import hercules.api.{ Core, CoreActors }
 import hercules.protocols.HerculesMainProtocol._
 
 import org.scalatest.{ BeforeAndAfterAll, FlatSpecLike, Matchers }
 
 import scala.concurrent.duration._
+import scala.concurrent.ExecutionContext
 
 import spray.testkit.ScalatestRouteTest
 import spray.http.StatusCodes._
@@ -28,7 +31,9 @@ class StatusServiceTest
     messagesNotYetProcessed = Set("this-unit-is-not-yet-processed"),
     messagesInProcessing = Set("this-unit-is-being-processed"),
     failedMessages = Set("this-unit-failed-in-processing"))
-  val service = new StatusService(probe.ref)
+
+  val timeout = Timeout(5.seconds)
+  val service = new MockBackend.StatusServiceClass()(timeout, system.dispatcher, probe.ref)
 
   override def afterAll(): Unit = {
     system.shutdown()

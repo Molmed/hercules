@@ -10,14 +10,17 @@ import akka.util.Timeout
 import scala.util.{ Success, Failure }
 import hercules.protocols.HerculesMainProtocol._
 import hercules.actors.masters.{ MasterState, MasterStateProtocol }
+import hercules.api.{ Core, CoreActors }
 
-class DemultiplexingService(cluster: ActorRef)(implicit executionContext: ExecutionContext) extends Directives {
+trait DemultiplexingService extends Directives {
 
   import duration._
-  implicit val timeout = Timeout(5.seconds)
+  implicit val timeout: Timeout
+  implicit val executionContext: ExecutionContext
+  implicit val cluster: ActorRef
   import MasterStateProtocol._
 
-  val route =
+  def route =
     pathPrefix("demultiplex" / Segment) { id =>
       restartFailedDemultiplexJob(id) ~
         removeFailedDemultiplexJob(id) ~
