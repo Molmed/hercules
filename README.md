@@ -4,10 +4,11 @@ Hercules
 *NOTE:* This this project is under heavy development and anything can change without previous notice (and a lot of the functionality is not in place yet).
 
 *Quick start:*
-This was way to much text! How do I install Hercules (on a Redhat based system)?
+This was way too much text! How do I install Hercules (on a Redhat based system)?
 
     # Make sure you have Java 7 and sbt installed
     git clone https://github.com/Molmed/hercules.git &&\
+    cd hercules &&\
     sbt rpm:packageBin &&\
     sudo yum install target/rpm/RPMS/noarch/hercules-*.noarch.rpm
     # Read the section on configuration to get a proper setup of your roles!
@@ -40,7 +41,7 @@ To understand how Hercules works it's important to grasp a few key concepts.
 
 **The cluster:** The Hercules system consists of one or more nodes (running Hercules instances). These constitute a cluster.
 **Nodes:** Each running Hercules instances is called a node.
-**Roles:** Each node can run one or more roles. Examples of roles are: Master and demultiplexer. Each roles contains one part of the workflow functionallity. The roles communicate with each other through sending messages, and this is independent of if the roles are running on the same node or not.
+**Roles:** Each node can run one or more roles. Examples of roles are: Master and demultiplexer. Each roles contains one part of the workflow functionallity. The roles communicate with each other through sending messages, and this is independent of whether the roles are running on the same node or not.
 **Master:** The actor which acts as the centralizing point in the workflow. Messages from other roles will pass through the master, which will decide what to do with them. 
 
 Defining nodes and roles makes Hercules very flexible in how it is able to run. It's possible to run Hercules with all required roles on a single node, or to split the roles out over serveral nodes. The later is useful as it allows you run some long runing and resoruce intensive operations (such as the demultiplexing) on separate nodes.
