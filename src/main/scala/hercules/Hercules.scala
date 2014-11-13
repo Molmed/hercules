@@ -21,15 +21,42 @@ object Hercules extends App {
 
   val log = LoggerFactory.getLogger("Hercules")
 
-  // A very simple command line parser that is able to check if this is a
-  // worker or a master that is starting up.
+  /**
+   * The base trait used for all roles to run.
+   */
   sealed trait Role
+
+  /**
+   * Run the master role
+   */
   case object RunMaster extends Role
+
+  /**
+   * Run the demultiplexer role
+   */
   case object RunDemultiplexer extends Role
+
+  /**
+   * Run the watcher role
+   */
   case object RunRunfolderWatcher extends Role
+
+  /**
+   * Run the REST API role
+   */
   case object RestApi extends Role
+
+  /**
+   * Output the help message
+   */
   case object RunHelp extends Role
 
+  /**
+   * Convert a string (from the config) to it's corresponding role object
+   *
+   * @param s String to convert to type
+   * @return the corresponding role
+   */
   def string2Role(s: String): Role = {
     s match {
       case "master"        => RunMaster
@@ -39,10 +66,12 @@ object Hercules extends App {
     }
   }
 
+  /**
+   * Container class for command line options
+   * @param applicationType
+   */
   case class CommandLineOptions(
-    applicationType: Option[List[Role]] = None,
-    command: Option[String] = None,
-    unitName: Option[String] = None)
+    applicationType: Option[List[Role]] = None)
 
   val parser = new scopt.OptionParser[CommandLineOptions]("Hercules") {
 
@@ -67,6 +96,15 @@ object Hercules extends App {
     }
   }
 
+  /**
+   * Parse the command line options.
+   * 
+   * If none (config.applicationType is None) are given, the default options 
+   * will be read from the application config file.
+   *
+   * @param config a CommandLineOptions instance
+   * @return Unit
+   */
   def parseCommandLineOptions(config: CommandLineOptions): Unit = {
 
     config.applicationType match {
