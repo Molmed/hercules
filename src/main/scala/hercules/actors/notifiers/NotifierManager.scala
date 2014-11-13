@@ -7,7 +7,8 @@ import hercules.protocols.HerculesMainProtocol._
 import hercules.protocols.NotificationChannelProtocol._
 
 object NotifierManager {
-  def getInstance(system: ActorSystem): NotifierManager = {
+  
+  def apply(system: ActorSystem): NotifierManager = {
     new NotifierManager(system)
   }
 

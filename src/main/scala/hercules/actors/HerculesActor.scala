@@ -18,5 +18,5 @@ trait HerculesActor extends Actor with ActorLogging {
    *  to forward messages to the notification system, which will then decide
    *  based on the message level what to do with it (i.e. send emails, etc).
    */
-  val notice = NotifierManager.getInstance(context.system)
+  val notice = NotifierManager(context.system)
 }
