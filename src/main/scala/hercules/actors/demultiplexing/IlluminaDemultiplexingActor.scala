@@ -18,6 +18,9 @@ import scala.concurrent.duration._
 import akka.event.LoggingReceive
 import scala.util.Random
 
+/**
+ * Provides factory methods for creating a IlluminaDemultiplexingActor
+ */
 object IlluminaDemultiplexingActor extends MasterLookup {
 
   /**
@@ -50,7 +53,7 @@ object IlluminaDemultiplexingActor extends MasterLookup {
 }
 
 /**
- * Actors which demultiplex Illumina runfolders should communitate through
+ * Actors which demultiplexes Illumina runfolders should communicate through
  * here. A concrete executor actor (such as the SisyphusDemultiplexingActor)
  * should do the actual work.
  * @param clusterClient A reference to a cluster client thorough which the

@@ -98,8 +98,8 @@ object Hercules extends App {
 
   /**
    * Parse the command line options.
-   * 
-   * If none (config.applicationType is None) are given, the default options 
+   *
+   * If none (config.applicationType is None) are given, the default options
    * will be read from the application config file.
    *
    * @param config a CommandLineOptions instance
