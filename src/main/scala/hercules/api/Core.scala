@@ -1,6 +1,9 @@
 package hercules.api
 
 import akka.actor.{ Props, ActorSystem }
+import akka.util.Timeout
+
+import scala.concurrent.duration.Duration
 
 /**
  * Core is type containing the ``system: ActorSystem`` member. This enables us to use it in our
@@ -9,6 +12,7 @@ import akka.actor.{ Props, ActorSystem }
 trait Core {
 
   implicit def system: ActorSystem
+  implicit val timeout: Timeout
 
 }
 
@@ -22,6 +26,7 @@ trait BootedCore extends Core {
    * Construct the ActorSystem we will use in our application
    */
   implicit lazy val system = ActorSystem("hercules-rest-api")
+  implicit lazy val timeout = Timeout(Duration(5, "seconds"))
 
   /**
    * Ensure that the constructed ActorSystem is shut down when the JVM shuts down

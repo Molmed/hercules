@@ -10,14 +10,14 @@ import akka.util.Timeout
 import scala.util.{ Success, Failure }
 import hercules.protocols.HerculesMainProtocol._
 import hercules.actors.masters.{ MasterState, MasterStateProtocol }
-import hercules.api.{ Core, CoreActors }
+import hercules.api.{ BootedCore, CoreActors }
 
 trait DemultiplexingService extends Directives {
 
+  this: BootedCore with CoreActors =>
+
   import duration._
-  implicit val timeout: Timeout
-  implicit val executionContext: ExecutionContext
-  implicit val cluster: ActorRef
+  implicit val executionContext: ExecutionContext = system.dispatcher
   import MasterStateProtocol._
 
   def route =
@@ -32,7 +32,7 @@ trait DemultiplexingService extends Directives {
    * Tell the master to restart a demultiplex job that has previously
    * failed and which the master has in its list of failed units
    */
-  def restartFailedDemultiplexJob(id: String) =
+  private def restartFailedDemultiplexJob(id: String) =
     path("restart") {
       put {
         detach() {

@@ -9,6 +9,6 @@ import hercules.actors.utils.MasterLookup
 trait CoreActors extends MasterLookup {
   this: Core =>
 
-  val cluster = getMasterClusterClient(system, getDefaultConfig, getDefaultClusterClient)
+  lazy val cluster = getMasterClusterClient(system, getDefaultConfig, getDefaultClusterClient)
 
 }
