@@ -5,6 +5,9 @@ import hercules.actors.HerculesActor
 import hercules.entities.ProcessingUnit
 
 /**
+ * 
+ * TODO: This is not yet implemented.
+ * 
  * Abstract base class for any actor providing quality controll checking
  * functionality
  */
