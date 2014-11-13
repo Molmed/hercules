@@ -45,7 +45,7 @@ object HerculesMainProtocol {
     val unitName: String
   }
 
-  case object RequestProcessingUnitMessage extends ProcessingMessage
+  case object RequestProcessingUnitMessageToForget extends ProcessingMessage
   case class FoundProcessingUnitMessage(unit: ProcessingUnit) extends ProcessingUnitMessage
   case class ForgetProcessingUnitMessage(unitName: String) extends ProcessingUnitNameMessage
 

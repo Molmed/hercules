@@ -93,7 +93,7 @@ class DemultiplexingService(cluster: ActorRef)(implicit executionContext: Execut
    * Forget any previous demultiplex results for the specified unit.
    * This should make it discoverable again by the
    * ProcessUnitWatcher and trigger a new demultiplexing job
-   * @TODO Implement this functionality in master
+   * TODO Implement this functionality in master
    */
   def forgetDemultiplexJob(id: String) =
     path("forget") {
@@ -112,7 +112,7 @@ class DemultiplexingService(cluster: ActorRef)(implicit executionContext: Execut
 
   /**
    * Stop an ongoing demultiplexing job on the specified unit
-   * @TODO Implement this functionality
+   * TODO Implement this functionality
    */
   def stopRunningDemultiplexJob(id: String) =
     path("stop") {

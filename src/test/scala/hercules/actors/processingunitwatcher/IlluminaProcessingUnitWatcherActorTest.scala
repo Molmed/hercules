@@ -171,8 +171,8 @@ class IlluminaProcessingUnitWatcherActorTest
   }
 
   it should "pass a RequestProcessingUnitMessage on to the master" in {
-    defaultWatcher ! RequestProcessingUnitMessage
-    expectMsg(3.seconds, FakeMaster.MasterWrapped(RequestProcessingUnitMessage))
+    defaultWatcher ! RequestProcessingUnitMessageToForget
+    expectMsg(3.seconds, FakeMaster.MasterWrapped(RequestProcessingUnitMessageToForget))
   }
 
   it should "pass a ForgetProcessingUnitMessage to the executer and pipe the successful result back to the master" in {

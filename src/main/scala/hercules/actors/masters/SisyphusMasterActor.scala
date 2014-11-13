@@ -148,7 +148,7 @@ class SisyphusMasterActor(config: MasterActorConfig) extends PersistentActor wit
       // A free ProcessingUnitWatcherActor is requesting work from the master.
       // If there are any messages not processed that are to be handled by a ProcessingUnitWatcher, 
       // take them out of the queue and send them.
-      case RequestProcessingUnitMessage => {
+      case RequestProcessingUnitMessageToForget => {
         import context.dispatcher
         implicit val timeout = Timeout(5 seconds)
 

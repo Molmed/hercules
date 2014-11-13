@@ -15,8 +15,16 @@ import scala.concurrent.Future
 import scala.util.Random
 import akka.util.Timeout
 
+/**
+ * Provided factor methods for the SisyphusDemultiplexingExecutorActor
+ */
 object SisyphusDemultiplexingExecutorActor {
 
+  /**
+   * Provides props for creating a SisyphusDemultiplexingExectorActor
+   * @param demultiplexer Will default to Sisyphus
+   * @return Props to create a SisyphusDemultiplexingExectorActor
+   */
   def props(demultiplexer: Demultiplexer = new Sisyphus()): Props =
     Props(
       new SisyphusDemultiplexingExecutorActor(
@@ -26,6 +34,7 @@ object SisyphusDemultiplexingExecutorActor {
 /**
  * Concrete executor implementation for demultiplexing using Sisyphus
  * This one can lock while doing it work.
+ * @param demultiplexer The actual demultiplexer to user.
  */
 class SisyphusDemultiplexingExecutorActor(demultiplexer: Demultiplexer) extends DemultiplexingActor {
 
