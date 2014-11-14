@@ -10,7 +10,7 @@ import hercules.api.services.StatusService
  * web server interface.<br/>
  * Notice that it requires to be mixed in with ``core.CoreActors``, which provides access
  * to the top-level actors that make up the system.
- * @TODO document the api using e.g. spray-swagger: https://github.com/gettyimages/spray-swagger
+ * TODO document the api using e.g. spray-swagger: https://github.com/gettyimages/spray-swagger
  */
 trait Api extends RouteConcatenation {
   this: CoreActors with Core =>

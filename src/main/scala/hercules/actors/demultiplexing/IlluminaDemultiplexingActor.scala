@@ -18,11 +18,20 @@ import scala.concurrent.duration._
 import akka.event.LoggingReceive
 import scala.util.Random
 
+/**
+ * Provides factory methods for creating a IlluminaDemultiplexingActor
+ */
 object IlluminaDemultiplexingActor extends MasterLookup {
 
   /**
    * Initiate all the stuff needed to start a IlluminaDemultiplexingActor
    * including initiating the system.
+   * @param system A actor system to initiate. Will create one by default.
+   * @param executor The executor to use. Will default to the
+   * 				 SisyphusDemultiplexingExecutorActor
+   * @param clusterClientCustomConfig function to get a Config
+   * @param getClusterClient The cluster client used to contact the master
+   * @return A ActorRef to a new IlluminaDemultiplexingActor
    */
   def startIlluminaDemultiplexingActor(
     system: ActorSystem = ActorSystem("IlluminaDemultiplexingSystem"),
@@ -50,9 +59,17 @@ object IlluminaDemultiplexingActor extends MasterLookup {
 }
 
 /**
- * Actors which demultiplex Illumina runfolders should communitate through
+ * Actors which demultiplexes Illumina runfolders should communicate through
  * here. A concrete executor actor (such as the SisyphusDemultiplexingActor)
  * should do the actual work.
+ *
+ * It create executors as necessary (up to a set maximum number). It will switch
+ * its behavior depending on if all executors are busy or not.
+ *
+ * It's communication with the master is setup in such a way that it will
+ * periodically request more work (provided that it's not busy), and then report
+ * back to the master once the work is done.
+ *
  * @param clusterClient A reference to a cluster client thorough which the
  *                      actor will communicate with the rest of the cluster.
  * @param demultiplexingExecutor The executor to use
@@ -66,6 +83,7 @@ class IlluminaDemultiplexingActor(
   implicit val timeout = Timeout(10.seconds)
   val maximumNbrOfExectorInstances = 2
 
+  //@TODO Make configurable
   var runningExecutorInstances = 0
 
   import context.dispatcher
@@ -95,6 +113,9 @@ class IlluminaDemultiplexingActor(
   /**
    * Will change the behavior depending on if the maximum number of jobs is
    * running or not.
+   *
+   * @param incrementOfRunningInstances how many instances of work to add or
+   * 									subtract (typically -1 or 1).
    */
   def switchBehavior(incrementOfRunningInstances: Int): Unit = {
 
@@ -120,8 +141,16 @@ class IlluminaDemultiplexingActor(
     }
   }
 
+  /**
+   * Will default to canAcceptWork on start up.
+   * @see akka.actor.Actor#receive()
+   */
   def receive = canAcceptWork
 
+  /**
+   * To be activated when all executors are busy.
+   * @return Receive partial function.
+   */
   def cannotAcceptWork: Receive = LoggingReceive {
 
     // Forward a request demultiplexing message to master if we want more work!
@@ -139,6 +168,10 @@ class IlluminaDemultiplexingActor(
     }
   }
 
+  /**
+   * To be activated when all executors are not busy.
+   * @return Receive partial function.
+   */
   def canAcceptWork: Receive = LoggingReceive {
 
     // Forward a request demultiplexing message to master if we want more work!

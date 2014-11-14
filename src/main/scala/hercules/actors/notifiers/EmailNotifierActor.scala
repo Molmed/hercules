@@ -12,13 +12,19 @@ import hercules.protocols._
 import hercules.config.notification._
 import com.typesafe.config.{ Config, ConfigFactory }
 
+/**
+ * Provides factor methods to create a EmailNotifierActor
+ */
 object EmailNotifierActor {
 
   /**
    * Initiate all the stuff needed to start a EmailNotifierActor
    * including initiating the system.
+   * @param system The actor system that the notifier should start in.
+   * @param config A config instance (will default to loading the default
+   * 			   application config).
+   * @return A reference to a EmailNotifierActor
    */
-
   def startInstance(
     system: ActorSystem,
     config: Config = ConfigFactory.load()): ActorRef = {
@@ -29,14 +35,14 @@ object EmailNotifierActor {
     // Append a random string to the actor name to ensure it is unique
     system.actorOf(
       props(conf, executor),
-      "EmailNotifierActor_" + List.fill(8)((Random.nextInt(25) + 97).toChar).mkString
-    )
+      "EmailNotifierActor_" + List.fill(8)((Random.nextInt(25) + 97).toChar).mkString)
   }
 
   /**
    * Create a new EmailNotifierActor
-   * @param clusterClient A reference to a cluster client thorough which the
-   *                      actor will communicate with the rest of the cluster.
+   * @param conf A EmailNotificationConfig instance
+   * @param executor The email executor actor
+   * @return A Props for creating a EmailNotifierActor
    */
   def props(
     conf: EmailNotificationConfig,
@@ -45,6 +51,18 @@ object EmailNotifierActor {
   }
 }
 
+/**
+ * A EmailNotifierActor will handle the logic surrounding sending emails,
+ * but not actually send them itself. The latter will be deferred to the
+ * EmailNotifierExecutorActor.
+ *
+ * It will be responsible for handling number of retries of resending emails, etc.
+ * It will only send messages which are sent on the channel which it has registered
+ * to - as defined in the emailConfig
+ *
+ * @param emailConfig
+ * @param executor
+ */
 class EmailNotifierActor(
     val emailConfig: EmailNotificationConfig,
     val executor: ActorRef) extends NotifierActor {

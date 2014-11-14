@@ -13,12 +13,23 @@ import hercules.entities.ProcessingUnitFetcher
 import hercules.config.processingunit.ProcessingUnitFetcherConfig
 import hercules.config.processingunit.IlluminaProcessingUnitFetcherConfig
 
+/**
+ * Provided factory methods for IlluminaProcessingUnitFetcher
+ */
 object IlluminaProcessingUnitFetcher {
 
+  /**
+   * Create a new IlluminaProcessingUnitFetcher
+   * @return a IlluminaProcessingUnitFetcher
+   */
   def apply(): IlluminaProcessingUnitFetcher = new IlluminaProcessingUnitFetcher()
 
 }
 
+/**
+ * IlluminaProcessingUnitFetcher will look for Illumina processing units by
+ * scanning the the file system in the places indicated in the configuration.
+ */
 class IlluminaProcessingUnitFetcher() extends ProcessingUnitFetcher {
 
   type FetherConfigType = IlluminaProcessingUnitFetcherConfig
@@ -71,7 +82,6 @@ class IlluminaProcessingUnitFetcher() extends ProcessingUnitFetcher {
    * @param log
    * @return A sequence of Illumina processingUnit which are ready to be
    * processed
-   *
    */
   def checkForReadyProcessingUnits(
     config: IlluminaProcessingUnitFetcherConfig): Seq[IlluminaProcessingUnit] = {
@@ -85,7 +95,12 @@ class IlluminaProcessingUnitFetcher() extends ProcessingUnitFetcher {
     }
   }
 
-  // Get all available ProcessingUnits, regardless if they are ready for processing
+  /**
+   *  Get all available ProcessingUnits, regardless if they are ready for processing
+   *
+   *  @param config
+   *  @return All IlluminaProcessingUnits
+   */
   private def getProcessingUnits(
     config: IlluminaProcessingUnitFetcherConfig): Seq[IlluminaProcessingUnit] = {
 
@@ -208,6 +223,26 @@ class IlluminaProcessingUnitFetcher() extends ProcessingUnitFetcher {
     }
 
     /**
+     * Extract the [R|r]unParameters.xml file and return it as a xml.Elem
+     * that can be queried.
+     * @param runfolder the runfolder to look in.
+     * @return the runParameters.xml file as a xml.Elem
+     */
+    def getRunparametersXML(runfolder: File): scala.xml.Elem = {
+
+      val configLoader = ConfigFactory.load()
+      val runParameters = configLoader.getString("general.runParameters")
+
+      val runInfoXML = runfolder.listFiles().
+        find(x => x.getName().equalsIgnoreCase(runParameters)).
+        getOrElse(throw new FileNotFoundException(
+          "Did not find " + runParameters + " .xml in runfolder: " +
+            runfolder.getAbsolutePath()))
+
+      scala.xml.XML.loadFile(runInfoXML)
+    }
+
+    /**
      * Fetch the Application name from a runfolder from the RunParameters.xml
      * file. This should correspond to the instrument type used for Illumina
      * instruments
@@ -216,16 +251,8 @@ class IlluminaProcessingUnitFetcher() extends ProcessingUnitFetcher {
      * or "MiSeq Control Software" otherwise something has gone wrong.
      */
     def getMachineTypeFromRunParametersXML(runfolder: File): String = {
-      val configLoader = ConfigFactory.load()
-      val runParameters = configLoader.getString("general.runParameters")
-      val runInfoXML =
-        runfolder.listFiles().
-          find(x => x.getName() == runParameters).
-          getOrElse(throw new FileNotFoundException(
-            "Did not find " + runParameters + ".xml in runfolder: " +
-              runfolder.getAbsolutePath()))
 
-      val xml = scala.xml.XML.loadFile(runInfoXML)
+      val xml = getRunparametersXML(runfolder)
       val applicationName = xml \\ "ApplicationName"
 
       assert(applicationName.length == 1,
@@ -242,18 +269,7 @@ class IlluminaProcessingUnitFetcher() extends ProcessingUnitFetcher {
      * @return Seq[String] with file names
      */
     def getManifestFilesFromRunParametersXML(runfolder: File): Seq[String] = {
-      val configLoader = ConfigFactory.load()
-      val runParameters = configLoader.getString("general.runParameters")
-      val result = scala.collection.mutable.ArrayBuffer[String]()
-
-      val runInfoXML =
-        runfolder.listFiles().
-          find(x => x.getName() == runParameters).
-          getOrElse(throw new FileNotFoundException(
-            "Did not find " + runParameters + " .xml in runfolder: " +
-              runfolder.getAbsolutePath()))
-
-      val xml = scala.xml.XML.loadFile(runInfoXML)
+      val xml = getRunparametersXML(runfolder)
       val manifestFiles = xml \\ "ManifestFiles"
       val files: Seq[String] = for (file <- xml \\ "ManifestFiles" \\ "string") yield file.text.toString
       files

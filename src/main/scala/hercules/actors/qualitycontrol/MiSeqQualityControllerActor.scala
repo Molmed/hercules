@@ -10,6 +10,9 @@ object MiSeqQualityControllerActor {
 }
 
 /**
+ *
+ * TODO: This is not yet implemented.
+ *
  * Concrete implementation for doing quality control on a Illumina
  * MiSeq runfolder
  */

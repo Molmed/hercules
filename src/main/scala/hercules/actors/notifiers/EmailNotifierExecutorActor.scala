@@ -8,14 +8,27 @@ import hercules.entities.notification.EmailNotificationUnit
 import hercules.protocols.HerculesMainProtocol
 import scala.util.{ Success, Failure }
 
+/**
+ * Provided factory methods for creating EmailNotifierExecutorActors
+ */
 object EmailNotifierExecutorActor {
 
+  /**
+   * Get a props for creating a EmailNotifierExecutorActor.
+   * @param emailConfig
+   * @return Props for creating a EmailNotifierExecutorActor
+   */
   def props(emailConfig: EmailNotificationConfig): Props = {
     Props(new EmailNotifierExecutorActor(emailConfig))
   }
 
 }
 
+/**
+ * A actor which can send emails based on a SendNotificationUnitMessage.
+ *
+ * @param emailConfig
+ */
 class EmailNotifierExecutorActor(
     emailConfig: EmailNotificationConfig) extends NotifierActor {
 
@@ -34,8 +47,7 @@ class EmailNotifierExecutorActor(
             emailConfig.sender,
             emailConfig.prefix,
             emailConfig.smtpHost,
-            emailConfig.smtpPort
-          )
+            emailConfig.smtpPort)
           emailDelivery onComplete {
             case Success(_) => {
               log.debug(unit + " sent successfully")

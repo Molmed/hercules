@@ -32,7 +32,7 @@ class StatusService(cluster: ActorRef)(implicit executionContext: ExecutionConte
               )
             val response = request.map {
               case MasterState(messagesNotYetProcessed, messagesInProcessing, failedMessages) => {
-                // @TODO Let some json marshaller handle the response instead
+                // TODO Let some json marshaller handle the response instead
                 val status =
                   "messagesNotYetProcessed: {" +
                     messagesNotYetProcessed.mkString(",") +

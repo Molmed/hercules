@@ -1,5 +1,9 @@
 package hercules.protocols
 
+/**
+ * Protocol for the notification channel, indicating which level the notication
+ * is on.
+ */
 object NotificationChannelProtocol {
   sealed trait NotificationChannel
 
