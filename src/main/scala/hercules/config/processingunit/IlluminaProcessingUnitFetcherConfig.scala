@@ -5,7 +5,7 @@ import akka.event.LoggingAdapter
 
 /**
  * Provide a config for a IlluminaProcessingUnitFetcherConfig.
- * 
+ *
  * @param runfolderRoots
  * @param sampleSheetRoot
  * @param customQCConfigRoot

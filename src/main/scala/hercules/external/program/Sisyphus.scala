@@ -25,12 +25,24 @@ import hercules.entities.illumina.MiSeqProcessingUnit
 
 import hercules.exceptions.HerculesExceptions
 
+/**
+ * Used for interacting with Sisyphus (the Molmed demultiplexing and project
+ * handling engine).
+ */
 class Sisyphus() extends Demultiplexer with ExternalProgram {
 
   val config = ConfigFactory.load()
   val sisyphusInstallLocation = config.getString("general.sisyphusInstallLocation")
   val sisyphusLogLocation = config.getString("general.sisyphusLogLocation")
 
+  /**
+   * Use Sisyphus to demultiplex (and all other things which Sisyphus does
+   * by default). In the future this will probably be more restricted in it's
+   * scope. (JD - 2014-11-13)
+   * @param unit to demutiplex
+   * @param executor execution context used by the future.
+   * @return A future wrapped DemultiplexingResult
+   */
   def demultiplex(unit: ProcessingUnit)(implicit executor: ExecutionContext): Future[DemultiplexingResult] = {
     future {
       val (success, logFile) = try {
@@ -50,6 +62,11 @@ class Sisyphus() extends Demultiplexer with ExternalProgram {
     }
   }
 
+  /**
+   * Run the demultiplexing.
+   * @param unit which to demultiplex
+   * @return A tupple indicating if Sisyphus succeeded or not and the log file.
+   */
   def run(unit: ProcessingUnit): (Boolean, File) = {
 
     val runfolder = new File(unit.uri)
@@ -97,6 +114,8 @@ class Sisyphus() extends Demultiplexer with ExternalProgram {
 
   /**
    * Remove all the sisyphus folders and files which should be removed!
+   * @param unit to run clean-up on
+   * @return Unit
    */
   def cleanup(unit: ProcessingUnit): Unit = {
 

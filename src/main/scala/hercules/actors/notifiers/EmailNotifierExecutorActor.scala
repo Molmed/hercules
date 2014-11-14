@@ -26,7 +26,7 @@ object EmailNotifierExecutorActor {
 
 /**
  * A actor which can send emails based on a SendNotificationUnitMessage.
- * 
+ *
  * @param emailConfig
  */
 class EmailNotifierExecutorActor(

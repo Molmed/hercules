@@ -53,13 +53,13 @@ object EmailNotifierActor {
 
 /**
  * A EmailNotifierActor will handle the logic surrounding sending emails,
- * but not actually send them itself. The latter will be deferred to the 
+ * but not actually send them itself. The latter will be deferred to the
  * EmailNotifierExecutorActor.
- * 
+ *
  * It will be responsible for handling number of retries of resending emails, etc.
  * It will only send messages which are sent on the channel which it has registered
  * to - as defined in the emailConfig
- * 
+ *
  * @param emailConfig
  * @param executor
  */

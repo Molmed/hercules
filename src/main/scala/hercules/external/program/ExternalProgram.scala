@@ -3,6 +3,9 @@ package hercules.external.program
 import hercules.entities.ProcessingUnit
 import java.io.File
 
+/**
+ * Base trait for the external programs
+ */
 trait ExternalProgram {
 
   /**
@@ -14,6 +17,7 @@ trait ExternalProgram {
 
   /**
    * Run any side effects that need to be run after a failed command.
+   * @param unit to perform clean-up procedure on.
    */
   def cleanup(unit: ProcessingUnit): Unit
 }

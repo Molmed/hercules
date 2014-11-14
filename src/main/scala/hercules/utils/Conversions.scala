@@ -4,6 +4,9 @@ import java.io.File
 import java.net.URI
 import java.net.InetAddress
 
+/**
+ * Provide useful conversion
+ */
 object Conversions {
 
   // Make sure that the host name of the executing machine is parsed

@@ -4,7 +4,7 @@ import java.text.SimpleDateFormat
 
 /**
  * Formats for hercules which should be used globally. E.g. how to format a
- * date in a concistent way.
+ * date in a consistent way.
  */
 object Formats {
 

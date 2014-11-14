@@ -63,7 +63,7 @@ class SisyphusDemultiplexingExecutorActor(demultiplexer: Demultiplexer) extends 
         demultiplexer.demultiplex(unit).map(
           (r: DemultiplexingResult) =>
             if (r.success) FinishedDemultiplexingProcessingUnitMessage(r.unit)
-            else FailedDemultiplexingProcessingUnitMessage(r.unit, r.logText.getOrElse("Unknown reason"))).recover {
+            else FailedDemultiplexingProcessingUnitMessage(r.unit, r.info.getOrElse("Unknown reason"))).recover {
             case e: HerculesExceptions.ExternalProgramException =>
               FailedDemultiplexingProcessingUnitMessage(e.unit, e.message)
           }.pipeTo(originalSender)

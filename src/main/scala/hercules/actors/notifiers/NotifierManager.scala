@@ -13,7 +13,7 @@ object NotifierManager {
 
   /**
    * Create a NotifierManager
-   * 
+   *
    * @param system
    * @return A NotifierManager
    */
@@ -23,7 +23,7 @@ object NotifierManager {
 
   /**
    * Send a message on to the selected channel
-   * 
+   *
    * @param msg
    * @param channel
    * @param actors
@@ -44,9 +44,9 @@ object NotifierManager {
  * A notifier manager will start up a number of notifier subsystems, which
  * can be of different types (for example sending emails, or moving cards
  * on a trello board). It will provide functions for sending messaged onto
- * these sub-systems on different channels, which will decided if they will 
+ * these sub-systems on different channels, which will decided if they will
  * forward them or not depending on which channels they are registered to.
- * 
+ *
  * @param system The actor system to start up the notificaion subsystems in.
  */
 class NotifierManager(system: ActorSystem) {
@@ -84,7 +84,7 @@ class NotifierManager(system: ActorSystem) {
 
   /**
    * Send messages on the critical channel
-   * Use this for really important things (such as errors from which we cannot 
+   * Use this for really important things (such as errors from which we cannot
    * recover).
    * @param msg
    */

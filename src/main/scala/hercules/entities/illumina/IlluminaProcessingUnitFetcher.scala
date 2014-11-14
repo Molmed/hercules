@@ -13,12 +13,23 @@ import hercules.entities.ProcessingUnitFetcher
 import hercules.config.processingunit.ProcessingUnitFetcherConfig
 import hercules.config.processingunit.IlluminaProcessingUnitFetcherConfig
 
+/**
+ * Provided factory methods for IlluminaProcessingUnitFetcher
+ */
 object IlluminaProcessingUnitFetcher {
 
+  /**
+   * Create a new IlluminaProcessingUnitFetcher
+   * @return a IlluminaProcessingUnitFetcher
+   */
   def apply(): IlluminaProcessingUnitFetcher = new IlluminaProcessingUnitFetcher()
 
 }
 
+/**
+ * IlluminaProcessingUnitFetcher will look for Illumina processing units by
+ * scanning the the file system in the places indicated in the configuration.
+ */
 class IlluminaProcessingUnitFetcher() extends ProcessingUnitFetcher {
 
   type FetherConfigType = IlluminaProcessingUnitFetcherConfig
@@ -71,7 +82,6 @@ class IlluminaProcessingUnitFetcher() extends ProcessingUnitFetcher {
    * @param log
    * @return A sequence of Illumina processingUnit which are ready to be
    * processed
-   *
    */
   def checkForReadyProcessingUnits(
     config: IlluminaProcessingUnitFetcherConfig): Seq[IlluminaProcessingUnit] = {
@@ -85,7 +95,12 @@ class IlluminaProcessingUnitFetcher() extends ProcessingUnitFetcher {
     }
   }
 
-  // Get all available ProcessingUnits, regardless if they are ready for processing
+  /**
+   *  Get all available ProcessingUnits, regardless if they are ready for processing
+   *
+   *  @param config
+   *  @return All IlluminaProcessingUnits
+   */
   private def getProcessingUnits(
     config: IlluminaProcessingUnitFetcherConfig): Seq[IlluminaProcessingUnit] = {
 

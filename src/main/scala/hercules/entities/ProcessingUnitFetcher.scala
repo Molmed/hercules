@@ -16,7 +16,7 @@ trait ProcessingUnitFetcher {
 
   /**
    * Return if the unit is ready to be processed yet.
-   * 
+   *
    * @param unit you're checking.
    * @return If the processing unit is ready for continued processing
    */
@@ -24,10 +24,10 @@ trait ProcessingUnitFetcher {
 
   /**
    * Check for new ready processing units based on your config.
-   * 
+   *
    * @param config
    * @return the processing units found.
-   */ 
+   */
   def checkForReadyProcessingUnits(
     config: FetherConfigType): Seq[ProcessingUnitType]
 }

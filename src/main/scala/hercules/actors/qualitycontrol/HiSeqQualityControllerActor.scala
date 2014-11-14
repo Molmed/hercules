@@ -10,7 +10,7 @@ object HiSeqQualityControllerActor {
 
 /**
  * TODO: This is not yet implemented.
- * 
+ *
  * Concrete implementation for doing quality control on a Illumina
  * HiSeq runfolder
  */

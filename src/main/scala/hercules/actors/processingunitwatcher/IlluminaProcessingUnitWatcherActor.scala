@@ -21,9 +21,9 @@ object IlluminaProcessingUnitWatcherActor extends MasterLookup {
 
   /**
    * Starts up a IlluminaProcessingUnitWatcherActo
-   * 
+   *
    * @param system the system to start up in.
-   * @param executor The executor to use. 
+   * @param executor The executor to use.
    * @param clusterClientCustomConfig Configuration for the cluster client
    * @param getClusterClient Start up the cluster client.
    * @return A reference to a IlluminaProcessingUnitWatcherActor
@@ -42,7 +42,7 @@ object IlluminaProcessingUnitWatcherActor extends MasterLookup {
 
   /**
    * Get a props to create a IlluminaProcessingUnitWatcherActor
-   * 
+   *
    * @param clusterClient reference to the Master
    * @param executor the executor to use
    * @return a Props used to create a IlluminaProcessingUnitWatcherActor
