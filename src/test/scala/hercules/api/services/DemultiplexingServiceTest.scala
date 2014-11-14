@@ -30,7 +30,11 @@ class DemultiplexingServiceTest
     failedMessages = Set("testId"))
 
   val timeout = Timeout(5.seconds)
-  val service = new MockBackend.DemultiplexingServiceClass()(timeout, system.dispatcher, probe.ref)
+  val service = new DemultiplexingService {
+    def actorRefFactory = system
+    implicit val to = timeout
+    implicit val clusterClient = probe.ref
+  }
 
   override def afterAll(): Unit = {
     system.shutdown()

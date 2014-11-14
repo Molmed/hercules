@@ -6,7 +6,6 @@ import akka.testkit.{ TestKit, TestProbe }
 import akka.util.Timeout
 
 import hercules.actors.masters.MasterStateProtocol
-import hercules.api.{ Core, CoreActors }
 import hercules.protocols.HerculesMainProtocol._
 
 import org.scalatest.{ BeforeAndAfterAll, FlatSpecLike, Matchers }
@@ -33,7 +32,11 @@ class StatusServiceTest
     failedMessages = Set("this-unit-failed-in-processing"))
 
   val timeout = Timeout(5.seconds)
-  val service = new MockBackend.StatusServiceClass()(timeout, system.dispatcher, probe.ref)
+  val service = new StatusService {
+    def actorRefFactory = system
+    implicit val to = timeout
+    implicit val clusterClient = probe.ref
+  }
 
   override def afterAll(): Unit = {
     system.shutdown()

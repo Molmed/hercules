@@ -32,16 +32,6 @@ object MockBackend {
     val uri = new File(name).toURI
     val isFound: Boolean = true
   }
-
-  case class StatusServiceClass(
-    implicit val timeout: Timeout,
-    implicit val executionContext: ExecutionContext,
-    implicit val cluster: ActorRef) extends StatusService
-  case class DemultiplexingServiceClass(
-    implicit val timeout: Timeout,
-    implicit val executionContext: ExecutionContext,
-    implicit val cluster: ActorRef) extends DemultiplexingService
-
 }
 
 class MockBackend(

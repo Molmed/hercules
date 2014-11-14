@@ -20,24 +20,26 @@ import spray.routing._
 import hercules.actors.masters.{ MasterState, MasterStateProtocol }
 import hercules.entities.ProcessingUnit
 import hercules.protocols.HerculesMainProtocol._
-import hercules.api.{ BootedCore, CoreActors }
+import hercules.api.models
 
 @Api(
   value = "/status",
   description = "Obtain the current status of Hercules tasks.")
-trait StatusService extends HttpService {
-  this: BootedCore with CoreActors =>
+trait StatusService extends HerculesService {
 
   import duration._
-  implicit def ec: ExecutionContext = system.dispatcher
-
-  def route = getRoute
+  implicit def ec: ExecutionContext = actorRefFactory.dispatcher
+  implicit val clusterClient: ActorRef
+  implicit val to: Timeout
 
   @ApiOperation(
     value = "Get the status of jobs sent to Hercules",
     notes = "Returns a MasterState object",
     httpMethod = "GET",
-    response = classOf[MasterState])
+    response = classOf[models.MasterState],
+    nickname = "Current status",
+    produces = "application/json")
+  @ApiImplicitParams(Array())
   @ApiResponses(
     Array(
       new ApiResponse(
@@ -45,15 +47,15 @@ trait StatusService extends HttpService {
         message = "An exception occurred"),
       new ApiResponse(
         code = 200,
-        message = "OK",
-        response = classOf[MasterState])
+        message = "OK")
     ))
+  def route = getRoute
   private def getRoute = get {
     path("status") {
       detach() {
         complete {
           val request =
-            cluster.ask(
+            clusterClient.ask(
               SendToAll(
                 "/user/master/active",
                 RequestMasterState())
