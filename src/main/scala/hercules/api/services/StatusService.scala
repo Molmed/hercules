@@ -1,33 +1,29 @@
 package hercules.api.services
 
-import akka.actor.{ ActorRef, ActorRefFactory }
+import akka.actor.ActorRef
 import akka.contrib.pattern.ClusterClient.SendToAll
 import akka.pattern.ask
 import akka.util.Timeout
 
 import com.wordnik.swagger.annotations._
 
-import org.json4s._
-import org.json4s.native.JsonMethods._
-import org.json4s.native.Serialization
-
-import scala.concurrent.{ Await, duration, ExecutionContext }
-import scala.util.{ Failure, Success }
+import scala.concurrent.ExecutionContext
 
 import spray.http.StatusCodes._
 import spray.routing._
 
-import hercules.actors.masters.{ MasterState, MasterStateProtocol }
-import hercules.entities.ProcessingUnit
-import hercules.protocols.HerculesMainProtocol._
+import hercules.actors.masters.MasterState
+import hercules.protocols.HerculesMainProtocol.RequestMasterState
 import hercules.api.models
 
+/**
+ * The StatusService trait define operations for querying the status of the tasks in Master.
+ */
 @Api(
   value = "/status",
   description = "Obtain the current status of Hercules tasks.")
 trait StatusService extends HerculesService {
 
-  import duration._
   implicit def ec: ExecutionContext = actorRefFactory.dispatcher
   implicit val clusterClient: ActorRef
   implicit val to: Timeout
@@ -37,7 +33,7 @@ trait StatusService extends HerculesService {
     notes = "Returns a MasterState object",
     httpMethod = "GET",
     response = classOf[models.MasterState],
-    nickname = "Current status",
+    nickname = "Status",
     produces = "application/json")
   @ApiImplicitParams(Array())
   @ApiResponses(
@@ -48,18 +44,33 @@ trait StatusService extends HerculesService {
       new ApiResponse(
         code = 200,
         message = "OK")
-    ))
+    )) /**
+   * The concatenated route for this service
+   */
   def route = getRoute
+
+  /**
+   * The /status endpoint for GET
+   */
   private def getRoute = get {
     path("status") {
+      /**
+       * Complete the request asynchronously
+       */
       detach() {
         complete {
+          /**
+           * Request the state of the active master
+           */
           val request =
             clusterClient.ask(
               SendToAll(
                 "/user/master/active",
                 RequestMasterState())
             )
+          /**
+           * Take the response from master and map it to a StatusCode
+           */
           val response = request.map {
             case MasterState(messagesNotYetProcessed, messagesInProcessing, failedMessages) => {
               // @TODO Let some json marshaller handle the response instead
@@ -72,6 +83,9 @@ trait StatusService extends HerculesService {
                   failedMessages.mkString("}")
               OK
             }
+            /**
+             * Handle exceptions that may be thrown
+             */
           }.recover {
             case e: Exception =>
               InternalServerError
@@ -81,5 +95,4 @@ trait StatusService extends HerculesService {
       }
     }
   }
-  implicit val formats = Serialization.formats(NoTypeHints)
 }

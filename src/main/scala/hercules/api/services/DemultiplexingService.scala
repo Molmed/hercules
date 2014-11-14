@@ -1,6 +1,6 @@
 package hercules.api.services
 
-import akka.actor.{ ActorRef, Actor }
+import akka.actor.{ Actor, ActorRef }
 import akka.contrib.pattern.ClusterClient.SendToAll
 import akka.pattern.ask
 import akka.util.Timeout
@@ -12,23 +12,27 @@ import hercules.actors.masters.{ MasterState, MasterStateProtocol }
 
 import javax.ws.rs.Path
 
-import scala.concurrent._
-import scala.util.{ Success, Failure }
+import scala.concurrent.ExecutionContext
 
 import spray.http.StatusCodes._
 import spray.routing._
 
+/**
+ * The DemultiplexingService trait define operations for interacting with tasks related to demultiplexing.
+ */
 @Api(
   value = "/demultiplex",
   description = "Control demultiplexing tasks.")
 trait DemultiplexingService extends HerculesService {
 
-  import duration._
   implicit def ec: ExecutionContext = actorRefFactory.dispatcher
   implicit val clusterClient: ActorRef
   implicit val to: Timeout
   import MasterStateProtocol._
 
+  /**
+   * The concatenated route for this service
+   */
   def route =
     pathPrefix("demultiplex" / Segment) { id =>
       restartFailedDemultiplexJob(id) ~
@@ -63,8 +67,14 @@ trait DemultiplexingService extends HerculesService {
   def restartFailedDemultiplexJob(id: String) =
     path("restart") {
       put {
+        /**
+         * Complete the request asynchronously
+         */
         detach() {
           complete {
+            /**
+             * Send a request to restart the Processing Unit corresponding to the supplied id. The response is mapped to an appropriate StatusCode.
+             */
             clusterClient.ask(
               SendToAll(
                 "/user/master/active",
@@ -74,6 +84,9 @@ trait DemultiplexingService extends HerculesService {
                   Accepted
                 case Reject(reason) =>
                   NotFound
+                /**
+                 * Handle exceptions that may be thrown.
+                 */
               }.recover {
                 case e: Exception =>
                   InternalServerError
@@ -112,14 +125,23 @@ trait DemultiplexingService extends HerculesService {
   def removeFailedDemultiplexJob(id: String) =
     path("remove") {
       delete {
+        /**
+         * Complete the request asynchronously
+         */
         detach() {
           complete {
+            /**
+             * Request the message containing the Processing Unit from master.
+             */
             val request =
               clusterClient.ask(
                 SendToAll(
                   "/user/master/active",
                   RequestMasterState(Some(id)))
               )
+            /**
+             * If a matching message was found, request master to remove it from its state, otherwise return a 404 status code.
+             */
             val response = request.map {
               case ms: MasterState => {
                 val matchingMessage = ms.findStateOfUnit(Some(id)).failedMessages.headOption
@@ -130,6 +152,9 @@ trait DemultiplexingService extends HerculesService {
                   NotFound
                 }
               }
+              /**
+               * If we did not get a MasterState back, something is not right
+               */
               case _ =>
                 InternalServerError
             }.recover {
@@ -172,12 +197,19 @@ trait DemultiplexingService extends HerculesService {
   def forgetDemultiplexJob(id: String) =
     path("forget") {
       delete {
+        /**
+         * Complete the request asynchronously
+         */
         detach() {
           complete {
+            /**
+             * Request that master takes care of removing the traces of a previous demultiplexing of the corresponding Processing Unit.
+             */
             clusterClient.tell(
               SendToAll("/user/master/active",
                 ForgetDemultiplexingProcessingUnitMessage(id)),
               Actor.noSender)
+            // @TODO Oops.. handle the response, this has been implemented
             NotImplemented
           }
         }
@@ -185,8 +217,7 @@ trait DemultiplexingService extends HerculesService {
     }
 
   /**
-   * Stop an ongoing demultiplexing job on the specified unit
-   * TODO Implement this functionality
+   * Stop an ongoing demultiplex task on the specified unit
    */
   @Path("/{ID}/stop")
   @ApiOperation(
@@ -208,7 +239,13 @@ trait DemultiplexingService extends HerculesService {
     path("stop") {
       put {
         detach() {
+          /**
+           * Complete the request asynchronously
+           */
           complete {
+            /**
+             * Request that master takes care of stopping ongoing demultiplex tasks for the specified Processing Unit
+             */
             clusterClient.tell(
               SendToAll("/user/master/active", StopDemultiplexingProcessingUnitMessage(id)),
               Actor.noSender)

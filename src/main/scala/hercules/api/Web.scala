@@ -8,14 +8,12 @@ import scala.concurrent.duration.Duration
 
 /**
  * Provides the web server (spray-can) for the REST api in ``Api``, using the actor system
- * defined in ``Core``.
+ * defined in ``Core`` and service actors defined in ``CoreActors``.
  */
 trait Web {
   this: Api with CoreActors with Core =>
 
-  implicit val timeout: Timeout
-
-  // TODO Read ip and port from configuration
+  // @TODO Read ip and port from configuration
   IO(Http)(system) ? Http.Bind(rootService, "0.0.0.0", port = 8001)
 
 }

@@ -1,15 +1,28 @@
 package hercules.api.services
 
-import com.gettyimages.spray.swagger._
+import com.gettyimages.spray.swagger.SwaggerHttpService
 import com.wordnik.swagger.model.ApiInfo
 
 import scala.reflect.runtime.universe._
 
+/**
+ * The SwaggerService trait extends the SwaggerHttpService and defines the endpoints and contents of the Swagger documentation.
+ */
 trait SwaggerService extends SwaggerHttpService {
 
-  override def apiTypes = Seq(typeOf[StatusService], typeOf[DemultiplexingService])
+  /**
+   * A list of the API services to include in the documentation
+   */
+  override def apiTypes =
+    Seq(
+      typeOf[StatusService],
+      typeOf[DemultiplexingService]
+    )
   override def apiVersion = "2.0"
   override def baseUrl = "http://localhost:8001"
+  /**
+   * The endpoint where the api-docs are exposed
+   */
   override def docsPath = "api-docs"
   override def apiInfo = Some(
     new ApiInfo(
@@ -21,6 +34,10 @@ trait SwaggerService extends SwaggerHttpService {
       licenseUrl = "https://github.com/Molmed/hercules")
   )
 
+  /**
+   * The routes handled by the SwaggerService include the dynamically generated endpoints (the ``routes`` property of the SwaggerHttpService),
+   * as well as endpoints for accessing the static API docs.
+   */
   def route = routes ~
     get {
       pathPrefix("") {

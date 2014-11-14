@@ -1,13 +1,13 @@
 package hercules.api
 
-import akka.actor.{ Props, ActorSystem }
+import akka.actor.ActorSystem
 import akka.util.Timeout
 
 import scala.concurrent.duration.Duration
 
 /**
- * Core is type containing the ``system: ActorSystem`` member. This enables us to use it in our
- * apps as well as in our tests.
+ * Core is type containing the ``system: ActorSystem`` and ``timeout: Timeout`` members.
+ * This enables us to use it in our apps as well as in our tests.
  */
 trait Core {
 
@@ -26,6 +26,9 @@ trait BootedCore extends Core {
    * Construct the ActorSystem we will use in our application
    */
   implicit lazy val system = ActorSystem("hercules-rest-api")
+  /**
+   * Define the timeout value used throughout the API
+   */
   implicit lazy val timeout = Timeout(Duration(5, "seconds"))
 
   /**

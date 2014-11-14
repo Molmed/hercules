@@ -1,18 +1,20 @@
 package hercules.actors.api
 
-import akka.actor.{ ActorRef, Props }
-import akka.util.Timeout
+import akka.actor.Props
 
-import scala.concurrent.{ duration, ExecutionContext }
+import spray.routing.{ HttpServiceActor, Route }
+import spray.util.SprayActorLogging
 
-import spray.routing.{ HttpService, HttpServiceActor, Route }
-import spray.util.{ SprayActorLogging, LoggingContext }
-
-import hercules.api.{ Api }
-import hercules.api.services._
-
+/**
+ * The ``RoutedHttpService`` object
+ */
 object RoutedHttpService {
 
+  /**
+   * Provides props for creating a RoutedHttpService
+   * @param route The route that will be used in the service to process requests
+   * @return Props to create a RoutedHttpService
+   */
   def props(route: Route) = {
     Props(new RoutedHttpService(route))
   }
@@ -27,6 +29,9 @@ object RoutedHttpService {
 class RoutedHttpService(route: Route) extends HttpServiceActor
     with SprayActorLogging {
 
+  /**
+   * The receive method passes incoming messages to the route
+   */
   def receive: Receive =
     runRoute(route)
 
