@@ -37,8 +37,7 @@ trait DemultiplexingService extends HerculesService {
     pathPrefix("demultiplex" / Segment) { id =>
       restartFailedDemultiplexJob(id) ~
         removeFailedDemultiplexJob(id) ~
-        forgetDemultiplexJob(id) ~
-        stopRunningDemultiplexJob(id)
+        forgetDemultiplexJob(id)
     }
 
   /**
@@ -191,8 +190,8 @@ trait DemultiplexingService extends HerculesService {
         code = 200,
         message = "OK"),
       new ApiResponse(
-        code = 404,
-        message = "Not found")
+        code = 400,
+        message = "Bad request")
     ))
   def forgetDemultiplexJob(id: String) =
     path("forget") {
@@ -205,12 +204,27 @@ trait DemultiplexingService extends HerculesService {
             /**
              * Request that master takes care of removing the traces of a previous demultiplexing of the corresponding Processing Unit.
              */
-            clusterClient.tell(
+            val request = clusterClient.ask(
               SendToAll("/user/master/active",
-                ForgetDemultiplexingProcessingUnitMessage(id)),
-              Actor.noSender)
-            // @TODO Oops.. handle the response, this has been implemented
-            NotImplemented
+                ForgetDemultiplexingProcessingUnitMessage(id)))
+            /**
+             * The request may be rejected if the Processing Unit has already started processing. In that case, return a
+             */
+            val response = request.map {
+              case Reject(reason) =>
+                BadRequest
+              case Acknowledge =>
+                OK
+              /**
+               * If we did not get a valid response back, something is not right
+               */
+              case _ =>
+                InternalServerError
+            }.recover {
+              case e: Exception =>
+                InternalServerError
+            }
+            response
           }
         }
       }
@@ -218,41 +232,41 @@ trait DemultiplexingService extends HerculesService {
 
   /**
    * Stop an ongoing demultiplex task on the specified unit
+   * @Path("/{ID}/stop")
+   * @ApiOperation(
+   * value = "Stop an ongoing demultiplex task on a Processing Unit",
+   * notes = "Send a message requesting that the Master will request an ongoing demultiplex task to be stopped.",
+   * httpMethod = "PUT",
+   * nickname = "Stop",
+   * produces = "application/json")
+   * @ApiImplicitParams(Array(
+   * new ApiImplicitParam(name = "ID", value = "ID of the Processing Unit to process. Typically corresponds to the name of the runfolder.", required = true, dataType = "string", paramType = "path")
+   * ))
+   * @ApiResponses(
+   * Array(
+   * new ApiResponse(
+   * code = 501,
+   * message = "Not implemented")
+   * ))
+   * def stopRunningDemultiplexJob(id: String) =
+   * path("stop") {
+   * put {
+   * detach() {
+   * /**
+   * Complete the request asynchronously
+   * */
+   * complete {
+   * /**
+   * Request that master takes care of stopping ongoing demultiplex tasks for the specified Processing Unit
+   * */
+   * clusterClient.tell(
+   * SendToAll("/user/master/active", StopDemultiplexingProcessingUnitMessage(id)),
+   * Actor.noSender)
+   * NotImplemented
+   * }
+   * }
+   * }
+   * }
    */
-  @Path("/{ID}/stop")
-  @ApiOperation(
-    value = "Stop an ongoing demultiplex task on a Processing Unit",
-    notes = "Send a message requesting that the Master will request an ongoing demultiplex task to be stopped.",
-    httpMethod = "PUT",
-    nickname = "Stop",
-    produces = "application/json")
-  @ApiImplicitParams(Array(
-    new ApiImplicitParam(name = "ID", value = "ID of the Processing Unit to process. Typically corresponds to the name of the runfolder.", required = true, dataType = "string", paramType = "path")
-  ))
-  @ApiResponses(
-    Array(
-      new ApiResponse(
-        code = 501,
-        message = "Not implemented")
-    ))
-  def stopRunningDemultiplexJob(id: String) =
-    path("stop") {
-      put {
-        detach() {
-          /**
-           * Complete the request asynchronously
-           */
-          complete {
-            /**
-             * Request that master takes care of stopping ongoing demultiplex tasks for the specified Processing Unit
-             */
-            clusterClient.tell(
-              SendToAll("/user/master/active", StopDemultiplexingProcessingUnitMessage(id)),
-              Actor.noSender)
-            NotImplemented
-          }
-        }
-      }
-    }
 
 }

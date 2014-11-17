@@ -54,6 +54,9 @@ class MockBackend(
                 state.findStateOfUnit(id)
               case m: RemoveFromFailedMessages =>
                 state.manipulateState(m)
+              case ForgetDemultiplexingProcessingUnitMessage(id) =>
+                if (state.findStateOfUnit(Some(id)).messagesInProcessing.isEmpty) Acknowledge
+                else Reject(Some(s"Processing Unit $id is being processed"))
               case _ =>
                 Acknowledge
             }

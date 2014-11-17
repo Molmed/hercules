@@ -4,18 +4,15 @@ import akka.actor.ActorSystem
 import akka.contrib.pattern.ClusterClient.SendToAll
 import akka.testkit.{ TestKit, TestProbe }
 import akka.util.Timeout
-
 import hercules.actors.masters.MasterStateProtocol
 import hercules.protocols.HerculesMainProtocol._
-
 import org.scalatest.{ BeforeAndAfterAll, FlatSpecLike, Matchers }
-
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext
-
 import spray.testkit.ScalatestRouteTest
 import spray.http.StatusCodes._
 import spray.routing.Directives
+import spray.http.StatusCodes
 
 class DemultiplexingServiceTest
     extends FlatSpecLike
@@ -27,7 +24,8 @@ class DemultiplexingServiceTest
 
   val probe = MockBackend(
     system = this.system,
-    failedMessages = Set("testId"))
+    failedMessages = Set("testId"),
+    messagesInProcessing = Set("testUnitInProcessing"))
 
   val timeout = Timeout(5.seconds)
   val service = new DemultiplexingService {
@@ -41,9 +39,9 @@ class DemultiplexingServiceTest
     Thread.sleep(1000)
   }
 
-  "A DELETE request to /demultiplex/[id]/forget" should " return a NotImplemented status code" in {
+  "A DELETE request to /demultiplex/[id]/forget" should " return an Accepted status code" in {
     Delete("/demultiplex/testId/forget") ~> service.route ~> check {
-      status should be(NotImplemented)
+      status should be(OK)
     }
   }
   it should "trigger a ForgetDemultiplexingProcessingUnitMessage to master" in {
@@ -53,7 +51,20 @@ class DemultiplexingServiceTest
         ForgetDemultiplexingProcessingUnitMessage("testId")))
 
   }
+  it should "return a Bad Request status code if asked to forget a Processing Unit already being processed" in {
+    Delete("/demultiplex/testUnitInProcessing/forget") ~> service.route ~> check {
+      status should be(BadRequest)
+    }
+  }
+  it should "trigger another ForgetDemultiplexingProcessingUnitMessage to master" in {
+    probe.expectMsg(3.seconds,
+      SendToAll(
+        "/user/master/active",
+        ForgetDemultiplexingProcessingUnitMessage("testUnitInProcessing")))
 
+  }
+
+  /*  
   "A PUT requests to /demultiplex/[id]/stop" should "return a NotImplemented status code" in {
     Put("/demultiplex/testId/stop") ~> service.route ~> check {
       status should be(NotImplemented)
@@ -65,7 +76,7 @@ class DemultiplexingServiceTest
         "/user/master/active",
         StopDemultiplexingProcessingUnitMessage("testId")))
   }
-
+*/
   "A DELETE request to /demultiplex/[id]/remove on an existing unit" should "return a OK status code" in {
     Delete("/demultiplex/testId/remove") ~> service.route ~> check {
       status should be(OK)
