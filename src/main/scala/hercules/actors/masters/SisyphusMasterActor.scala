@@ -59,8 +59,8 @@ object SisyphusMasterActor {
    * @param messageSeq
    * @return All messages of type A
    */
-  def findMessagesOfType[A <: ProcessingMessage](messageSeq: Set[ProcessingMessage]): Set[A] = {
-    messageSeq.filter(p => p.isInstanceOf[A]).map(p => p.asInstanceOf[A])
+  def findMessagesOfType[A <: ProcessingMessage](messageSeq: Set[ProcessingMessage])(implicit m: Manifest[A]): Set[A] = {
+    messageSeq.filter(p => m.runtimeClass.isAssignableFrom(p.getClass())).map(p => p.asInstanceOf[A])
   }
 }
 
@@ -111,6 +111,12 @@ class SisyphusMasterActor(config: MasterActorConfig) extends PersistentActor wit
     // of the actor, and therefore they need to be persisted
     case message: SetStateMessage => {
       persist(message)(m => state = state.manipulateState(m))
+    }
+
+    case PurgeMasterState => {
+      self ! PurgeMessagesNotYetProcessed
+      self ! PurgeMessagesInProcessing
+      self ! PurgeFailedMessages
     }
 
     case RequestMasterState(unit) => {
@@ -164,6 +170,7 @@ class SisyphusMasterActor(config: MasterActorConfig) extends PersistentActor wit
 
       case message: FoundProcessingUnitMessage => {
         self ! AddToMessageNotYetProcessed(Some(message))
+        sender ! Acknowledge
       }
 
     }
@@ -201,7 +208,7 @@ class SisyphusMasterActor(config: MasterActorConfig) extends PersistentActor wit
         if (SisyphusMasterActor.findMessagesOfType[StartDemultiplexingProcessingUnitMessage](
           unitState.messagesInProcessing
         ).nonEmpty) {
-          Reject(Some(s"ProcessingUnit $id is being processed"))
+          sender ! Reject(Some(s"ProcessingUnit $id is being processed"))
         } else {
           // If the unit is queued for processing, remove it before forgetting
           if (unitState.messagesNotYetProcessed.nonEmpty) {
@@ -242,7 +249,6 @@ class SisyphusMasterActor(config: MasterActorConfig) extends PersistentActor wit
         implicit val timeout = Timeout(5 seconds)
 
         for (unitMessage <- unitsReadyForDemultiplexing) {
-          log.debug("Sending...")
           val startMsg = StartDemultiplexingProcessingUnitMessage(unitMessage.unit)
           (sender ? startMsg).map {
             case Acknowledge => {

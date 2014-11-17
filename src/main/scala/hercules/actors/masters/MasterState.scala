@@ -30,17 +30,26 @@ case class MasterState(
       case RemoveFromMessageNotYetProcessed(message) =>
         this.copy(messagesNotYetProcessed = manipulateStateList(messagesNotYetProcessed, message, sub))
 
+      case PurgeMessagesNotYetProcessed =>
+        this.copy(messagesNotYetProcessed = Set())
+
       case AddToMessagesInProcessing(message) =>
         this.copy(messagesInProcessing = manipulateStateList(messagesInProcessing, message, add))
 
       case RemoveFromMessagesInProcessing(message) =>
         this.copy(messagesInProcessing = manipulateStateList(messagesInProcessing, message, sub))
 
+      case PurgeMessagesInProcessing =>
+        this.copy(messagesInProcessing = Set())
+
       case AddToFailedMessages(message) =>
         this.copy(failedMessages = manipulateStateList(failedMessages, message, add))
 
       case RemoveFromFailedMessages(message) =>
         this.copy(failedMessages = manipulateStateList(failedMessages, message, sub))
+
+      case PurgeFailedMessages =>
+        this.copy(failedMessages = Set())
     }
   }
 
