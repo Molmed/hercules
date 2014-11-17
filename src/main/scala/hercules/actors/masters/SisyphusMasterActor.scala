@@ -33,7 +33,7 @@ object SisyphusMasterActor {
     val generalConfig = ConfigFactory.load()
     val conf = generalConfig.getConfig("master").withFallback(generalConfig)
 
-    val masterConfig = new MasterActorConfig(conf.getInt("snapshot.interval"))
+    val masterConfig = new MasterActorConfig(conf.getBoolean("enable.persistence"), conf.getInt("snapshot.interval"))
 
     val system = ActorSystem("ClusterSystem", conf)
 
@@ -110,13 +110,8 @@ class SisyphusMasterActor(config: MasterActorConfig) extends PersistentActor wit
     // Only messages handled by this method will manipulate the state
     // of the actor, and therefore they need to be persisted
     case message: SetStateMessage => {
-      persist(message)(m => state = state.manipulateState(m))
-    }
-
-    case PurgeMasterState => {
-      self ! PurgeMessagesNotYetProcessed
-      self ! PurgeMessagesInProcessing
-      self ! PurgeFailedMessages
+      if (config.enablePersistence) persist(message)(m => state = state.manipulateState(m))
+      else state = state.manipulateState(message)
     }
 
     case RequestMasterState(unit) => {

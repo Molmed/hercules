@@ -11,13 +11,10 @@ object MasterStateProtocol {
 
   case class AddToMessageNotYetProcessed(message: Option[ProcessingMessage]) extends SetStateMessage
   case class RemoveFromMessageNotYetProcessed(message: Option[ProcessingMessage]) extends SetStateMessage
-  case object PurgeMessagesNotYetProcessed extends SetStateMessage
 
   case class AddToMessagesInProcessing(message: Option[ProcessingMessage]) extends SetStateMessage
   case class RemoveFromMessagesInProcessing(message: Option[ProcessingMessage]) extends SetStateMessage
-  case object PurgeMessagesInProcessing extends SetStateMessage
 
   case class AddToFailedMessages(message: Option[ProcessingMessage]) extends SetStateMessage
   case class RemoveFromFailedMessages(message: Option[ProcessingMessage]) extends SetStateMessage
-  case object PurgeFailedMessages extends SetStateMessage
 }

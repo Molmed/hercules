@@ -103,18 +103,21 @@ class SisyphusMasterActorTest() extends TestKit(ActorSystem("SisyphusMasterActor
   }
 
   //val sisyphusMaster = 
-  var masterActor = system.actorOf(Props(new SisyphusMasterActor(new MasterActorConfig(1000)) { override def persistenceId = "SisyphusMasterActorTesting" }))
+  var masterActor = system.actorOf(Props(new SisyphusMasterActor(new MasterActorConfig(false, 1000)) { override def persistenceId = "SisyphusMasterActorTesting" }))
 
-  val acceptingFakeActor = system.actorOf(Props(new AcceptingFakeActor(masterActor, testActor)))
-  val rejectingFakeActor = system.actorOf(Props(new RejectingFakeActor(masterActor, testActor)))
+  var acceptingFakeActor = system.actorOf(Props(new AcceptingFakeActor(masterActor, testActor)))
+  var rejectingFakeActor = system.actorOf(Props(new RejectingFakeActor(masterActor, testActor)))
 
   override def beforeEach(): Unit = {
-    masterActor ! PurgeMasterState
+    masterActor = system.actorOf(Props(new SisyphusMasterActor(new MasterActorConfig(false, 1000)) { override def persistenceId = "SisyphusMasterActorTesting" }))
+    acceptingFakeActor = system.actorOf(Props(new AcceptingFakeActor(masterActor, testActor)))
+    rejectingFakeActor = system.actorOf(Props(new RejectingFakeActor(masterActor, testActor)))
     Thread.sleep(500)
   }
 
   override def afterEach(): Unit = {
-    masterActor ! PurgeMasterState
+    system.stop(acceptingFakeActor)
+    system.stop(rejectingFakeActor)
     Thread.sleep(500)
   }
 

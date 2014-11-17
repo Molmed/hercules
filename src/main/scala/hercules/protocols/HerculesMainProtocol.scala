@@ -43,7 +43,6 @@ object HerculesMainProtocol {
    * @param unitName the name of the processing unit to look for
    */
   case class RequestMasterState(unitName: Option[String] = None) extends HerculesMessage
-  case object PurgeMasterState extends HerculesMessage
 
   //--------------------------------------------------------------
   // MESSAGES ABOUT FINDING AND FORGETTING PROCESSING UNITS

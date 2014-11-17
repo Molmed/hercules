@@ -8,6 +8,6 @@ package hercules.config.masters
  *
  * @param snapshotInterval how often to snapshot the state.
  */
-case class MasterActorConfig(snapshotInterval: Int) {
+case class MasterActorConfig(enablePersistence: Boolean, snapshotInterval: Int) {
 
 }
