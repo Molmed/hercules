@@ -27,7 +27,6 @@ libraryDependencies ++= {
   "io.spray" %% "spray-routing" % "1.3.1",
   "io.spray" %% "spray-json" % "1.3.0",
   "io.spray" %% "spray-testkit" % "1.3.1" % "test",
-  "org.json4s" %% "json4s-native" % "3.2.10",
   "com.gettyimages" %% "spray-swagger" % "0.5.0",
   "com.wordnik" %% "swagger-core" % "1.3.10" excludeAll( ExclusionRule(organization = "org.json4s"),  ExclusionRule(organization="org.fasterxml*") )
   )
