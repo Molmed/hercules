@@ -73,8 +73,8 @@ class SisyphusMasterActorTest() extends TestKit(ActorSystem("SisyphusMasterActor
         sender ! Acknowledge
         testProbe ! message
       }
-      case RequestProcessingUnitMessage =>
-        master ! RequestProcessingUnitMessage
+      case RequestProcessingUnitMessageToForget =>
+        master ! RequestProcessingUnitMessageToForget
       case message: ForgetProcessingUnitMessage => {
         sender ! Acknowledge
         testProbe ! message
@@ -93,8 +93,8 @@ class SisyphusMasterActorTest() extends TestKit(ActorSystem("SisyphusMasterActor
         sender ! Reject
         testProbe ! message
       }
-      case RequestProcessingUnitMessage =>
-        master ! RequestProcessingUnitMessage
+      case RequestProcessingUnitMessageToForget =>
+        master ! RequestProcessingUnitMessageToForget
       case message: ForgetProcessingUnitMessage => {
         sender ! Reject
         testProbe ! message
@@ -178,7 +178,7 @@ class SisyphusMasterActorTest() extends TestKit(ActorSystem("SisyphusMasterActor
     masterActor.tell(ForgetDemultiplexingProcessingUnitMessage(processingUnit.name), testActor)
     within(10.seconds) { expectMsg(Acknowledge) }
 
-    acceptingFakeActor.tell(RequestProcessingUnitMessage, testActor)
+    acceptingFakeActor.tell(RequestProcessingUnitMessageToForget, testActor)
     within(10.seconds) { expectMsg(ForgetProcessingUnitMessage(processingUnit.name)) }
     Thread.sleep(500)
     masterActor.tell(RequestMasterState(Some(processingUnit.name)), testActor)
@@ -192,7 +192,7 @@ class SisyphusMasterActorTest() extends TestKit(ActorSystem("SisyphusMasterActor
     masterActor.tell(ForgetDemultiplexingProcessingUnitMessage(processingUnit.name), testActor)
     within(10.seconds) { expectMsg(Acknowledge) }
 
-    rejectingFakeActor.tell(RequestProcessingUnitMessage, testActor)
+    rejectingFakeActor.tell(RequestProcessingUnitMessageToForget, testActor)
     within(10.seconds) { expectMsg(ForgetProcessingUnitMessage(processingUnit.name)) }
     Thread.sleep(500)
     masterActor.tell(RequestMasterState(Some(processingUnit.name)), testActor)
@@ -230,7 +230,7 @@ class SisyphusMasterActorTest() extends TestKit(ActorSystem("SisyphusMasterActor
     within(10.seconds) { expectMsg(Acknowledge) }
     Thread.sleep(500)
 
-    acceptingFakeActor.tell(RequestProcessingUnitMessage, testActor)
+    acceptingFakeActor.tell(RequestProcessingUnitMessageToForget, testActor)
     within(10.seconds) { expectMsg(ForgetProcessingUnitMessage(processingUnit.name)) }
     Thread.sleep(500)
     masterActor.tell(RequestMasterState(Some(processingUnit.name)), testActor)
