@@ -3,6 +3,7 @@ package hercules.api.services
 import akka.actor.{ ActorRef, ActorSystem }
 import akka.contrib.pattern.ClusterClient.SendToAll
 import akka.testkit.{ TestActor, TestProbe }
+import akka.util.Timeout
 
 import hercules.actors.masters.{ MasterState, MasterStateProtocol }
 import hercules.entities.ProcessingUnit
@@ -10,6 +11,8 @@ import hercules.protocols.HerculesMainProtocol._
 
 import java.io.File
 import java.net.URI
+
+import scala.concurrent.ExecutionContext
 
 object MockBackend {
   def apply(
@@ -29,7 +32,6 @@ object MockBackend {
     val uri = new File(name).toURI
     val isFound: Boolean = true
   }
-
 }
 
 class MockBackend(
@@ -52,6 +54,9 @@ class MockBackend(
                 state.findStateOfUnit(id)
               case m: RemoveFromFailedMessages =>
                 state.manipulateState(m)
+              case ForgetDemultiplexingProcessingUnitMessage(id) =>
+                if (state.findStateOfUnit(Some(id)).messagesInProcessing.isEmpty) Acknowledge
+                else Reject(Some(s"Processing Unit $id is being processed"))
               case _ =>
                 Acknowledge
             }

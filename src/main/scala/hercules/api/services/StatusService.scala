@@ -1,54 +1,98 @@
 package hercules.api.services
 
-import akka.actor.{ ActorRef }
+import akka.actor.ActorRef
 import akka.contrib.pattern.ClusterClient.SendToAll
 import akka.pattern.ask
 import akka.util.Timeout
 
-import scala.concurrent.{ Await, duration, ExecutionContext }
-import scala.util.{ Failure, Success }
+import com.wordnik.swagger.annotations._
+
+import scala.concurrent.ExecutionContext
 
 import spray.http.StatusCodes._
-import spray.routing.Directives
+import spray.routing._
 
-import hercules.protocols.HerculesMainProtocol._
-import hercules.actors.masters.{ MasterState, MasterStateProtocol }
-import hercules.entities.ProcessingUnit
+import hercules.actors.masters.MasterState
+import hercules.protocols.HerculesMainProtocol.RequestMasterState
+import hercules.api.models
 
-class StatusService(cluster: ActorRef)(implicit executionContext: ExecutionContext) extends Directives {
+/**
+ * The StatusService trait define operations for querying the status of the tasks in Master.
+ */
+@Api(
+  value = "/status",
+  description = "Obtain the current status of Hercules tasks.")
+trait StatusService extends HerculesService {
 
-  import duration._
-  implicit val timeout = Timeout(5.seconds)
-  val route =
+  implicit def ec: ExecutionContext = actorRefFactory.dispatcher
+  implicit val clusterClient: ActorRef
+  implicit val to: Timeout
+
+  @ApiOperation(
+    value = "Get the status of jobs sent to Hercules",
+    notes = "Returns a MasterState object",
+    httpMethod = "GET",
+    response = classOf[models.MasterState],
+    nickname = "Status",
+    produces = "application/json")
+  @ApiImplicitParams(Array())
+  @ApiResponses(
+    Array(
+      new ApiResponse(
+        code = 500,
+        message = "An exception occurred"),
+      new ApiResponse(
+        code = 200,
+        message = "OK")
+    )) /**
+   * The concatenated route for this service
+   */
+  def route = getRoute
+
+  /**
+   * The /status endpoint for GET
+   */
+  private def getRoute = get {
     path("status") {
-      get {
-        detach() {
-          complete {
-            val request =
-              cluster.ask(
-                SendToAll(
-                  "/user/master/active",
-                  RequestMasterState())
-              )
-            val response = request.map {
-              case MasterState(messagesNotYetProcessed, messagesInProcessing, failedMessages) => {
-                // TODO Let some json marshaller handle the response instead
-                val status =
-                  "messagesNotYetProcessed: {" +
-                    messagesNotYetProcessed.mkString(",") +
-                    "}, messagesInProcessing: {" +
-                    messagesInProcessing.mkString(",") +
-                    "} ,failedMessages: {" +
-                    failedMessages.mkString("}")
-                OK
-              }
-            }.recover {
-              case e: Exception =>
-                InternalServerError
+      /**
+       * Complete the request asynchronously
+       */
+      detach() {
+        complete {
+          /**
+           * Request the state of the active master
+           */
+          val request =
+            clusterClient.ask(
+              SendToAll(
+                "/user/master/active",
+                RequestMasterState())
+            )
+          /**
+           * Take the response from master and map it to a StatusCode
+           */
+          val response = request.map {
+            case MasterState(messagesNotYetProcessed, messagesInProcessing, failedMessages) => {
+              // @TODO Let some json marshaller handle the response instead
+              val status =
+                "messagesNotYetProcessed: {" +
+                  messagesNotYetProcessed.mkString(",") +
+                  "}, messagesInProcessing: {" +
+                  messagesInProcessing.mkString(",") +
+                  "} ,failedMessages: {" +
+                  failedMessages.mkString("}")
+              OK
             }
-            response
+            /**
+             * Handle exceptions that may be thrown
+             */
+          }.recover {
+            case e: Exception =>
+              InternalServerError
           }
+          response
         }
       }
     }
+  }
 }
