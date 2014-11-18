@@ -118,6 +118,7 @@ class SisyphusMasterActorTest() extends TestKit(ActorSystem("SisyphusMasterActor
   override def afterEach(): Unit = {
     system.stop(acceptingFakeActor)
     system.stop(rejectingFakeActor)
+    system.stop(masterActor)
     Thread.sleep(500)
   }
 
@@ -139,10 +140,11 @@ class SisyphusMasterActorTest() extends TestKit(ActorSystem("SisyphusMasterActor
 
     acceptingFakeActor.tell(RequestDemultiplexingProcessingUnitMessage, testActor)
     within(10.seconds) { expectMsg(StartDemultiplexingProcessingUnitMessage(processingUnit)) }
-    Thread.sleep(500)
 
-    masterActor.tell(RequestMasterState(Some(processingUnit.name)), testActor)
-    within(10.seconds) { expectMsg(MasterState(Set(), Set(StartDemultiplexingProcessingUnitMessage(processingUnit)), Set())) }
+    awaitAssert({
+      masterActor.tell(RequestMasterState(Some(processingUnit.name)), testActor)
+      expectMsg(MasterState(Set(), Set(StartDemultiplexingProcessingUnitMessage(processingUnit)), Set()))
+    }, 10.second, 1000.milli)
   }
 
   "A SisyphusMasterActor" should " remove a unit from the inProcessing state when it has finished" in {
@@ -151,27 +153,30 @@ class SisyphusMasterActorTest() extends TestKit(ActorSystem("SisyphusMasterActor
 
     acceptingFakeActor.tell(RequestDemultiplexingProcessingUnitMessage, testActor)
     within(10.seconds) { expectMsg(StartDemultiplexingProcessingUnitMessage(processingUnit)) }
-    Thread.sleep(500)
 
-    masterActor.tell(RequestMasterState(Some(processingUnit.name)), testActor)
-    within(10.seconds) { expectMsg(MasterState(Set(), Set(StartDemultiplexingProcessingUnitMessage(processingUnit)), Set())) }
+    awaitAssert({
+      masterActor.tell(RequestMasterState(Some(processingUnit.name)), testActor)
+      expectMsg(MasterState(Set(), Set(StartDemultiplexingProcessingUnitMessage(processingUnit)), Set()))
+    }, 10.second, 1000.milli)
 
     masterActor.tell(FinishedDemultiplexingProcessingUnitMessage(processingUnit), testActor)
-    Thread.sleep(500)
-    masterActor.tell(RequestMasterState(Some(processingUnit.name)), testActor)
-    within(10.seconds) { expectMsg(MasterState(Set(), Set(), Set())) }
+    awaitAssert({
+      masterActor.tell(RequestMasterState(Some(processingUnit.name)), testActor)
+      expectMsg(MasterState(Set(), Set(), Set()))
+    }, 10.second, 1000.milli)
   }
 
-  "A SisyphusMasterActor" should " will not  the ProcessingUnit in messagesNotYetProcessed if the unit is rejected" in {
+  "A SisyphusMasterActor" should " not move the ProcessingUnit from messagesNotYetProcessed if the unit is rejected" in {
     masterActor.tell(FoundProcessingUnitMessage(processingUnit), testActor)
     within(10.seconds) { expectMsg(Acknowledge) }
 
     rejectingFakeActor.tell(RequestDemultiplexingProcessingUnitMessage, testActor)
     within(10.seconds) { expectMsg(StartDemultiplexingProcessingUnitMessage(processingUnit)) }
-    Thread.sleep(500)
 
-    masterActor.tell(RequestMasterState(Some(processingUnit.name)), testActor)
-    within(10.seconds) { expectMsg(MasterState(Set(FoundProcessingUnitMessage(processingUnit)), Set(), Set())) }
+    awaitAssert({
+      masterActor.tell(RequestMasterState(Some(processingUnit.name)), testActor)
+      expectMsg(MasterState(Set(FoundProcessingUnitMessage(processingUnit)), Set(), Set()))
+    }, 10.second, 1000.milli)
   }
 
   "A SisyphusMasterActor" should " be able to forget a ProcessingUnit" in {
@@ -183,9 +188,11 @@ class SisyphusMasterActorTest() extends TestKit(ActorSystem("SisyphusMasterActor
 
     acceptingFakeActor.tell(RequestProcessingUnitMessageToForget, testActor)
     within(10.seconds) { expectMsg(ForgetProcessingUnitMessage(processingUnit.name)) }
-    Thread.sleep(500)
-    masterActor.tell(RequestMasterState(Some(processingUnit.name)), testActor)
-    within(10.seconds) { expectMsg(MasterState(Set(), Set(), Set())) }
+
+    awaitAssert({
+      masterActor.tell(RequestMasterState(Some(processingUnit.name)), testActor)
+      expectMsg(MasterState(Set(), Set(), Set()))
+    }, 10.second, 500.milli)
   }
 
   "A SisyphusMasterActor" should " not forget a ProcessingUnit if the actor rejects it" in {
@@ -197,9 +204,11 @@ class SisyphusMasterActorTest() extends TestKit(ActorSystem("SisyphusMasterActor
 
     rejectingFakeActor.tell(RequestProcessingUnitMessageToForget, testActor)
     within(10.seconds) { expectMsg(ForgetProcessingUnitMessage(processingUnit.name)) }
-    Thread.sleep(500)
-    masterActor.tell(RequestMasterState(Some(processingUnit.name)), testActor)
-    within(10.seconds) { expectMsg(MasterState(Set(ForgetProcessingUnitMessage(processingUnit.name)), Set(), Set())) }
+
+    awaitAssert({
+      masterActor.tell(RequestMasterState(Some(processingUnit.name)), testActor)
+      expectMsg(MasterState(Set(ForgetProcessingUnitMessage(processingUnit.name)), Set(), Set()))
+    }, 10.second, 500.milli)
   }
 
   "A SisyphusMasterActor" should " place a failed ProcessingUnit in failedMessages state" in {
@@ -208,12 +217,16 @@ class SisyphusMasterActorTest() extends TestKit(ActorSystem("SisyphusMasterActor
 
     acceptingFakeActor.tell(RequestDemultiplexingProcessingUnitMessage, testActor)
     within(10.seconds) { expectMsg(StartDemultiplexingProcessingUnitMessage(processingUnit)) }
-    Thread.sleep(500)
+    awaitAssert({
+      masterActor.tell(RequestMasterState(Some(processingUnit.name)), testActor)
+      expectMsg(MasterState(Set(), Set(StartDemultiplexingProcessingUnitMessage(processingUnit)), Set()))
+    }, 10.second, 500.milli)
 
     masterActor.tell(FailedDemultiplexingProcessingUnitMessage(processingUnit, "Unknown"), testActor)
-    Thread.sleep(500)
-    masterActor.tell(RequestMasterState(Some(processingUnit.name)), testActor)
-    within(10.seconds) { expectMsg(MasterState(Set(), Set(), Set(FailedDemultiplexingProcessingUnitMessage(processingUnit, "Unknown")))) }
+    awaitAssert({
+      masterActor.tell(RequestMasterState(Some(processingUnit.name)), testActor)
+      expectMsg(MasterState(Set(), Set(), Set(FailedDemultiplexingProcessingUnitMessage(processingUnit, "Unknown"))))
+    }, 10.second, 500.milli)
   }
 
   "A SisyphusMasterActor" should " be able to forget a failed ProcessingUnit" in {
@@ -222,22 +235,25 @@ class SisyphusMasterActorTest() extends TestKit(ActorSystem("SisyphusMasterActor
 
     acceptingFakeActor.tell(RequestDemultiplexingProcessingUnitMessage, testActor)
     within(10.seconds) { expectMsg(StartDemultiplexingProcessingUnitMessage(processingUnit)) }
-    Thread.sleep(500)
+    awaitAssert({
+      masterActor.tell(RequestMasterState(Some(processingUnit.name)), testActor)
+      expectMsg(MasterState(Set(), Set(StartDemultiplexingProcessingUnitMessage(processingUnit)), Set()))
+    }, 10.second, 500.milli)
 
     masterActor.tell(FailedDemultiplexingProcessingUnitMessage(processingUnit, "Unknown"), testActor)
-    Thread.sleep(500)
-    masterActor.tell(RequestMasterState(Some(processingUnit.name)), testActor)
-    within(10.seconds) { expectMsg(MasterState(Set(), Set(), Set(FailedDemultiplexingProcessingUnitMessage(processingUnit, "Unknown")))) }
-    Thread.sleep(500)
+    awaitAssert({
+      masterActor.tell(RequestMasterState(Some(processingUnit.name)), testActor)
+      expectMsg(MasterState(Set(), Set(), Set(FailedDemultiplexingProcessingUnitMessage(processingUnit, "Unknown"))))
+    }, 10.second, 500.milli)
     masterActor.tell(ForgetDemultiplexingProcessingUnitMessage(processingUnit.name), testActor)
     within(10.seconds) { expectMsg(Acknowledge) }
-    Thread.sleep(500)
 
     acceptingFakeActor.tell(RequestProcessingUnitMessageToForget, testActor)
     within(10.seconds) { expectMsg(ForgetProcessingUnitMessage(processingUnit.name)) }
-    Thread.sleep(500)
-    masterActor.tell(RequestMasterState(Some(processingUnit.name)), testActor)
-    within(10.seconds) { expectMsg(MasterState(Set(), Set(), Set())) }
+    awaitAssert({
+      masterActor.tell(RequestMasterState(Some(processingUnit.name)), testActor)
+      expectMsg(MasterState(Set(), Set(), Set()))
+    }, 10.second, 500.milli)
   }
 
   "A SisyphusMasterActor" should " not be able to forget processingUnit that is being processed" in {
@@ -246,17 +262,19 @@ class SisyphusMasterActorTest() extends TestKit(ActorSystem("SisyphusMasterActor
 
     acceptingFakeActor.tell(RequestDemultiplexingProcessingUnitMessage, testActor)
     within(10.seconds) { expectMsg(StartDemultiplexingProcessingUnitMessage(processingUnit)) }
-    Thread.sleep(500)
 
-    masterActor.tell(RequestMasterState(Some(processingUnit.name)), testActor)
-    within(10.seconds) { expectMsg(MasterState(Set(), Set(StartDemultiplexingProcessingUnitMessage(processingUnit)), Set())) }
+    awaitAssert({
+      masterActor.tell(RequestMasterState(Some(processingUnit.name)), testActor)
+      expectMsg(MasterState(Set(), Set(StartDemultiplexingProcessingUnitMessage(processingUnit)), Set()))
+    }, 10.second, 500.milli)
 
     masterActor.tell(ForgetDemultiplexingProcessingUnitMessage(processingUnit.name), testActor)
     within(10.seconds) { expectMsg(Reject(Some("ProcessingUnit runfolder1 is being processed"))) }
-    Thread.sleep(500)
 
-    masterActor.tell(RequestMasterState(Some(processingUnit.name)), testActor)
-    within(10.seconds) { expectMsg(MasterState(Set(), Set(StartDemultiplexingProcessingUnitMessage(processingUnit)), Set())) }
+    awaitAssert({
+      masterActor.tell(RequestMasterState(Some(processingUnit.name)), testActor)
+      expectMsg(MasterState(Set(), Set(StartDemultiplexingProcessingUnitMessage(processingUnit)), Set()))
+    }, 10.second, 500.milli)
   }
 
   "A SisyphusMasterActor" should " be able to restart a failed ProcessingUnit" in {
@@ -265,19 +283,23 @@ class SisyphusMasterActorTest() extends TestKit(ActorSystem("SisyphusMasterActor
 
     acceptingFakeActor.tell(RequestDemultiplexingProcessingUnitMessage, testActor)
     within(10.seconds) { expectMsg(StartDemultiplexingProcessingUnitMessage(processingUnit)) }
-    Thread.sleep(500)
+    awaitAssert({
+      masterActor.tell(RequestMasterState(Some(processingUnit.name)), testActor)
+      expectMsg(MasterState(Set(), Set(StartDemultiplexingProcessingUnitMessage(processingUnit)), Set()))
+    }, 10.second, 500.milli)
 
     masterActor.tell(FailedDemultiplexingProcessingUnitMessage(processingUnit, "Unknown"), testActor)
-    Thread.sleep(500)
-    masterActor.tell(RequestMasterState(Some(processingUnit.name)), testActor)
-    within(10.seconds) { expectMsg(MasterState(Set(), Set(), Set(FailedDemultiplexingProcessingUnitMessage(processingUnit, "Unknown")))) }
-    Thread.sleep(500)
+    awaitAssert({
+      masterActor.tell(RequestMasterState(Some(processingUnit.name)), testActor)
+      expectMsg(MasterState(Set(), Set(), Set(FailedDemultiplexingProcessingUnitMessage(processingUnit, "Unknown"))))
+    }, 10.second, 500.milli)
     masterActor.tell(RestartDemultiplexingProcessingUnitMessage(processingUnit.name), testActor)
     within(10.seconds) { expectMsg(Acknowledge) }
-    Thread.sleep(500)
 
-    masterActor.tell(RequestMasterState(Some(processingUnit.name)), testActor)
-    within(10.seconds) { expectMsg(MasterState(Set(FoundProcessingUnitMessage(processingUnit)), Set(), Set())) }
+    awaitAssert({
+      masterActor.tell(RequestMasterState(Some(processingUnit.name)), testActor)
+      expectMsg(MasterState(Set(FoundProcessingUnitMessage(processingUnit)), Set(), Set()))
+    }, 10.second, 500.milli)
   }
 
   "A SisyphusMasterActor" should " not be able to restart a ProcessUnit that hasn't failed" in {
@@ -286,14 +308,14 @@ class SisyphusMasterActorTest() extends TestKit(ActorSystem("SisyphusMasterActor
 
     acceptingFakeActor.tell(RequestDemultiplexingProcessingUnitMessage, testActor)
     within(10.seconds) { expectMsg(StartDemultiplexingProcessingUnitMessage(processingUnit)) }
-    Thread.sleep(500)
 
     masterActor.tell(RestartDemultiplexingProcessingUnitMessage(processingUnit.name), testActor)
     within(10.seconds) { expectMsg(Reject(Some("Couldn't find unit runfolder1 requested to restart."))) }
-    Thread.sleep(500)
 
-    masterActor.tell(RequestMasterState(Some(processingUnit.name)), testActor)
-    within(10.seconds) { expectMsg(MasterState(Set(), Set(StartDemultiplexingProcessingUnitMessage(processingUnit)), Set())) }
+    awaitAssert({
+      masterActor.tell(RequestMasterState(Some(processingUnit.name)), testActor)
+      expectMsg(MasterState(Set(), Set(StartDemultiplexingProcessingUnitMessage(processingUnit)), Set()))
+    }, 10.second, 500.milli)
   }
 
   "A SisyphusMasterActor" should " be able to get state for multiple ProcessingUnits" in {
@@ -307,9 +329,13 @@ class SisyphusMasterActorTest() extends TestKit(ActorSystem("SisyphusMasterActor
     within(10.seconds) { expectMsg(StartDemultiplexingProcessingUnitMessage(processingUnit)) }
     within(10.seconds) { expectMsg(StartDemultiplexingProcessingUnitMessage(processingUnit2)) }
 
-    masterActor.tell(RequestMasterState(Some(processingUnit.name)), testActor)
-    within(10.seconds) { expectMsg(MasterState(Set(), Set(StartDemultiplexingProcessingUnitMessage(processingUnit)), Set())) }
-    masterActor.tell(RequestMasterState(), testActor)
-    within(10.seconds) { expectMsg(MasterState(Set(), Set(StartDemultiplexingProcessingUnitMessage(processingUnit2), StartDemultiplexingProcessingUnitMessage(processingUnit)), Set())) }
+    awaitAssert({
+      masterActor.tell(RequestMasterState(Some(processingUnit.name)), testActor)
+      expectMsg(MasterState(Set(), Set(StartDemultiplexingProcessingUnitMessage(processingUnit)), Set()))
+    }, 10.second, 500.milli)
+    awaitAssert({
+      masterActor.tell(RequestMasterState(), testActor)
+      expectMsg(MasterState(Set(), Set(StartDemultiplexingProcessingUnitMessage(processingUnit2), StartDemultiplexingProcessingUnitMessage(processingUnit)), Set()))
+    }, 10.second, 500.milli)
   }
 }
