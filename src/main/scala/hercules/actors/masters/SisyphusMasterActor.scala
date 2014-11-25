@@ -252,7 +252,7 @@ class SisyphusMasterActor(config: MasterActorConfig) extends PersistentActor wit
               self ! AddToMessagesInProcessing(Some(startMsg))
               RemoveFromMessageNotYetProcessed(Some(unitMessage))
             }
-            case Reject =>
+            case m: Reject =>
               log.debug(s"$unitMessage was not accepted by demultiplexer. Keep it in the work queue.")
           } pipeTo (self)
         }

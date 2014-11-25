@@ -141,6 +141,7 @@ class IlluminaProcessingUnitWatcherExecutorActor(
         context.parent ! HerculesMainProtocol.FoundProcessingUnitMessage(unit)
       }
     }
+
     case ForgetProcessingUnitMessage(unitName) => {
       val fetcherConfig = IlluminaProcessingUnitWatcherExecutorActor.fetcherConfig(config, log)
       // Attempt to fetch a IlluminaProcessingUnit corresponding to the supplied ProcessingUnitPlaceholder 

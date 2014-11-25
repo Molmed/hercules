@@ -25,7 +25,7 @@ object HerculesMainProtocol {
   /**
    * Use this to acknowledge e.g. that some work was accepted
    */
-  case object Acknowledge extends HerculesMessage
+  case class Acknowledge extends HerculesMessage
 
   /**
    * Use this to Reject a something, like a work load. Optionally include a
