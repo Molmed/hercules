@@ -21,6 +21,7 @@ import org.scalatest.Assertions.assert
 import scala.concurrent.{ duration, Future, ExecutionContext }
 import hercules.demultiplexing.DemultiplexingResult
 import HerculesMainProtocol._
+import hercules.test.utils.StepParent
 
 class SisyphusDemultiplexingExecutorActorTest(_system: ActorSystem) extends TestKit(_system)
     with FlatSpecLike
@@ -79,9 +80,18 @@ class SisyphusDemultiplexingExecutorActorTest(_system: ActorSystem) extends Test
       exception =
         Some(new HerculesExceptions.ExternalProgramException(externalProgramFailedReason, processingUnit)))
 
-  val goodExecutorActor = system.actorOf(SisyphusDemultiplexingExecutorActor.props(successfullDemultiplexer))
-  val badExecutorActor = system.actorOf(SisyphusDemultiplexingExecutorActor.props(unsuccessfullDemultiplexer))
-  val exceptionExecutorActor = system.actorOf(SisyphusDemultiplexingExecutorActor.props(exceptionDemultiplexer))
+  val proxy = TestProbe()
+  def parent(demultiplexer: Demultiplexer) = system.actorOf(Props(new Actor {
+    val child = context.actorOf(SisyphusDemultiplexingExecutorActor.props(demultiplexer), "child")
+    def receive = {
+      case x if sender == child => proxy.ref forward x
+      case x                    => child forward x
+    }
+  }))
+
+  val parentWithGoodExecutor = parent(successfullDemultiplexer)
+  val parentWithBadExecutor = parent(unsuccessfullDemultiplexer)
+  val parentWithExceptionExecutor = parent(exceptionDemultiplexer)
 
   runfolder.mkdir()
 
@@ -92,27 +102,27 @@ class SisyphusDemultiplexingExecutorActorTest(_system: ActorSystem) extends Test
   }
 
   "A SisyphusDemultiplexingExecutorActor" should " start demultiplexing when given a StartDemultiplexingProcessingUnitMessage" in {
-    goodExecutorActor.tell(StartDemultiplexingProcessingUnitMessage(processingUnit), testActor)
-    expectMsg(3.seconds, Acknowledge)
-    expectMsg(3.seconds, FinishedDemultiplexingProcessingUnitMessage(processingUnit))
+    proxy.send(parentWithGoodExecutor, StartDemultiplexingProcessingUnitMessage(processingUnit))
+    proxy.expectMsg(3.seconds, Acknowledge)
+    proxy.expectMsg(3.seconds, FinishedDemultiplexingProcessingUnitMessage(processingUnit))
   }
 
   it should "reject if the processing unit cannot be found" in {
     runfolder.delete()
-    goodExecutorActor.tell(StartDemultiplexingProcessingUnitMessage(processingUnit), testActor)
-    expectMsg(3.seconds, Reject(Some("The run folder path " + runfolder.getAbsolutePath() + " could not be found")))
+    proxy.send(parentWithGoodExecutor, StartDemultiplexingProcessingUnitMessage(processingUnit))
+    proxy.expectMsg(3.seconds, Reject(Some("The run folder path " + runfolder.getAbsolutePath() + " could not be found")))
     runfolder.mkdir()
   }
 
   it should "send a FailedDemultiplexingProcessingUnitMessage if demultiplexing failes" in {
-    badExecutorActor.tell(StartDemultiplexingProcessingUnitMessage(processingUnit), testActor)
-    expectMsg(3.seconds, Acknowledge)
-    expectMsg(3.seconds, FailedDemultiplexingProcessingUnitMessage(processingUnit, reason = logText))
+    proxy.send(parentWithBadExecutor, StartDemultiplexingProcessingUnitMessage(processingUnit))
+    proxy.expectMsg(3.seconds, Acknowledge)
+    proxy.expectMsg(3.seconds, FailedDemultiplexingProcessingUnitMessage(processingUnit, reason = logText))
   }
 
   it should "send a FailedDemultiplexingProcessingUnitMessage if an exception is thrown by the Demultiplexer" in {
-    exceptionExecutorActor.tell(StartDemultiplexingProcessingUnitMessage(processingUnit), testActor)
-    expectMsg(3.seconds, Acknowledge)
-    expectMsg(3.seconds, FailedDemultiplexingProcessingUnitMessage(processingUnit, reason = externalProgramFailedReason))
+    proxy.send(parentWithExceptionExecutor, StartDemultiplexingProcessingUnitMessage(processingUnit))
+    proxy.expectMsg(3.seconds, Acknowledge)
+    proxy.expectMsg(3.seconds, FailedDemultiplexingProcessingUnitMessage(processingUnit, reason = externalProgramFailedReason))
   }
 }

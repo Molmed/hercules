@@ -17,6 +17,8 @@ import com.typesafe.config.Config
 import scala.concurrent.duration._
 import akka.event.LoggingReceive
 import scala.util.Random
+import hercules.entities.illumina.IlluminaProcessingUnit
+import hercules.entities.ProcessingUnit
 
 /**
  * Provides factory methods for creating a IlluminaDemultiplexingActor
@@ -84,11 +86,15 @@ class IlluminaDemultiplexingActor(
   val maximumNbrOfExectorInstances = 2
 
   //@TODO Make configurable
-  var runningExecutorInstances = 0
+  var idleExecutorInstances: Set[ActorRef] =
+    (1 to maximumNbrOfExectorInstances).map(
+      _ => context.actorOf(demultiplexingExecutor)).
+      toSet
 
-  import context.dispatcher
+  var runningExecutorInstances: Map[ProcessingUnit, ActorRef] = Map()
 
   // Schedule a recurrent request for work when idle
+  import context.dispatcher
   val requestWork =
     context.system.scheduler.schedule(
       requestWorkInterval,
@@ -101,41 +107,18 @@ class IlluminaDemultiplexingActor(
     requestWork.cancel()
   }
 
-  //@TODO Make the number of demultiplexing instances started configurable.
-  val demultiplexingRouter =
-    context.actorOf(
-      demultiplexingExecutor.
-        withRouter(RoundRobinRouter(nrOfInstances = maximumNbrOfExectorInstances)),
-      "SisyphusDemultiplexingExecutor")
-
-  import context.dispatcher
-
   /**
    * Will change the behavior depending on if the maximum number of jobs is
    * running or not.
-   *
-   * @param incrementOfRunningInstances how many instances of work to add or
-   * 									subtract (typically -1 or 1).
    */
-  def switchBehavior(incrementOfRunningInstances: Int): Unit = {
-
-    runningExecutorInstances += incrementOfRunningInstances
-    if (runningExecutorInstances < 0)
-      runningExecutorInstances = 0
-
-    require(
-      runningExecutorInstances >= 0 &&
-        !(runningExecutorInstances > maximumNbrOfExectorInstances),
-      s"Not allowed value for number of $runningExecutorInstances. " +
-        s"Max was: $maximumNbrOfExectorInstances")
-
-    if (runningExecutorInstances < maximumNbrOfExectorInstances) {
-      log.debug(s"Has $runningExecutorInstances running instances of " +
+  def switchBehavior(): Unit = {
+    val nbrOfIdleInstances = idleExecutorInstances.size
+    if (nbrOfIdleInstances > 0) {
+      log.debug(s"Has $nbrOfIdleInstances idle instances of " +
         s"max: $maximumNbrOfExectorInstances will accept more work.")
-
       context.become(canAcceptWork)
     } else {
-      log.debug(s"Has $runningExecutorInstances running instances of " +
+      log.debug(s"Has $nbrOfIdleInstances idle instances of " +
         s"max: $maximumNbrOfExectorInstances will reject more work.")
       context.become(cannotAcceptWork)
     }
@@ -159,7 +142,7 @@ class IlluminaDemultiplexingActor(
 
     case message: StartDemultiplexingProcessingUnitMessage => {
       log.debug("Right now all executors are busy. Cannot start any more work.")
-      sender ! Reject
+      sender ! Reject(reason = Some("All exectutors are currently busy. Try agin later."))
     }
 
     case message @ (_: FinishedDemultiplexingProcessingUnitMessage | _: FailedDemultiplexingProcessingUnitMessage) => {
@@ -182,25 +165,40 @@ class IlluminaDemultiplexingActor(
     case message: StartDemultiplexingProcessingUnitMessage => {
       val originalSender = sender
 
-      (demultiplexingRouter ? message).map {
+      val availableExecutor =
+        idleExecutorInstances.headOption.
+          getOrElse(
+            throw new Exception("Something went wrong. Couldn't find idle instance though I was available for work."))
+
+      (availableExecutor ? message).map {
         case Acknowledge =>
-          switchBehavior(1)
+          idleExecutorInstances = idleExecutorInstances - availableExecutor
+          runningExecutorInstances += message.unit -> availableExecutor
+          switchBehavior()
           Acknowledge
-        case Reject =>
+        case rejectMessage: Reject =>
           log.debug("Executor rejected work.")
-          switchBehavior(-1)
-          Reject
+          switchBehavior()
+          rejectMessage
       }.pipeTo(originalSender)
     }
 
     case message: FinishedDemultiplexingProcessingUnitMessage => {
-      switchBehavior(-1)
+      val finishedActor = runningExecutorInstances(message.unit)
+      runningExecutorInstances = runningExecutorInstances - message.unit
+      idleExecutorInstances = idleExecutorInstances + finishedActor
+      switchBehavior()
+      log.debug(s"Finished demultiplexing ${message.unit}")
       clusterClient ! SendToAll("/user/master/active", message)
     }
 
     case message: FailedDemultiplexingProcessingUnitMessage => {
-      notice.critical(s"Demultiplexing failed for unit $message.unit.name, reason: $message.reason")
-      switchBehavior(-1)
+      notice.critical(s"Demultiplexing failed for unit ${message.unit.name}, reason: ${message.reason}")
+      log.warning(s"Demultiplexing failed for unit ${message.unit.name}, reason: ${message.reason}")
+      val failingActor = runningExecutorInstances(message.unit)
+      runningExecutorInstances = runningExecutorInstances - message.unit
+      idleExecutorInstances = idleExecutorInstances + failingActor
+      switchBehavior()
       clusterClient ! SendToAll("/user/master/active", message)
     }
   }

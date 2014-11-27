@@ -14,6 +14,7 @@ import scala.concurrent.duration._
 import scala.concurrent.Future
 import scala.util.Random
 import akka.util.Timeout
+import akka.actor.ActorRef
 
 /**
  * Provided factor methods for the SisyphusDemultiplexingExecutorActor
@@ -42,8 +43,6 @@ class SisyphusDemultiplexingExecutorActor(demultiplexer: Demultiplexer) extends 
 
     case StartDemultiplexingProcessingUnitMessage(unit) => {
 
-      val originalSender = sender
-
       //@TODO It is probably reasonable to have some other mechanism than checking if it
       // can spot the file if it can spot the file or not. But for now, this will have to do.
       val pathToTheRunfolder = new File(unit.uri)
@@ -66,7 +65,7 @@ class SisyphusDemultiplexingExecutorActor(demultiplexer: Demultiplexer) extends 
             else FailedDemultiplexingProcessingUnitMessage(r.unit, r.info.getOrElse("Unknown reason"))).recover {
             case e: HerculesExceptions.ExternalProgramException =>
               FailedDemultiplexingProcessingUnitMessage(e.unit, e.message)
-          }.pipeTo(originalSender)
+          }.pipeTo(context.parent)
 
       } else {
         sender ! Reject(Some(s"The run folder path $pathToTheRunfolder could not be found"))
