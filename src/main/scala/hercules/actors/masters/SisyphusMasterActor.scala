@@ -182,6 +182,7 @@ class SisyphusMasterActor(config: MasterActorConfig) extends PersistentActor wit
         // be added here!
         log.debug("Noted that " + unit.name + " has finished " +
           " demultiplexing. I'll remove it from the messagesInProcessing set.")
+        notice.progress(unit.name + " has finished processing!")
         self ! RemoveFromMessagesInProcessing(state.findStateOfUnit(Some(unit.name)).messagesInProcessing.headOption)
       }
 
@@ -248,6 +249,7 @@ class SisyphusMasterActor(config: MasterActorConfig) extends PersistentActor wit
           (sender ? startMsg).map {
             case Acknowledge => {
               log.debug(s"$unitMessage was accepted by demultiplexer removing from work queue.")
+              notice.progress(unitMessage.unit + " was accepted by a demultiplexer and will now start processing!")
               // ugh...
               self ! AddToMessagesInProcessing(Some(startMsg))
               RemoveFromMessageNotYetProcessed(Some(unitMessage))
