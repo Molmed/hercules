@@ -119,19 +119,21 @@ class Sisyphus() extends Demultiplexer with ExternalProgram {
     val runfolder = new File(unit.uri)
     val runfolderName = runfolder.getName()
 
-    val filesAndDirsToDelete = Seq(
-      "Sisyphus",
-      "MD5",
-      "rsync*.log",
-      "sisyphus.sh",
-      "excludedTiles.yml",
-      "/data/scratch/" + runfolderName,
-      "Unaligned",
-      "Excluded",
-      "quickReport.xml",
-      "setupBclToFastq.err")
+    val filesInRunFolderToDelete =
+      Seq(
+        "Sisyphus",
+        "MD5",
+        "rsync*.log",
+        "sisyphus.sh",
+        "excludedTiles.yml",
+        "Unaligned",
+        "Excluded",
+        "quickReport.xml",
+        "setupBclToFastq.err").map(x => new File(runfolder + "/" + x))
 
-    DeleteUtils.deleteFilesAndDirs(
-      filesAndDirsToDelete.map(x => new File(runfolder + "/" + x)))
+    val otherFilesToDelete =
+      new File("/data/scratch/" + runfolderName)
+
+    DeleteUtils.deleteFilesAndDirs(filesInRunFolderToDelete :+ otherFilesToDelete)
   }
 }
