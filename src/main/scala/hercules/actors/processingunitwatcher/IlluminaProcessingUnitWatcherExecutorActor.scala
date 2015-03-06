@@ -131,7 +131,6 @@ class IlluminaProcessingUnitWatcherExecutorActor(
         case e @ (_: FileNotFoundException | _: IllegalArgumentException | _: AssertionError | _: Exception) => {
           notice.warning("Failed with " + e.getClass.getSimpleName + " when checking for ready processing units: " + e.getMessage)
           log.error("Failed with " + e.getClass.getSimpleName + " when checking for ready processing units: " + e.getMessage)
-          throw e
         }
       }
     }

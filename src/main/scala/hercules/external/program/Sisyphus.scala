@@ -1,13 +1,10 @@
 package hercules.external.program
 
-import java.io.BufferedWriter
 import java.io.File
 import java.io.FileWriter
 import java.io.PrintWriter
 import java.util.Date
 
-import scala.sys.process.ProcessLogger
-import scala.sys.process.stringToProcess
 import scala.concurrent._
 import scala.io.Source
 
@@ -18,7 +15,7 @@ import com.typesafe.config.ConfigFactory
 import hercules.demultiplexing.Demultiplexer
 import hercules.demultiplexing.DemultiplexingResult
 import hercules.entities.ProcessingUnit
-import hercules.utils.Formats
+import hercules.utils.{ DeleteUtils, Formats }
 
 import hercules.entities.illumina.HiSeqProcessingUnit
 import hercules.entities.illumina.MiSeqProcessingUnit
@@ -134,12 +131,7 @@ class Sisyphus() extends Demultiplexer with ExternalProgram {
       "quickReport.xml",
       "setupBclToFastq.err")
 
-    filesAndDirsToDelete.map(x => new File(runfolder + "/" + x)).foreach(x => {
-      if (x.exists())
-        if (x.isDirectory())
-          FileUtils.deleteQuietly(x)
-        else
-          x.delete()
-    })
+    DeleteUtils.deleteFilesAndDirs(
+      filesAndDirsToDelete.map(x => new File(runfolder + "/" + x)))
   }
 }

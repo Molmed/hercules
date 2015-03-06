@@ -1,6 +1,6 @@
 package hercules.actors.processingunitwatcher
 
-import java.io.File
+import java.io.{ FileNotFoundException, File }
 import java.net.URI
 import scala.concurrent.duration.DurationInt
 import org.scalatest.BeforeAndAfterAll
@@ -167,6 +167,24 @@ class IlluminaProcessingUnitWatcherExecutorActorTest
     val unitName = "testUnit"
     watcher ! ForgetProcessingUnitMessage(unitName)
     parent.expectMsg(3.second, Acknowledge)
+    watcher.stop()
+  }
+
+  it should "recover if there is any exceptions thrown while looking for runfolders." in {
+
+    val watcher = TestActorRef(
+      IlluminaProcessingUnitWatcherExecutorActor.props(
+        new FakeFetcher(
+          returnUnit = Some(new FakeProcessingUnit()),
+          exception = Some(new FileNotFoundException("This is an exception"))),
+        getTestConfig),
+      parent.ref,
+      "IlluminaProcessingUnitWatcherExecutorActor_ThrowException")
+
+    import IlluminaProcessingUnitWatcherExecutorActor.IlluminaProcessingUnitWatcherExecutorActorProtocol._
+    watcher ! CheckForRunfolders
+
+    expectNoMsg(3.seconds)
     watcher.stop()
   }
 
