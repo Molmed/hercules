@@ -1,10 +1,11 @@
 package hercules.entities.illumina
 
-import java.io.File
+import java.io.{ PrintWriter, File }
 import java.net.URI
 
 import hercules.config.processingunit.IlluminaProcessingUnitConfig
 import hercules.entities.ProcessingUnit
+import hercules.utils.VersionUtils
 
 /**
  * Provides a base for representing a Illumina runfolder.
@@ -32,8 +33,19 @@ trait IlluminaProcessingUnit extends ProcessingUnit {
 
   /**
    * Marking as found means creating the indicator file.
+   * Will propagate any exceptions thrown while trying to create
+   * the found file.
    */
-  def markAsFound: Boolean = indicatorFile.createNewFile
+  def markAsFound: Boolean = {
+    try {
+      val printWriter = new PrintWriter(indicatorFile)
+      printWriter.println("The version of hercules was: " + VersionUtils.herculesVersion)
+      printWriter.close()
+      true
+    } catch {
+      case e: Exception => throw e
+    }
+  }
 
   /**
    * Marking as not found means removing the indicator file.

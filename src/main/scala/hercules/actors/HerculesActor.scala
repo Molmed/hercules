@@ -3,10 +3,11 @@ package hercules.actors
 import akka.actor.Actor
 import akka.actor.ActorLogging
 import hercules.actors.notifiers.NotifierManager
+import hercules.utils.VersionUtils
 
 /**
  *  The base trait for all Hercules actors. All actors (which are not
- *  spinned up in a very local context, e.g. annonymous actors) should extend
+ *  spun up in a very local context, e.g. anonymous actors) should extend
  *  this class. Another exception to this is the notification actors should not
  *  extend this trait, as they are attached to it via the notice field.
  */
@@ -19,4 +20,10 @@ trait HerculesActor extends Actor with ActorLogging {
    *  based on the message level what to do with it (i.e. send emails, etc).
    */
   val notice = NotifierManager(context.system)
+
+  /**
+   * This will make sure that the log gets an entry with the
+   * version of hercules run, every time a HerculesActor is started.
+   */
+  log.info("Hercules version: " + VersionUtils.herculesVersion)
 }
