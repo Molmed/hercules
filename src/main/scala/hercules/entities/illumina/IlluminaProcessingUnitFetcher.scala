@@ -290,8 +290,6 @@ class IlluminaProcessingUnitFetcher() extends ProcessingUnitFetcher {
       qcConfig: File,
       programConfig: File): Option[IlluminaProcessingUnit] = {
 
-      import hercules.utils.Conversions.file2URI
-
       val unitConfig =
         new IlluminaProcessingUnitConfig(samplesheet, qcConfig, Some(programConfig))
 
