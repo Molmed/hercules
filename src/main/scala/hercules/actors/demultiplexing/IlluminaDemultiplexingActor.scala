@@ -1,29 +1,51 @@
 package hercules.actors.demultiplexing
 
-import java.io.File
 import scala.concurrent.duration.DurationInt
 import akka.actor.ActorRef
 import akka.actor.Props
 import akka.actor.actorRef2Scala
 import akka.contrib.pattern.ClusterClient.SendToAll
-import akka.routing.RoundRobinRouter
 import akka.pattern.{ ask, pipe }
 import akka.util.Timeout
-import akka.event.LoggingReceive
 import hercules.actors.utils.MasterLookup
 import hercules.protocols.HerculesMainProtocol._
 import akka.actor.ActorSystem
-import com.typesafe.config.Config
+import com.typesafe.config.{ ConfigFactory, Config }
 import scala.concurrent.duration._
 import akka.event.LoggingReceive
 import scala.util.Random
-import hercules.entities.illumina.IlluminaProcessingUnit
 import hercules.entities.ProcessingUnit
+
+/**
+ * Wraps configurations for the IlluminaDemultiplexingActor.
+ * All of these except the number of actors are now set to sensible
+ * @param maximumNbrOfExecutorInstances
+ * @param requestWorkInterval
+ * @param timeoutInterval
+ */
+case class IlluminaDemultiplexingActorConfig(maximumNbrOfExecutorInstances: Int = 2,
+                                             requestWorkInterval: FiniteDuration = 60.seconds,
+                                             timeoutInterval: FiniteDuration = 10.seconds)
 
 /**
  * Provides factory methods for creating a IlluminaDemultiplexingActor
  */
 object IlluminaDemultiplexingActor extends MasterLookup {
+
+  /**
+   * Loads configurations from the application.conf
+   * Currently it only loads the maximumNumberOfDemultiplexers and falls back to
+   * defaults for the other values.
+   * @return a config for the IlluminaDemultiplexingActor
+   */
+  def getConfig(): IlluminaDemultiplexingActorConfig = {
+
+    val generalConfig = ConfigFactory.load()
+    val conf = generalConfig.getConfig("general").withFallback(generalConfig)
+    val maximumNbrOfExecutorInstances = conf.getInt("maximumNumberOfDemultiplexers")
+
+    IlluminaDemultiplexingActorConfig(maximumNbrOfExecutorInstances)
+  }
 
   /**
    * Initiate all the stuff needed to start a IlluminaDemultiplexingActor
@@ -56,7 +78,7 @@ object IlluminaDemultiplexingActor extends MasterLookup {
     clusterClient: ActorRef,
     demultiplexingExecutor: Props = SisyphusDemultiplexingExecutorActor.props()): Props = {
 
-    Props(new IlluminaDemultiplexingActor(clusterClient, demultiplexingExecutor))
+    Props(new IlluminaDemultiplexingActor(clusterClient, demultiplexingExecutor, getConfig()))
   }
 }
 
@@ -79,15 +101,12 @@ object IlluminaDemultiplexingActor extends MasterLookup {
 class IlluminaDemultiplexingActor(
     clusterClient: ActorRef,
     demultiplexingExecutor: Props,
-    requestWorkInterval: FiniteDuration = 60.seconds) extends DemultiplexingActor {
+    config: IlluminaDemultiplexingActorConfig) extends DemultiplexingActor {
 
-  //@TODO Make configurable
-  implicit val timeout = Timeout(10.seconds)
-  val maximumNbrOfExectorInstances = 2
+  implicit val timeout = Timeout(config.timeoutInterval)
 
-  //@TODO Make configurable
   var idleExecutorInstances: Set[ActorRef] =
-    (1 to maximumNbrOfExectorInstances).map(
+    (1 to config.maximumNbrOfExecutorInstances).map(
       _ => context.actorOf(demultiplexingExecutor)).
       toSet
 
@@ -97,8 +116,8 @@ class IlluminaDemultiplexingActor(
   import context.dispatcher
   val requestWork =
     context.system.scheduler.schedule(
-      requestWorkInterval,
-      requestWorkInterval,
+      config.requestWorkInterval,
+      config.requestWorkInterval,
       self,
       { RequestDemultiplexingProcessingUnitMessage })
 
@@ -115,11 +134,11 @@ class IlluminaDemultiplexingActor(
     val nbrOfIdleInstances = idleExecutorInstances.size
     if (nbrOfIdleInstances > 0) {
       log.debug(s"Has $nbrOfIdleInstances idle instances of " +
-        s"max: $maximumNbrOfExectorInstances will accept more work.")
+        s"max: ${config.maximumNbrOfExecutorInstances} will accept more work.")
       context.become(canAcceptWork)
     } else {
       log.debug(s"Has $nbrOfIdleInstances idle instances of " +
-        s"max: $maximumNbrOfExectorInstances will reject more work.")
+        s"max: ${config.maximumNbrOfExecutorInstances} will reject more work.")
       context.become(cannotAcceptWork)
     }
   }
