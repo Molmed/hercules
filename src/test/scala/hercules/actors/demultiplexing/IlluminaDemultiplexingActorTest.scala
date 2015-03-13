@@ -1,38 +1,24 @@
 package hercules.actors.demultiplexing
 
 import java.io.File
-import java.net.URI
-import scala.collection.JavaConversions.asScalaBuffer
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.FlatSpecLike
 import org.scalatest.Matchers
 import com.typesafe.config.ConfigFactory
-import akka.actor.Actor
-import akka.actor.ActorLogging
-import akka.actor.ActorRef
 import akka.actor.ActorSystem
 import akka.actor.AddressFromURIString
 import akka.actor.PoisonPill
 import akka.actor.Props
 import akka.actor.RootActorPath
 import akka.actor.actorRef2Scala
-import akka.cluster.Cluster
 import akka.contrib.pattern.ClusterClient
 import akka.contrib.pattern.ClusterSingletonManager
-import akka.testkit.ImplicitSender
 import akka.testkit.TestKit
 import hercules.config.processingunit.IlluminaProcessingUnitConfig
 import hercules.entities.illumina.HiSeqProcessingUnit
 import hercules.entities.illumina.IlluminaProcessingUnit
 import hercules.protocols.HerculesMainProtocol
-import com.typesafe.config.Config
-import akka.contrib.pattern.ClusterReceptionistExtension
-import scala.concurrent.duration._
-import akka.contrib.pattern.ClusterClient.SendToAll
-import akka.japi.Util.immutableSeq
-import akka.contrib.pattern.ClusterReceptionist
 import hercules.test.utils.FakeMaster
-import akka.actor.ActorRefFactory
 import org.scalatest.BeforeAndAfterEach
 import scala.concurrent.duration._
 
@@ -225,6 +211,15 @@ class IlluminaDemultiplexingActorTest extends TestKit(
 
     demultiplexer.tell(HerculesMainProtocol.StartDemultiplexingProcessingUnitMessage(processingUnit), testActor)
     expectMsg(HerculesMainProtocol.Reject(None))
+
+  }
+
+  it should "load configurations" in {
+
+    val expected = IlluminaDemultiplexingActorConfig(maximumNbrOfExecutorInstances = 2)
+    val actual = IlluminaDemultiplexingActor.getConfig()
+
+    assert(expected === actual)
 
   }
 
