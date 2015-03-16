@@ -8,4 +8,6 @@ import hercules.protocols.NotificationChannelProtocol._
  */
 abstract class NotificationConfig {
   val channels: Seq[NotificationChannel]
+  val numRetries: Int
+  val retryInterval: Int
 }

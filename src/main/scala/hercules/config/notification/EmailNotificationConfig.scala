@@ -1,11 +1,15 @@
 package hercules.config.notification
 
-import com.typesafe.config.Config
-import java.util.List
+import com.typesafe.config.{ ConfigFactory, Config }
 import scala.collection.JavaConversions._
 import hercules.protocols.NotificationChannelProtocol._
 
 object EmailNotificationConfig {
+
+  def getEmailNotificationConfig(): EmailNotificationConfig = {
+    val baseConfig = ConfigFactory.load()
+    getEmailNotificationConfig(baseConfig.getConfig("notifications.email"))
+  }
 
   /**
    * Create and return a EmailNotificationConfig from the supplied
@@ -36,6 +40,8 @@ object EmailNotificationConfig {
   }
 
   /**
+   * TODO Move this to some more general place! /JD 20150317
+   *
    * Converts a string to the correct notification channel
    *
    * @param str to convert to a NotificationChannel

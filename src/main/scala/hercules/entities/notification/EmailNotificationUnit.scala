@@ -29,7 +29,7 @@ object EmailNotificationUnit {
 case class EmailNotificationUnit(
     override val message: String,
     override val channel: NotificationChannel,
-    val attempts: Int = 0) extends NotificationUnit(message, channel) {
+    override val attempts: Int = 0) extends NotificationUnit(message, channel, attempts) {
 
   /**
    * Send this notification by email.

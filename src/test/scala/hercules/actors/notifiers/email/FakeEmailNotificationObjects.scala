@@ -1,10 +1,13 @@
-package hercules.actors.notifiers
+package hercules.actors.notifiers.email
 
 import hercules.entities.notification.EmailNotificationUnit
 import hercules.protocols.NotificationChannelProtocol.NotificationChannel
 
 import scala.concurrent.Future
 
+/**
+ * Created by johda411 on 2015-03-17.
+ */
 object FakeEmailNotificationObjects {
 
   /**
