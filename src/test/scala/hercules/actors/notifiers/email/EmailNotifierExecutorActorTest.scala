@@ -52,6 +52,7 @@ class EmailNotifierExecutorActorTest()
     val inbox = Mailbox.get("test@test.com")
     assert(inbox.size() === 1)
     assert(inbox.get(0).getContent() === "This is a FakeEmailNotificationUnit")
+    inbox.clear()
   }
 
   it should " return a FailedNotificationUnitMessage to parent upon failure to send message" in {
