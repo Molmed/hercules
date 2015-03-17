@@ -14,7 +14,16 @@ import scala.concurrent.duration._
  */
 trait NotifierActor extends Actor with ActorLogging {
 
+  /**
+   * The executor which will be used to to the actual lifting of the notifier actor.
+   * @return a reference to a executor actor
+   */
   def executor: ActorRef
+
+  /**
+   * The configuration for this particular notifier.
+   * @return a configuration for the notifier
+   */
   def notifierConfig: NotificationConfig
 
   /**

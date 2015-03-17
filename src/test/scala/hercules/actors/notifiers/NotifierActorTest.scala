@@ -10,6 +10,8 @@ import hercules.protocols.NotificationChannelProtocol._
 import org.scalatest.{ FlatSpecLike, Matchers }
 
 /**
+ * Tests the notifer base actor, making sure that any forwarding behaviour works as
+ * expected.
  * Created by johda411 on 2015-03-17.
  */
 class NotifierActorTest extends TestKit(ActorSystem("NotifierActor"))

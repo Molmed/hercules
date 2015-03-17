@@ -12,8 +12,8 @@ import hercules.entities.notification.EmailNotificationUnit
 object EmailNotifierExecutorActorImpl {
 
   /**
-   * Get a props for creating a EmailNotifierExecutorActor.
-   * @param emailConfig
+   * Get a props for creating a EmailNotifierExecutorActorImpl.
+   * @param emailConfig the email configuration.
    * @return Props for creating a EmailNotifierExecutorActor
    */
   def props(emailConfig: EmailNotificationConfig): Props = {
@@ -24,7 +24,9 @@ object EmailNotifierExecutorActorImpl {
 
 /**
  * A actor which can send emails based on a SendNotificationUnitMessage.
+ * This is probably the class you want if you are looking for a default
+ * implementation of the EmailNotifierActor trait.
  *
- * @param emailConfig
+ * @param emailConfig The email configuration.
  */
 class EmailNotifierExecutorActorImpl(val emailConfig: EmailNotificationConfig) extends EmailNotifierExecutorActor with NotificationExecutor with Emailer

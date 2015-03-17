@@ -12,6 +12,8 @@ object EmailNotifierActor {
 
   /**
    *
+   * Generate a email notifier actor in the specified system
+   *
    * @param system the actor system to email notifier in
    * @param config a configuration for the emailer
    * @return A reference to a email notifier actor

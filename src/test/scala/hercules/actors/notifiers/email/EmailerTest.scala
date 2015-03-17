@@ -12,6 +12,8 @@ import org.scalatest.{ Matchers, BeforeAndAfterAll, FlatSpecLike }
 import scala.concurrent.{ ExecutionContext, Future }
 
 /**
+ * Tests the Emailer trait, a trait that can be hooked on to an actor to enable it to send emails.
+ *
  * Created by johda411 on 2015-03-17.
  */
 class EmailerTest extends TestKit(ActorSystem("EmailNotifierExecutorActorTestSystem"))

@@ -6,7 +6,10 @@ import hercules.config.notification.EmailNotificationConfig
 import hercules.entities.notification.EmailNotificationUnit
 
 /**
- * TODO Write docs!
+ * An executor actor that will send emails using the mixing from the Emailer.
+ * Will attempt to pass any EmailNotificationUnit that comes in to the emailer.
+ * Will accept messages of type:
+ * EmailNotificationUnit
  */
 trait EmailNotifierExecutorActor {
   this: NotificationExecutor with Emailer =>
