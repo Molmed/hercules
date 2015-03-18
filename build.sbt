@@ -21,13 +21,15 @@ libraryDependencies ++= {
   "commons-io" % "commons-io" % "2.4",
   "me.lessis" %% "courier" % "0.1.3",
   "org.jvnet.mock-javamail" % "mock-javamail" % "1.9" % "test",
+  "com.netaporter" %% "pre-canned" % "0.0.5" % "test",
   "ch.qos.logback" % "logback-classic" % "1.0.13",
   "io.spray" %% "spray-can" % "1.3.1",
   "io.spray" %% "spray-routing" % "1.3.1",
   "io.spray" %% "spray-json" % "1.3.0",
   "io.spray" %% "spray-testkit" % "1.3.1" % "test",
   "com.gettyimages" %% "spray-swagger" % "0.5.0",
-  "com.wordnik" %% "swagger-core" % "1.3.10" excludeAll( ExclusionRule(organization = "org.json4s"),  ExclusionRule(organization="org.fasterxml*") )
+  "com.wordnik" %% "swagger-core" % "1.3.10" excludeAll( ExclusionRule(organization = "org.json4s"),  ExclusionRule(organization="org.fasterxml*") ),
+  "org.scalaj" %% "scalaj-http" % "1.1.4"
   )
 }
 

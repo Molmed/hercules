@@ -18,7 +18,7 @@ object EmailNotifierActor {
    * @param config a configuration for the emailer
    * @return A reference to a email notifier actor
    */
-  def apply(implicit system: ActorSystem, config: EmailNotificationConfig = EmailNotificationConfig.getEmailNotificationConfig()): ActorRef = {
+  def apply(implicit system: ActorSystem, config: EmailNotificationConfig = EmailNotificationConfig()): ActorRef = {
 
     lazy val emailNotifierActor = new NotifierActor {
       override def executor: ActorRef = system.actorOf(EmailNotifierExecutorActorImpl.props(config))
