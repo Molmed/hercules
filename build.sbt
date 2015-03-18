@@ -10,8 +10,6 @@ version := "0.1"
 
 scalaVersion := "2.10.2"
 
-resolvers += "rediscala" at "http://dl.bintray.com/etaty/maven"
-
 libraryDependencies ++= {
   Seq(
   "com.typesafe.akka" %% "akka-contrib" % "2.3.4",

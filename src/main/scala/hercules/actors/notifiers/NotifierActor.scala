@@ -50,7 +50,7 @@ trait NotifierActor extends Actor with ActorLogging {
       else
         log.warning(
           s"Reached maximum number of send retries on ${failedNotificationUnit.unit} " +
-            "will no drop it."
+            "will drop it."
         )
     }
 
