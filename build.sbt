@@ -10,8 +10,6 @@ version := "0.1"
 
 scalaVersion := "2.10.2"
 
-resolvers += "rediscala" at "http://dl.bintray.com/etaty/maven"
-
 libraryDependencies ++= {
   Seq(
   "com.typesafe.akka" %% "akka-contrib" % "2.3.4",
@@ -22,6 +20,7 @@ libraryDependencies ++= {
   "com.github.scopt" %% "scopt" % "3.2.0",
   "commons-io" % "commons-io" % "2.4",
   "me.lessis" %% "courier" % "0.1.3",
+  "org.jvnet.mock-javamail" % "mock-javamail" % "1.9" % "test",
   "ch.qos.logback" % "logback-classic" % "1.0.13",
   "io.spray" %% "spray-can" % "1.3.1",
   "io.spray" %% "spray-routing" % "1.3.1",

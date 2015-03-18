@@ -7,7 +7,9 @@ import hercules.protocols.NotificationChannelProtocol._
  * implements the means of delivery
  * @param message to send
  * @param channel to send it on.
+ * @param attempts this many attempts have been made at sending this notification
  */
 class NotificationUnit(
   val message: String,
-  val channel: NotificationChannel) {}
+  val channel: NotificationChannel,
+  val attempts: Int = 0) {}

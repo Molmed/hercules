@@ -1,7 +1,7 @@
 package hercules.protocols
 
 /**
- * Protocol for the notification channel, indicating which level the notication
+ * Protocol for the notification channel, indicating which level the notification
  * is on.
  */
 object NotificationChannelProtocol {
