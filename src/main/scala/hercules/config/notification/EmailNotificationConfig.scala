@@ -6,7 +6,7 @@ import hercules.protocols.NotificationChannelProtocol._
 
 object EmailNotificationConfig {
 
-  def getEmailNotificationConfig(): EmailNotificationConfig = {
+  def apply(): EmailNotificationConfig = {
     val baseConfig = ConfigFactory.load()
     getEmailNotificationConfig(baseConfig.getConfig("notifications.email"))
   }
@@ -38,22 +38,6 @@ object EmailNotificationConfig {
       emailRetryInterval,
       emailChannels)
   }
-
-  /**
-   * TODO Move this to some more general place! /JD 20150317
-   *
-   * Converts a string to the correct notification channel
-   *
-   * @param str to convert to a NotificationChannel
-   * @return A NotificationChannel
-   */
-  def stringToChannel(str: String): NotificationChannel = str match {
-    case "progress" => Progress
-    case "info"     => Info
-    case "warning"  => Warning
-    case "critical" => Critical
-  }
-
 }
 
 /**

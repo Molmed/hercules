@@ -3,6 +3,7 @@ package hercules.actors.notifiers
 import akka.actor.ActorRef
 import akka.actor.ActorSystem
 import hercules.actors.notifiers.email.EmailNotifierActor
+import hercules.actors.notifiers.rest.slack.SlackNotifierActor
 import hercules.entities.notification._
 import hercules.protocols.HerculesMainProtocol._
 import hercules.protocols.NotificationChannelProtocol._
@@ -52,8 +53,8 @@ object NotifierManager {
  */
 class NotifierManager(system: ActorSystem) {
 
-  // TODO Make this configurable / JD 20150317
-  val actors = Seq(EmailNotifierActor(system))
+  // TODO Make this configurable and start via reflections /JD 20150318
+  val actors = Seq(EmailNotifierActor(system), SlackNotifierActor(system))
 
   /**
    * Send messages on the info channel

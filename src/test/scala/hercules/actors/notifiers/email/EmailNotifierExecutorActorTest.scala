@@ -18,7 +18,6 @@ class EmailNotifierExecutorActorTest()
     extends TestKit(ActorSystem("EmailNotifierExecutorActorTestSystem"))
     with ImplicitSender
     with FlatSpecLike
-    with BeforeAndAfterAll
     with Matchers {
 
   import scala.concurrent.duration._
