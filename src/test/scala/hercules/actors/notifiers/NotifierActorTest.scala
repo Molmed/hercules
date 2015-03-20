@@ -67,4 +67,34 @@ class NotifierActorTest extends TestKit(ActorSystem("NotifierActor"))
     notifierActor ! failedMessageShouldNotBeResent
     testProbe.expectNoMsg()
   }
+
+  it should "filter out messages acccoding to what is defined by it's preFilterChannel function" in {
+
+    val keepString = "Keep me!"
+    val messageToDrop = SendNotificationUnitMessage(new NotificationUnit(message = "test message", channel = NotificationChannelProtocol.Warning))
+    val messageToKeep = SendNotificationUnitMessage(new NotificationUnit(message = keepString, channel = NotificationChannelProtocol.Warning))
+
+    val notifierActorWithFilter = system.actorOf(
+      Props(
+        new NotifierActor {
+          override def executor: ActorRef = testProbe.ref
+
+          override def notifierConfig: NotificationConfig = new NotificationConfig {
+            override val retryInterval: Int = 1
+            override val channels: Seq[NotificationChannel] =
+              Seq(NotificationChannelProtocol.Warning, NotificationChannelProtocol.Critical)
+            override val numRetries: Int = 2
+          }
+
+          override def preFilterChannel(notificationMessage: SendNotificationUnitMessage): Boolean = {
+            notificationMessage.unit.message == keepString
+          }
+        }))
+
+    notifierActorWithFilter ! messageToDrop
+    testProbe.expectNoMsg()
+    notifierActorWithFilter ! messageToKeep
+    testProbe.expectMsg(messageToKeep)
+
+  }
 }
