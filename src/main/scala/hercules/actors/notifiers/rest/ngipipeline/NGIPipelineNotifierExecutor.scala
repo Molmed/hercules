@@ -18,7 +18,7 @@ import scalaj.http.{ HttpResponse, Http }
 object NGIPipelineNotifierExecutor {
 
   /**
-   * Used to create a SlackNotifierExecutor actor instance.
+   * Used to create a NGIPipelineNotifierExecutor actor instance.
    * @param config to use
    * @return a Props for the SlackNotifierExecutor
    */
