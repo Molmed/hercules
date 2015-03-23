@@ -177,13 +177,12 @@ class SisyphusMasterActor(config: MasterActorConfig) extends PersistentActor wit
 
     demuxMessage match {
 
-      case FinishedDemultiplexingProcessingUnitMessage(unit) => {
-        //@TODO Later more behaviour downstream of demultiplexing should
-        // be added here!
-        log.debug("Noted that " + unit.name + " has finished " +
+      case message: FinishedDemultiplexingProcessingUnitMessage => {
+        //@TODO Later more behaviour downstream of demultiplexing should be added here!
+        log.debug("Noted that " + message.unit.name + " has finished " +
           " demultiplexing. I'll remove it from the messagesInProcessing set.")
-        notice.progress(unit.name + " has finished processing!")
-        self ! RemoveFromMessagesInProcessing(state.findStateOfUnit(Some(unit.name)).messagesInProcessing.headOption)
+        notice.progress(message.unit.name + " has finished processing!", originalMessage = message)
+        self ! RemoveFromMessagesInProcessing(state.findStateOfUnit(Some(message.unit.name)).messagesInProcessing.headOption)
       }
 
       case message: FailedDemultiplexingProcessingUnitMessage => {

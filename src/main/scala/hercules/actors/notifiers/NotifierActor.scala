@@ -27,6 +27,15 @@ trait NotifierActor extends Actor with ActorLogging {
   def notifierConfig: NotificationConfig
 
   /**
+   * Hook for adding behaviour to filter out some messages from the channel
+   * while retaining others. By default it will not filter out messages.
+   * Override in implementing class to implement filtering behaviour.
+   * @param notificationMessage to check for inclusion
+   * @return true if the messages is to be kept.
+   */
+  def preFilterChannel(notificationMessage: SendNotificationUnitMessage): Boolean = true
+
+  /**
    * Check if this particular notifier is subscribing to the channel
    * on which the message is being sent, and if so forward it to the
    * executor.
@@ -55,7 +64,7 @@ trait NotifierActor extends Actor with ActorLogging {
     }
 
     case notificationMessage: SendNotificationUnitMessage =>
-      if (notifierConfig.channels.contains(notificationMessage.unit.channel)) {
+      if (notifierConfig.channels.contains(notificationMessage.unit.channel) && preFilterChannel(notificationMessage)) {
         log.debug("Found message on subscription channel will forward it " +
           "to the executor.")
         // Pass the message to the executor

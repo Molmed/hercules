@@ -6,18 +6,20 @@ import hercules.config.notification.SlackNotificationConfig
 import hercules.entities.notification.NotificationUnit
 import hercules.protocols.HerculesMainProtocol.{ FailedNotificationUnitMessage, SentNotificationUnitMessage, SendNotificationUnitMessage }
 import hercules.protocols.NotificationChannelProtocol
-import org.scalatest.{ BeforeAndAfter, Matchers, FlatSpecLike }
+import org.scalatest.{ BeforeAndAfterAll, BeforeAndAfter, Matchers, FlatSpecLike }
 
 import com.netaporter.precanned.dsl.fancy._
 import spray.http.{ StatusCodes }
 
 /**
+ * Tests for the SlackNotifierExecutorTest
  * Created by johda411 on 2015-03-18.
  */
 class SlackNotifierExecutorTest extends TestKit(ActorSystem("SlackNotifierExecutorActorTestSystem"))
     with ImplicitSender
     with FlatSpecLike
     with BeforeAndAfter
+    with BeforeAndAfterAll
     with Matchers {
 
   val mockBindingPort = 8766
@@ -25,6 +27,7 @@ class SlackNotifierExecutorTest extends TestKit(ActorSystem("SlackNotifierExecut
 
   // Make sure expectations as cleared between tests.
   after { mockSlack.clearExpectations }
+  override def afterAll() { system.shutdown() }
 
   val conf =
     new SlackNotificationConfig(

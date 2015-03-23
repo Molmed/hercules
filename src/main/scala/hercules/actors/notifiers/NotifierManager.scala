@@ -26,18 +26,22 @@ object NotifierManager {
   /**
    * Send a message on to the selected channel
    *
-   * @param msg
-   * @param channel
-   * @param actors
+   * @param msg string to pass on
+   * @param originalMessage optionally add the original message
+   * @param channel on which to send message
+   * @param actors to send it to
    */
   def sendMessage(
     msg: String,
+    originalMessage: Option[HerculesMessage] = None,
     channel: NotificationChannel,
     actors: Seq[ActorRef]): Unit = {
     val message = new SendNotificationUnitMessage(
       new NotificationUnit(
         msg,
-        channel))
+        channel,
+        originalMessage = originalMessage
+      ))
     actors.foreach { _ ! message }
   }
 }
@@ -63,26 +67,41 @@ class NotifierManager(system: ActorSystem) {
    * @param msg
    */
   def info(msg: String): Unit = {
-    NotifierManager.sendMessage(msg, Info, actors)
+    NotifierManager.sendMessage(msg = msg, channel = Info, actors = actors)
+  }
+
+  /**
+   * Send string messages on the progress channel
+   * This can be used when there is not so much need for downstream
+   * actors to know the exact type of message sent.
+   * If you need a higher specificity (e.g. to condition behaviour)
+   * use the progress(msg: String, originalMessage: HerculesMessage) function.
+   * @param msg a string message to send.
+   */
+  def progress(msg: String): Unit = {
+    NotifierManager.sendMessage(msg = msg, channel = Progress, actors = actors)
   }
 
   /**
    * Send messages on the progress channel
    * Use this to indicate progress of some kind, e.g. that a runfolder has
    * finished processing.
-   * @param msg
+   * @param msg A simple string message
+   * @param originalMessage the specific message to pass on (can be used to trigger
+   *                        specific behaviour downstream.
    */
-  def progress(msg: String): Unit = {
-    NotifierManager.sendMessage(msg, Progress, actors)
+  def progress(msg: String, originalMessage: HerculesMessage): Unit = {
+    NotifierManager.sendMessage(
+      msg = msg, originalMessage = Some(originalMessage), channel = Progress, actors = actors)
   }
 
   /**
    * Send messages on the warning channel
-   * Send non-cricital messages about problems on this channel.
+   * Send non-critical messages about problems on this channel.
    * @param msg
    */
   def warning(msg: String): Unit = {
-    NotifierManager.sendMessage(msg, Warning, actors)
+    NotifierManager.sendMessage(msg = msg, channel = Warning, actors = actors)
   }
 
   /**
@@ -92,7 +111,7 @@ class NotifierManager(system: ActorSystem) {
    * @param msg
    */
   def critical(msg: String): Unit = {
-    NotifierManager.sendMessage(msg, Critical, actors)
+    NotifierManager.sendMessage(msg = msg, channel = Critical, actors = actors)
   }
 
 }
