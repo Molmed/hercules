@@ -293,11 +293,11 @@ class IlluminaProcessingUnitFetcher() extends ProcessingUnitFetcher {
       val unitConfig =
         new IlluminaProcessingUnitConfig(samplesheet, qcConfig, Some(programConfig))
 
-      //@TODO Some nicer solution for picking up if it's a HiSeq or MiSeq
       getMachineTypeFromRunParametersXML(runfolder) match {
         case "MiSeq Control Software" => Some(new MiSeqProcessingUnit(unitConfig, runfolder.toURI(),
           getManifestFilesFromRunParametersXML(runfolder).size > 0))
         case "HiSeq Control Software" => Some(new HiSeqProcessingUnit(unitConfig, runfolder.toURI()))
+        case "HiSeq X Control Software" => Some(new HiSeqProcessingUnit(unitConfig, runfolder.toURI()))
         case s: String                => throw new Exception(s"Unrecognized type string:  $s")
       }
 
