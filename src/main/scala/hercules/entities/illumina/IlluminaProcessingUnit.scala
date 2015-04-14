@@ -7,6 +7,10 @@ import hercules.config.processingunit.IlluminaProcessingUnitConfig
 import hercules.entities.ProcessingUnit
 import hercules.utils.VersionUtils
 
+object IlluminaProcessingUnit {
+  val nameOfIndicatorFile = "found"
+}
+
 /**
  * Provides a base for representing a Illumina runfolder.
  */
@@ -24,7 +28,7 @@ trait IlluminaProcessingUnit extends ProcessingUnit {
    * The indicator file dropped when the processing unit is marked as found.
    */
   private def indicatorFile: File =
-    new File(uri.getPath + File.separator + "found")
+    new File(uri.getPath + File.separator + IlluminaProcessingUnit.nameOfIndicatorFile)
 
   /**
    * Is found is true if the indicator file exists.
