@@ -23,13 +23,12 @@ class StatusServiceTest
     with BeforeAndAfterAll
     with ScalatestRouteTest {
 
-  import MasterStateProtocol._
-
   val probe = MockBackend(
     system = this.system,
     messagesNotYetProcessed = Set("this-unit-is-not-yet-processed"),
     messagesInProcessing = Set("this-unit-is-being-processed"),
-    failedMessages = Set("this-unit-failed-in-processing"))
+    failedMessages = Set("this-unit-failed-in-processing"),
+    doNotAnswer = false)
 
   val timeout = Timeout(5.seconds)
   val service = new StatusService {
@@ -53,5 +52,30 @@ class StatusServiceTest
       SendToAll(
         "/user/master/active",
         RequestMasterState(None)))
+  }
+
+  it should "fail gracefully if an exception is thrown" in {
+
+    // Ensure that this timeout is longer than the one used by
+    // the actual service.
+    implicit val routeTestTimeout = RouteTestTimeout(5.second)
+
+    val exceptionProbe = MockBackend(
+      system = this.system,
+      messagesNotYetProcessed = Set("this-unit-is-not-yet-processed"),
+      messagesInProcessing = Set("this-unit-is-being-processed"),
+      failedMessages = Set("this-unit-failed-in-processing"),
+      doNotAnswer = true)
+
+    val exceptionService = new StatusService {
+      def actorRefFactory = system
+      implicit val to = timeout
+      implicit val clusterClient = exceptionProbe.ref
+    }
+
+    Get("/status") ~> exceptionService.route ~> check {
+      println(body)
+      status should be(InternalServerError)
+    }
   }
 }

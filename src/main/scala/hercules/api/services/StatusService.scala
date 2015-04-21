@@ -10,11 +10,14 @@ import hercules.actors.masters.state.MasterState
 
 import scala.concurrent.ExecutionContext
 
-import spray.http.StatusCodes._
+import spray.http.StatusCodes.InternalServerError
 import hercules.protocols.HerculesMainProtocol.RequestMasterState
 import hercules.api.models
 
 import spray.httpx.SprayJsonSupport._
+
+import scala.concurrent.duration._
+import scala.util.{ Success, Failure }
 
 /**
  * The StatusService trait define operations for querying the status of the tasks in Master.
@@ -59,6 +62,8 @@ trait StatusService extends HerculesService {
          * Complete the request asynchronously
          */
         detach() {
+
+          val timeout = Timeout(3.seconds)
           /**
            * Request the state of the active master
            */
@@ -67,7 +72,7 @@ trait StatusService extends HerculesService {
               SendToAll(
                 "/user/master/active",
                 RequestMasterState())
-            )
+            )(timeout)
 
           /**
            * Take the response from master and map it to a StatusCode
@@ -75,10 +80,11 @@ trait StatusService extends HerculesService {
 
           import hercules.actors.masters.state.MasterStateJsonProtocol._
 
-          onSuccess(request) {
-            case state: MasterState => complete(state)
-            case e: Exception       => complete(InternalServerError)
+          onComplete(request) {
+            case Success(state) => complete(state.asInstanceOf[MasterState])
+            case Failure(_)     => complete(InternalServerError)
           }
+
         }
       }
     }
