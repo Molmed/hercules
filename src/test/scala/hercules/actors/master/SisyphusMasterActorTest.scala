@@ -7,6 +7,7 @@ import akka.actor.ActorLogging
 import akka.testkit.{ ImplicitSender, TestActorRef, TestKit, TestProbe }
 import akka.actor.ActorSystem
 import com.typesafe.config.ConfigFactory
+import hercules.actors.masters.state.MasterState
 import hercules.config.masters.MasterActorConfig
 import hercules.actors.masters.SisyphusMasterActor
 import hercules.entities.illumina.IlluminaProcessingUnit
@@ -34,7 +35,6 @@ import akka.contrib.pattern.ClusterClient
 import akka.actor.RootActorPath
 import akka.persistence.SnapshotSelectionCriteria
 import org.scalatest.BeforeAndAfterEach
-import hercules.actors.masters.MasterState
 
 class SisyphusMasterActorTest() extends TestKit(ActorSystem("SisyphusMasterActorTestSystem"))
     with FlatSpecLike

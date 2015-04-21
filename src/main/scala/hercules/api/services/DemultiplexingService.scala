@@ -6,9 +6,10 @@ import akka.pattern.ask
 import akka.util.Timeout
 
 import com.wordnik.swagger.annotations._
+import hercules.actors.masters.state.MasterState
 
 import hercules.protocols.HerculesMainProtocol._
-import hercules.actors.masters.{ MasterState, MasterStateProtocol }
+import hercules.actors.masters.MasterStateProtocol
 
 import javax.ws.rs.Path
 

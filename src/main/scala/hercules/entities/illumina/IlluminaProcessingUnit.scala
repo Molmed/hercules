@@ -6,6 +6,7 @@ import java.net.URI
 import hercules.config.processingunit.IlluminaProcessingUnitConfig
 import hercules.entities.ProcessingUnit
 import hercules.utils.VersionUtils
+import spray.json.JsValue
 
 object IlluminaProcessingUnit {
   val nameOfIndicatorFile = "found"
@@ -18,6 +19,15 @@ trait IlluminaProcessingUnit extends ProcessingUnit {
 
   val processingUnitConfig: IlluminaProcessingUnitConfig
   val uri: URI
+
+  /**
+   * Values to be mapped to json representation.
+   * Override in implementing class to add more information.
+   * @return the key value pairs representing the object in json
+   */
+  override protected def mappedValues: Map[String, JsValue] = {
+    super.mappedValues.updated("config", processingUnitConfig.toJson)
+  }
 
   /**
    * Get the name from the runfolder directory name

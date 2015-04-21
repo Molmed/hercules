@@ -6,15 +6,15 @@ import akka.pattern.ask
 import akka.util.Timeout
 
 import com.wordnik.swagger.annotations._
+import hercules.actors.masters.state.MasterState
 
 import scala.concurrent.ExecutionContext
 
 import spray.http.StatusCodes._
-import spray.routing._
-
-import hercules.actors.masters.MasterState
 import hercules.protocols.HerculesMainProtocol.RequestMasterState
 import hercules.api.models
+
+import spray.httpx.SprayJsonSupport._
 
 /**
  * The StatusService trait define operations for querying the status of the tasks in Master.
@@ -52,13 +52,13 @@ trait StatusService extends HerculesService {
   /**
    * The /status endpoint for GET
    */
-  private def getRoute = get {
-    path("status") {
-      /**
-       * Complete the request asynchronously
-       */
-      detach() {
-        complete {
+  private def getRoute =
+    get {
+      path("status") {
+        /**
+         * Complete the request asynchronously
+         */
+        detach() {
           /**
            * Request the state of the active master
            */
@@ -68,31 +68,18 @@ trait StatusService extends HerculesService {
                 "/user/master/active",
                 RequestMasterState())
             )
+
           /**
            * Take the response from master and map it to a StatusCode
            */
-          val response = request.map {
-            case MasterState(messagesNotYetProcessed, messagesInProcessing, failedMessages) => {
-              // @TODO Let some json marshaller handle the response instead
-              val status =
-                "messagesNotYetProcessed: {" +
-                  messagesNotYetProcessed.mkString(",") +
-                  "}, messagesInProcessing: {" +
-                  messagesInProcessing.mkString(",") +
-                  "} ,failedMessages: {" +
-                  failedMessages.mkString("}")
-              OK
-            }
-            /**
-             * Handle exceptions that may be thrown
-             */
-          }.recover {
-            case e: Exception =>
-              InternalServerError
+
+          import hercules.actors.masters.state.MasterStateJsonProtocol._
+
+          onSuccess(request) {
+            case state: MasterState => complete(state)
+            case e: Exception       => complete(InternalServerError)
           }
-          response
         }
       }
     }
-  }
 }

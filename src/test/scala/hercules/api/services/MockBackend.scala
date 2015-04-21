@@ -5,7 +5,8 @@ import akka.contrib.pattern.ClusterClient.SendToAll
 import akka.testkit.{ TestActor, TestProbe }
 import akka.util.Timeout
 
-import hercules.actors.masters.{ MasterState, MasterStateProtocol }
+import hercules.actors.masters.MasterStateProtocol
+import hercules.actors.masters.state.MasterState
 import hercules.entities.ProcessingUnit
 import hercules.protocols.HerculesMainProtocol._
 

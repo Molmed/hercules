@@ -1,9 +1,12 @@
-package hercules.actors.masters
+package hercules.actors.masters.state
 
-import hercules.protocols.HerculesMainProtocol._
-import hercules.entities.ProcessingUnit
 import hercules.actors.masters.MasterStateProtocol._
+import hercules.protocols.HerculesMainProtocol.{ ProcessingMessage, ProcessingUnitMessage, ProcessingUnitNameMessage }
+import spray.json.{ JsValue, JsObject, JsArray, DefaultJsonProtocol }
 
+/**
+ * Created by johda411 on 2015-04-21.
+ */
 case class MasterState(
     val messagesNotYetProcessed: Set[ProcessingMessage] = Set(),
     val messagesInProcessing: Set[ProcessingMessage] = Set(),
@@ -72,8 +75,14 @@ case class MasterState(
     )
   }
 
-  //@TODO It whould be awesome to attach a to Json method here to make it
-  // easy to drop this to json from the REST API later. /JD 20140929
-  def toJson = ???
+  def toJson: JsValue = {
+    def mapToJson(set: Set[ProcessingMessage]): JsArray =
+      JsArray(set.map(_.toJson).toVector)
+
+    JsObject(
+      "messagesNotYetProcessed" -> mapToJson(messagesNotYetProcessed),
+      "messagesInProcessing" -> mapToJson(messagesInProcessing),
+      "failedMessages" -> mapToJson(failedMessages))
+  }
 
 }
