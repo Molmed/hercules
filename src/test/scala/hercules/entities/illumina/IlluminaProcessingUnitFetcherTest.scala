@@ -324,7 +324,7 @@ class IlluminaProcessingUnitFetcherTest extends FlatSpec with Matchers with Befo
             new File("test_samplesheets/140806_D00457_0045_AC47TFACXX_samplesheet.csv"),
             new File("default_qc_config"),
             Some(new File("default_program_config"))),
-          new File("/home/MOLMED/johda411/workspace/hercules/test_runfolders/140806_D00457_0045_AC47TFACXX/").toURI))
+          new File("test_runfolders/140806_D00457_0045_AC47TFACXX/").toURI))
 
     assert(result === expected)
 
