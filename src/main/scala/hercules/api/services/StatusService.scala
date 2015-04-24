@@ -63,7 +63,6 @@ trait StatusService extends HerculesService {
          */
         detach() {
 
-          val timeout = Timeout(3.seconds)
           /**
            * Request the state of the active master
            */
@@ -72,7 +71,7 @@ trait StatusService extends HerculesService {
               SendToAll(
                 "/user/master/active",
                 RequestMasterState())
-            )(timeout)
+            )
 
           /**
            * Take the response from master and map it to a StatusCode
