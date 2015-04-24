@@ -1,8 +1,7 @@
 package hercules.utils
 
 import java.io.File
-import java.net.URI
-import java.net.InetAddress
+import java.net.{InetAddress, URI}
 
 /**
  * Provide useful conversion

@@ -1,7 +1,7 @@
 package hercules.protocols
 
-import hercules.entities.notification.NotificationUnit
 import hercules.entities.ProcessingUnit
+import hercules.entities.notification.NotificationUnit
 import spray.json._
 
 /**

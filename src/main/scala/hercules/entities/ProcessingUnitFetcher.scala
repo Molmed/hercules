@@ -1,6 +1,5 @@
 package hercules.entities
 
-import hercules.config.processingunit.ProcessingUnitConfig
 import hercules.config.processingunit.ProcessingUnitFetcherConfig
 
 /**

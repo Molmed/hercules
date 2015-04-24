@@ -1,7 +1,7 @@
 package hercules.api
 
-import spray.routing.RouteConcatenation
 import hercules.actors.api.RoutedHttpService
+import spray.routing.RouteConcatenation
 
 /**
  * The REST API layer. It exposes the REST services, but does not provide any

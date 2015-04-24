@@ -1,10 +1,8 @@
 package hercules.api
 
 import akka.io.IO
-import spray.can.Http
 import akka.pattern.ask
-import akka.util.Timeout
-import scala.concurrent.duration.Duration
+import spray.can.Http
 
 /**
  * Provides the web server (spray-can) for the REST api in ``Api``, using the actor system

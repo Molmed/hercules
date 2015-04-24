@@ -1,16 +1,14 @@
 package hercules
 
+import com.typesafe.config.ConfigFactory
+import hercules.HerculesStartRoles._
 import hercules.actors.demultiplexing.IlluminaDemultiplexingActor
 import hercules.actors.masters.SisyphusMasterActor
 import hercules.actors.processingunitwatcher.IlluminaProcessingUnitWatcherActor
 import hercules.api.RestAPI
-import com.typesafe.config.Config
-import com.typesafe.config.ConfigFactory
-import akka.dispatch.Foreach
-import scala.collection.JavaConversions._
-import akka.event.Logging
 import org.slf4j.LoggerFactory
-import hercules.HerculesStartRoles._
+
+import scala.collection.JavaConversions._
 
 /**
  * Providing everything that Hercules needs to start up. Not keeping it in the
