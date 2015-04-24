@@ -76,8 +76,7 @@ class MockBackend(
                   if (state.findStateOfUnit(Some(id)).messagesInProcessing.isEmpty) Acknowledge
                   else Reject(Some(s"Processing Unit $id is being processed"))
               }
-
-            println(s"doNotAnswer: $doNotAnswer")
+            
             if (!doNotAnswer) {
               sender ! response
             }
