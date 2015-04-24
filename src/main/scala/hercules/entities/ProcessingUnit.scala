@@ -2,7 +2,7 @@ package hercules.entities
 
 import java.net.URI
 
-import spray.json.{JsBoolean, JsObject, JsString, JsValue}
+import spray.json.{ JsBoolean, JsObject, JsString, JsValue }
 
 /**
  * A atomic unit to be processed by Hercules. E.g. a Illumina runfolder.
