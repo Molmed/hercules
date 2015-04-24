@@ -1,5 +1,7 @@
 package hercules.actors.masters
 
+import hercules.actors.masters.state.MasterState
+
 import scala.concurrent.duration.DurationInt
 import com.typesafe.config.ConfigFactory
 import akka.actor.ActorRef

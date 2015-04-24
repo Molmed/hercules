@@ -36,6 +36,25 @@ class IlluminaProcessingUnitFetcher() extends ProcessingUnitFetcher {
   type ProcessingUnitType = IlluminaProcessingUnit
 
   /**
+   * Checks is a runfolder is ready for processing based on the
+   * path to the runfolder.
+   * @param runfolder path to the runfolder
+   * @return true if the runfolder should be processed.
+   */
+  def isReadyForProcessing(runfolder: File): Boolean = {
+
+    val filesInRunFolder = runfolder.listFiles()
+
+    val hasIndicatorFile =
+      filesInRunFolder.exists(x => x.getName() == IlluminaProcessingUnit.nameOfIndicatorFile)
+
+    val hasRTAComplete =
+      filesInRunFolder.exists(x => x.getName() == "RTAComplete.txt")
+
+    !hasIndicatorFile && hasRTAComplete
+  }
+
+  /**
    * Indicate if the unit is ready to be processed.
    * Normally this involves checking files on the file system or reading it's
    * status from a database.
@@ -44,17 +63,8 @@ class IlluminaProcessingUnitFetcher() extends ProcessingUnitFetcher {
    * @return if the processing unit is ready to be processed or not.
    */
   def isReadyForProcessing(unit: IlluminaProcessingUnit): Boolean = {
-
     val runfolderPath = new File(unit.uri)
-
-    val filesInRunFolder = runfolderPath.listFiles()
-
-    val hasNoFoundFile = !unit.isFound
-
-    val hasRTAComplete =
-      filesInRunFolder.exists(x => x.getName() == "RTAComplete.txt")
-
-    hasNoFoundFile && hasRTAComplete
+    isReadyForProcessing(runfolderPath)
   }
 
   /**
@@ -88,7 +98,6 @@ class IlluminaProcessingUnitFetcher() extends ProcessingUnitFetcher {
 
     for {
       unit <- getProcessingUnits(config)
-      if isReadyForProcessing(unit)
     } yield {
       unit.markAsFound
       unit
@@ -293,18 +302,19 @@ class IlluminaProcessingUnitFetcher() extends ProcessingUnitFetcher {
       val unitConfig =
         new IlluminaProcessingUnitConfig(samplesheet, qcConfig, Some(programConfig))
 
-      //@TODO Some nicer solution for picking up if it's a HiSeq or MiSeq
       getMachineTypeFromRunParametersXML(runfolder) match {
         case "MiSeq Control Software" => Some(new MiSeqProcessingUnit(unitConfig, runfolder.toURI(),
           getManifestFilesFromRunParametersXML(runfolder).size > 0))
-        case "HiSeq Control Software" => Some(new HiSeqProcessingUnit(unitConfig, runfolder.toURI()))
-        case s: String                => throw new Exception(s"Unrecognized type string:  $s")
+        case "HiSeq Control Software"   => Some(new HiSeqProcessingUnit(unitConfig, runfolder.toURI()))
+        case "HiSeq X Control Software" => Some(new HiSeqProcessingUnit(unitConfig, runfolder.toURI()))
+        case s: String                  => throw new Exception(s"Unrecognized type string:  $s")
       }
 
     }
 
     for {
       runfolder <- searchForRunfolders()
+      if isReadyForProcessing(runfolder)
       samplesheet <- searchForSamplesheet(runfolder)
       qcConfig <- getQCConfig(runfolder)
       programConfig <- getProgramConfig(runfolder)

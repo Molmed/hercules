@@ -5,7 +5,7 @@ import java.net.URI
 import hercules.config.processingunit.IlluminaProcessingUnitConfig
 
 /**
- * Represent a HiSeq runfolder
+ * Represent a HiSeq or HiSeq X runfolder
  * @param processingUnitConfig
  * @param uri pointing to the runfolder
  */

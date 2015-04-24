@@ -1,7 +1,7 @@
 package hercules.actors.masters
 
-import akka.actor.ActorContext
 import hercules.actors.HerculesActor
+import hercules.actors.masters.state.MasterState
 
 /**
  * Hercules master actors should define a workflow to be run, e.g.

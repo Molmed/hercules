@@ -173,7 +173,7 @@ class IlluminaProcessingUnitFetcherTest extends FlatSpec with Matchers with Befo
     val firstCreateTwoRunfolders: Seq[IlluminaProcessingUnit] = generateExpectedRunfolders(runfolders, 2)
 
     val pathToFoundFolder = new File(firstCreateTwoRunfolders(1).uri)
-    val foundFile = new File(pathToFoundFolder + "/found")
+    val foundFile = new File(pathToFoundFolder + "/" + IlluminaProcessingUnit.nameOfIndicatorFile)
     foundFile.createNewFile()
 
     val expected = firstCreateTwoRunfolders(0)
@@ -191,7 +191,7 @@ class IlluminaProcessingUnitFetcherTest extends FlatSpec with Matchers with Befo
 
     // Add a found file to the second runfolder
     // which means that only the first runfolder should be found
-    new File(runfolders(1) + "/found").createNewFile()
+    new File(runfolders(1) + "/" + IlluminaProcessingUnit.nameOfIndicatorFile).createNewFile()
 
     val fetcher = new IlluminaProcessingUnitFetcher()
     val actual = fetcher.checkForReadyProcessingUnits(fetcherConfig)
@@ -295,6 +295,39 @@ class IlluminaProcessingUnitFetcherTest extends FlatSpec with Matchers with Befo
       val fetcher = new IlluminaProcessingUnitFetcher()
       val actual = fetcher.checkForReadyProcessingUnits(fetcherConfig)
     }
+  }
+
+  it should "be able to check if a runfolder is ready or not" in {
+    val createdRunfolder: Seq[IlluminaProcessingUnit] = generateExpectedRunfolders(runfolders, 2)
+    val fetcher = new IlluminaProcessingUnitFetcher()
+
+    // The first one is ready
+    assert(fetcher.isReadyForProcessing(createdRunfolder(0)))
+
+    // Mark second one as found, and therefore is not ready
+    new File(runfolders(1) + "/" + IlluminaProcessingUnit.nameOfIndicatorFile).createNewFile()
+    assert(!fetcher.isReadyForProcessing(createdRunfolder(1)))
+
+  }
+
+  it should "be able to search for runfolders by name" in {
+
+    val createdRunfolder: Seq[IlluminaProcessingUnit] = generateExpectedRunfolders(runfolders, 1)
+    val fetcher = new IlluminaProcessingUnitFetcher()
+
+    val result = fetcher.searchForProcessingUnitName("140806_D00457_0045_AC47TFACXX", fetcherConfig)
+
+    val expected =
+      Some(
+        HiSeqProcessingUnit(
+          IlluminaProcessingUnitConfig(
+            new File("test_samplesheets/140806_D00457_0045_AC47TFACXX_samplesheet.csv"),
+            new File("default_qc_config"),
+            Some(new File("default_program_config"))),
+          new File("test_runfolders/140806_D00457_0045_AC47TFACXX/").toURI))
+
+    assert(result === expected)
+
   }
 
 }

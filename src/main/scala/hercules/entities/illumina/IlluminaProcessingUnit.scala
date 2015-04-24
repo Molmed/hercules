@@ -6,6 +6,11 @@ import java.net.URI
 import hercules.config.processingunit.IlluminaProcessingUnitConfig
 import hercules.entities.ProcessingUnit
 import hercules.utils.VersionUtils
+import spray.json.JsValue
+
+object IlluminaProcessingUnit {
+  val nameOfIndicatorFile = "found"
+}
 
 /**
  * Provides a base for representing a Illumina runfolder.
@@ -16,6 +21,15 @@ trait IlluminaProcessingUnit extends ProcessingUnit {
   val uri: URI
 
   /**
+   * Values to be mapped to json representation.
+   * Override in implementing class to add more information.
+   * @return the key value pairs representing the object in json
+   */
+  override protected def mappedValues: Map[String, JsValue] = {
+    super.mappedValues.updated("config", processingUnitConfig.toJson)
+  }
+
+  /**
    * Get the name from the runfolder directory name
    */
   def name: String = new File(uri.getPath).getName
@@ -24,7 +38,7 @@ trait IlluminaProcessingUnit extends ProcessingUnit {
    * The indicator file dropped when the processing unit is marked as found.
    */
   private def indicatorFile: File =
-    new File(uri.getPath + File.separator + "found")
+    new File(uri.getPath + File.separator + IlluminaProcessingUnit.nameOfIndicatorFile)
 
   /**
    * Is found is true if the indicator file exists.

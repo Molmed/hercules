@@ -1,7 +1,6 @@
 package hercules.actors
 
-import akka.actor.Actor
-import akka.actor.ActorLogging
+import akka.actor.{ Actor, ActorLogging }
 import hercules.actors.notifiers.NotifierManager
 import hercules.utils.VersionUtils
 

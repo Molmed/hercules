@@ -58,7 +58,7 @@ object NotifierManager {
 class NotifierManager(system: ActorSystem) {
 
   // TODO Make this configurable and start via reflections /JD 20150318
-  val actors = Seq(EmailNotifierActor(system), SlackNotifierActor(system))
+  val actors = Seq(EmailNotifierActor(system))
 
   /**
    * Send messages on the info channel

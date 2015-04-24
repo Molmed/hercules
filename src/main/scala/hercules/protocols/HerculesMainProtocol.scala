@@ -2,7 +2,7 @@ package hercules.protocols
 
 import hercules.entities.ProcessingUnit
 import hercules.entities.notification.NotificationUnit
-import hercules.entities.ProcessingUnit
+import spray.json._
 
 /**
  * Import this object to gain access to the messaging protocol of
@@ -20,19 +20,40 @@ object HerculesMainProtocol {
    * This trait is the base for all messages in the Hercules application
    * All messages to be parsed need to extend this!
    */
-  sealed trait HerculesMessage
+  sealed trait HerculesMessage {
+    protected val name: String = getClass.getSimpleName
+
+    /**
+     * The values of the object to be mapped to json
+     * Override to add more information about an object
+     * The minimum information added is the type of the message.
+     * @return
+     */
+    protected def mappedValues: Map[String, JsValue] = Map("type" -> (JsString(name)))
+
+    /**
+     * Provides the json representation of a message.
+     * Will as a minimum contain the type of the message.
+     * @return
+     */
+    def toJson: JsValue = JsObject(mappedValues)
+  }
 
   /**
    * Use this to acknowledge e.g. that some work was accepted
    */
-  case class Acknowledge extends HerculesMessage
+  case class Acknowledge() extends HerculesMessage {}
 
   /**
    * Use this to Reject a something, like a work load. Optionally include a
    * reason.
    * @param reason what something was rejected.
    */
-  case class Reject(reason: Option[String] = None) extends HerculesMessage
+  case class Reject(reason: Option[String] = None) extends HerculesMessage {
+    override def mappedValues =
+      super.mappedValues.updated(
+        "reason", JsString(reason.getOrElse("Unknown reason")))
+  }
 
   /**
    * TODO: This should probably realy be moved out into a MasterProtocol,
@@ -42,7 +63,11 @@ object HerculesMainProtocol {
    * the full state should be returned. This can be used for example the details
    * @param unitName the name of the processing unit to look for
    */
-  case class RequestMasterState(unitName: Option[String] = None) extends HerculesMessage
+  case class RequestMasterState(unitName: Option[String] = None) extends HerculesMessage {
+    override def mappedValues =
+      super.mappedValues.updated(
+        "unitName", JsString(unitName.getOrElse("Unknown unit")))
+  }
 
   //--------------------------------------------------------------
   // MESSAGES ABOUT FINDING AND FORGETTING PROCESSING UNITS
@@ -60,6 +85,10 @@ object HerculesMainProtocol {
    */
   trait ProcessingUnitMessage extends ProcessingMessage {
     val unit: ProcessingUnit
+
+    override def mappedValues =
+      super.mappedValues.updated(
+        "unit", unit.toJson)
   }
   /**
    * Used for when the you don't have a ProcessingUnit, but just a name,
@@ -67,6 +96,10 @@ object HerculesMainProtocol {
    */
   trait ProcessingUnitNameMessage extends ProcessingMessage {
     val unitName: String
+
+    override def mappedValues =
+      super.mappedValues.updated(
+        "unitname", JsString(unitName))
   }
 
   /**
@@ -128,7 +161,11 @@ object HerculesMainProtocol {
    * @param unit processing unit
    * @param reason why it failed.
    */
-  case class FailedDemultiplexingProcessingUnitMessage(unit: ProcessingUnit, reason: String) extends DemultiplexingMessage with ProcessingUnitMessage
+  case class FailedDemultiplexingProcessingUnitMessage(unit: ProcessingUnit, reason: String) extends DemultiplexingMessage with ProcessingUnitMessage {
+    override def mappedValues =
+      super.mappedValues.updated(
+        "reason", JsString(reason))
+  }
 
   /**
    * Send to indicate the demultiplexing of a processing unit should be restarted.

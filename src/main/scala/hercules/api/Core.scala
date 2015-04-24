@@ -2,6 +2,7 @@ package hercules.api
 
 import akka.actor.ActorSystem
 import akka.util.Timeout
+import com.typesafe.config.ConfigFactory
 
 import scala.concurrent.duration.Duration
 
@@ -25,7 +26,7 @@ trait BootedCore extends Core {
   /**
    * Construct the ActorSystem we will use in our application
    */
-  implicit lazy val system = ActorSystem("hercules-rest-api")
+  implicit lazy val system = ActorSystem("hercules-rest-api", ConfigFactory.load())
   /**
    * Define the timeout value used throughout the API
    */
