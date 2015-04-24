@@ -5,7 +5,9 @@ import akka.contrib.pattern.ClusterClient.SendToAll
 import akka.testkit.{ TestKit, TestProbe }
 import akka.util.Timeout
 import hercules.actors.masters.MasterStateProtocol
+import hercules.actors.masters.state.MasterState
 import hercules.protocols.HerculesMainProtocol._
+import hercules.test.utils.ProcessingUnitPlaceholder
 import org.scalatest.{ BeforeAndAfterAll, FlatSpecLike, Matchers }
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext
@@ -22,10 +24,22 @@ class DemultiplexingServiceTest
 
   import MasterStateProtocol._
 
+  val testUnitId = "testUnitInProcessing"
+  val testFailedUnitId = "testId"
+
+  val messagesNotYetProcessed = Set()
+  val messagesInProcessing = Set(testUnitId)
+  val failedMessages = Set(testFailedUnitId)
+
+  val masterState = MasterState(
+    messagesNotYetProcessed.map { (id: String) => FoundProcessingUnitMessage(ProcessingUnitPlaceholder(id)) },
+    messagesInProcessing.map { (id: String) => StartDemultiplexingProcessingUnitMessage(ProcessingUnitPlaceholder(id)) },
+    failedMessages.map { (id: String) => FailedDemultiplexingProcessingUnitMessage(ProcessingUnitPlaceholder(id), "Testing failure") }
+  )
+
   val probe = MockBackend(
     system = this.system,
-    failedMessages = Set("testId"),
-    messagesInProcessing = Set("testUnitInProcessing"))
+    masterState = masterState)
 
   val timeout = Timeout(5.seconds)
   val service = new DemultiplexingService {
@@ -40,7 +54,7 @@ class DemultiplexingServiceTest
   }
 
   "A DELETE request to /demultiplex/[id]/forget" should " return an Accepted status code" in {
-    Delete("/demultiplex/testId/forget") ~> service.route ~> check {
+    Delete(s"/demultiplex/$testUnitId/forget") ~> service.route ~> check {
       status should be(OK)
     }
   }
@@ -48,7 +62,7 @@ class DemultiplexingServiceTest
     probe.expectMsg(3.seconds,
       SendToAll(
         "/user/master/active",
-        ForgetDemultiplexingProcessingUnitMessage("testId")))
+        ForgetDemultiplexingProcessingUnitMessage(testFailedUnitId)))
 
   }
   it should "return a Bad Request status code if asked to forget a Processing Unit already being processed" in {
@@ -92,7 +106,7 @@ class DemultiplexingServiceTest
         RemoveFromFailedMessages(
           Some(
             FailedDemultiplexingProcessingUnitMessage(
-              MockBackend.ProcessingUnitPlaceholder("testId"),
+              ProcessingUnitPlaceholder("testId"),
               "Testing failure")))))
   }
 
