@@ -58,7 +58,7 @@ class StatusServiceTest
 
     // Ensure that this timeout is longer than the one used by
     // the actual service.
-    implicit val routeTestTimeout = RouteTestTimeout(5.second)
+    implicit val routeTestTimeout = RouteTestTimeout(7.second)
 
     val exceptionProbe = MockBackend(
       system = this.system,
