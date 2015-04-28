@@ -67,13 +67,11 @@ class MockBackend(
                 }
 
                 case ForgetDemultiplexingProcessingUnitMessage(id) => {
-
-                  val stateOfUnit = state.findStateOfUnit(Some(id))
-                  // Find state to change
-                  state = state.copy(messagesInProcessing = state.messagesInProcessing.filterNot(stateOfUnit.messagesInProcessing))
-
-                  if (state.findStateOfUnit(Some(id)).messagesInProcessing.isEmpty) Acknowledge
-                  else Reject(Some(s"Processing Unit $id is being processed"))
+                  // TODO This is a ugly hack of which I'm ashamed. /JD 20150428
+                  if (id != "testUnitInProcessing")
+                    Acknowledge
+                  else
+                    Reject(Some("Will always reject: testUnitInProcessing"))
                 }
 
               }

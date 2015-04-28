@@ -204,6 +204,7 @@ class SisyphusMasterActor(config: MasterActorConfig) extends PersistentActor wit
 
         // Check if the unit is being processed and, if so, Reject the request
         val unitState = state.findStateOfUnit(Some(id))
+
         if (SisyphusMasterActor.findMessagesOfType[StartDemultiplexingProcessingUnitMessage](
           unitState.messagesInProcessing
         ).nonEmpty) {
