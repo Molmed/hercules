@@ -5,7 +5,9 @@ import akka.contrib.pattern.ClusterClient.SendToAll
 import akka.testkit.{ TestKit, TestProbe }
 import akka.util.Timeout
 import hercules.actors.masters.MasterStateProtocol
+import hercules.actors.masters.state.MasterState
 import hercules.protocols.HerculesMainProtocol._
+import hercules.test.utils.ProcessingUnitPlaceholder
 import org.scalatest.{ BeforeAndAfterAll, FlatSpecLike, Matchers }
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext
@@ -22,10 +24,24 @@ class DemultiplexingServiceTest
 
   import MasterStateProtocol._
 
+  val unprocessedUnit = "unprocessedUnit"
+  val inProcessingUnitId = "testUnitInProcessing"
+  val testFailedUnitId = "testId"
+  val secondFailedUnit = "testId2"
+
+  val messagesNotYetProcessed = Set(unprocessedUnit)
+  val messagesInProcessing = Set(inProcessingUnitId)
+  val failedMessages = Set(testFailedUnitId, secondFailedUnit)
+
+  val masterState = MasterState(
+    messagesNotYetProcessed.map { (id: String) => FoundProcessingUnitMessage(ProcessingUnitPlaceholder(id)) },
+    messagesInProcessing.map { (id: String) => StartDemultiplexingProcessingUnitMessage(ProcessingUnitPlaceholder(id)) },
+    failedMessages.map { (id: String) => FailedDemultiplexingProcessingUnitMessage(ProcessingUnitPlaceholder(id), "Testing failure") }
+  )
+
   val probe = MockBackend(
     system = this.system,
-    failedMessages = Set("testId"),
-    messagesInProcessing = Set("testUnitInProcessing"))
+    masterState = masterState)
 
   val timeout = Timeout(5.seconds)
   val service = new DemultiplexingService {
@@ -40,45 +56,49 @@ class DemultiplexingServiceTest
   }
 
   "A DELETE request to /demultiplex/[id]/forget" should " return an Accepted status code" in {
-    Delete("/demultiplex/testId/forget") ~> service.route ~> check {
+    Delete(s"/demultiplex/$unprocessedUnit/forget") ~> service.route ~> check {
       status should be(OK)
     }
   }
+
   it should "trigger a ForgetDemultiplexingProcessingUnitMessage to master" in {
     probe.expectMsg(3.seconds,
       SendToAll(
         "/user/master/active",
-        ForgetDemultiplexingProcessingUnitMessage("testId")))
-
+        ForgetDemultiplexingProcessingUnitMessage(unprocessedUnit)))
   }
+
+  // NOTE: The next two tests are dependent on a ugly hack in the mock backend which rejects
+  // messages with id testUnitInProcessing
   it should "return a Bad Request status code if asked to forget a Processing Unit already being processed" in {
-    Delete("/demultiplex/testUnitInProcessing/forget") ~> service.route ~> check {
+    Delete(s"/demultiplex/$inProcessingUnitId/forget") ~> service.route ~> check {
       status should be(BadRequest)
     }
   }
+
   it should "trigger another ForgetDemultiplexingProcessingUnitMessage to master" in {
     probe.expectMsg(3.seconds,
       SendToAll(
         "/user/master/active",
         ForgetDemultiplexingProcessingUnitMessage("testUnitInProcessing")))
-
   }
 
-  /*  
-  "A PUT requests to /demultiplex/[id]/stop" should "return a NotImplemented status code" in {
-    Put("/demultiplex/testId/stop") ~> service.route ~> check {
-      status should be(NotImplemented)
+  /*
+    "A PUT requests to /demultiplex/[id]/stop" should "return a NotImplemented status code" in {
+      Put("/demultiplex/testId/stop") ~> service.route ~> check {
+        status should be(NotImplemented)
+      }
     }
-  }
-  it should "trigger a StopDemultiplexingProcessingUnitMessage to master" in {
-    probe.expectMsg(3.seconds,
-      SendToAll(
-        "/user/master/active",
-        StopDemultiplexingProcessingUnitMessage("testId")))
-  }
-*/
+    it should "trigger a StopDemultiplexingProcessingUnitMessage to master" in {
+      probe.expectMsg(3.seconds,
+        SendToAll(
+          "/user/master/active",
+          StopDemultiplexingProcessingUnitMessage("testId")))
+    }
+  */
+
   "A DELETE request to /demultiplex/[id]/remove on an existing unit" should "return a OK status code" in {
-    Delete("/demultiplex/testId/remove") ~> service.route ~> check {
+    Delete(s"/demultiplex/$testFailedUnitId/remove") ~> service.route ~> check {
       status should be(OK)
     }
   }
@@ -92,7 +112,7 @@ class DemultiplexingServiceTest
         RemoveFromFailedMessages(
           Some(
             FailedDemultiplexingProcessingUnitMessage(
-              MockBackend.ProcessingUnitPlaceholder("testId"),
+              ProcessingUnitPlaceholder(testFailedUnitId),
               "Testing failure")))))
   }
 
@@ -110,7 +130,7 @@ class DemultiplexingServiceTest
   }
 
   "A PUT requests to /demultiplex/[id]/restart on an existing unit" should "return an ACCEPTED status code" in {
-    Put("/demultiplex/testId/restart") ~> service.route ~> check {
+    Put(s"/demultiplex/$secondFailedUnit/restart") ~> service.route ~> check {
       status should be(Accepted)
     }
   }
@@ -118,7 +138,7 @@ class DemultiplexingServiceTest
     probe.expectMsg(3.seconds,
       SendToAll(
         "/user/master/active",
-        RestartDemultiplexingProcessingUnitMessage("testId")))
+        RestartDemultiplexingProcessingUnitMessage(secondFailedUnit)))
   }
 
   "A PUT requests to /demultiplex/[id]/restart on a non-existing unit" should "return an NotFound status code" in {

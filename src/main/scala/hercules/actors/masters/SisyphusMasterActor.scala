@@ -200,8 +200,11 @@ class SisyphusMasterActor(config: MasterActorConfig) extends PersistentActor wit
       // mechanism. In case the processing is already underway, nothing will be done.
       case ForgetDemultiplexingProcessingUnitMessage(id) => {
 
+        //TODO This code is needlessly complex. Fix that! /JD 20150424
+
         // Check if the unit is being processed and, if so, Reject the request
         val unitState = state.findStateOfUnit(Some(id))
+
         if (SisyphusMasterActor.findMessagesOfType[StartDemultiplexingProcessingUnitMessage](
           unitState.messagesInProcessing
         ).nonEmpty) {

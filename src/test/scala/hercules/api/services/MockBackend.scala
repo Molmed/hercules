@@ -13,33 +13,26 @@ import hercules.protocols.HerculesMainProtocol._
 import java.io.File
 import java.net.URI
 
+import hercules.test.utils.ProcessingUnitPlaceholder
+
 import scala.concurrent.ExecutionContext
 
 object MockBackend {
   def apply(
     system: ActorSystem,
-    messagesNotYetProcessed: Set[String] = Set(),
-    messagesInProcessing: Set[String] = Set(),
-    failedMessages: Set[String] = Set(),
+    masterState: MasterState,
     doNotAnswer: Boolean = false): TestProbe =
+
     new MockBackend(
       system,
-      MasterState(
-        messagesNotYetProcessed.map { (id: String) => FoundProcessingUnitMessage(ProcessingUnitPlaceholder(id)) },
-        messagesInProcessing.map { (id: String) => StartDemultiplexingProcessingUnitMessage(ProcessingUnitPlaceholder(id)) },
-        failedMessages.map { (id: String) => FailedDemultiplexingProcessingUnitMessage(ProcessingUnitPlaceholder(id), "Testing failure") }
-      ),
+      masterState,
       doNotAnswer)
 
-  case class ProcessingUnitPlaceholder(val name: String) extends ProcessingUnit {
-    val uri = new File(name).toURI
-    val isFound: Boolean = true
-  }
 }
 
 class MockBackend(
     _application: ActorSystem,
-    val state: MasterState,
+    var state: MasterState,
     doNotAnswer: Boolean = false) extends TestProbe(_application: ActorSystem) {
 
   import MasterStateProtocol._
@@ -69,22 +62,36 @@ class MockBackend(
                     state
                 }
 
-                case m: RemoveFromFailedMessages =>
-                  state.manipulateState(m)
+                case m: RemoveFromFailedMessages => {
+                  state = state.manipulateState(m)
+                }
 
-                case ForgetDemultiplexingProcessingUnitMessage(id) =>
-                  if (state.findStateOfUnit(Some(id)).messagesInProcessing.isEmpty) Acknowledge
-                  else Reject(Some(s"Processing Unit $id is being processed"))
+                case ForgetDemultiplexingProcessingUnitMessage(id) => {
+                  // TODO This is a ugly hack of which I'm ashamed. /JD 20150428
+                  if (id != "testUnitInProcessing")
+                    Acknowledge
+                  else
+                    Reject(Some("Will always reject: testUnitInProcessing"))
+                }
+
               }
-            
+
             if (!doNotAnswer) {
               sender ! response
             }
 
             TestActor.KeepRunning
           }
-          case _ =>
+
+          case m: RemoveFromFailedMessages => {
+            state = state.manipulateState(m)
+            TestActor.KeepRunning
+          }
+
+          case _ => {
+            println("We are on no autopilot case!")
             TestActor.NoAutoPilot
+          }
 
         }
       }
