@@ -330,4 +330,25 @@ class IlluminaProcessingUnitFetcherTest extends FlatSpec with Matchers with Befo
 
   }
 
+  it should "be able to search for runfolders by name (and find them even if they are marked as found)" in {
+
+    val createdRunfolder: Seq[IlluminaProcessingUnit] = generateExpectedRunfolders(runfolders, 1)
+    createdRunfolder.map(_.markAsFound)
+    val fetcher = new IlluminaProcessingUnitFetcher()
+
+    val result = fetcher.searchForProcessingUnitName("140806_D00457_0045_AC47TFACXX", fetcherConfig)
+
+    val expected =
+      Some(
+        HiSeqProcessingUnit(
+          IlluminaProcessingUnitConfig(
+            new File("test_samplesheets/140806_D00457_0045_AC47TFACXX_samplesheet.csv"),
+            new File("default_qc_config"),
+            Some(new File("default_program_config"))),
+          new File("test_runfolders/140806_D00457_0045_AC47TFACXX/").toURI))
+
+    assert(result === expected)
+
+  }
+
 }
