@@ -24,11 +24,12 @@ trait CoreActors extends MasterLookup {
       implicit val clusterClient = cluster
       implicit val to = timeout
     },
-    new DemultiplexingService {
-      def actorRefFactory = system
-      implicit val clusterClient = cluster
-      implicit val to = timeout
-    },
+    // TODO Temporarily disabled. /JD 20150507
+    //    new DemultiplexingService {
+    //      def actorRefFactory = system
+    //      implicit val clusterClient = cluster
+    //      implicit val to = timeout
+    //    },
     new SwaggerService with HerculesService {
       def actorRefFactory = system
     })
