@@ -133,6 +133,55 @@ class IlluminaProcessingUnitFetcher() extends ProcessingUnitFetcher {
     }
 
     /**
+     * Will search the `rootFolder` for files matching first the
+     * runfolder name, and then the flowcell name associated with that
+     * runfolder.
+     * @param rootFolder to search in
+     * @param runfolder to use for matching
+     * @param fileSuffix the suffix of the file to search for, e.g. "_samplesheet.csv"
+     * @return
+     */
+    def findFileFromRunfolderOrFlowcell(rootFolder: File, runfolder: File, fileSuffix: String): Option[File] = {
+
+      val potentialFiles = rootFolder.listFiles()
+      val runfolderName = runfolder.getName()
+
+      def findFileFromFlowcellName(): Option[File] = {
+        val flowcellName = runfolder2flowcell(runfolder)
+        potentialFiles.
+          find(p => p.getName() == flowcellName + fileSuffix)
+      }
+
+      def findFileFromRunfolderName(): Option[File] = {
+        potentialFiles.
+          find(p => p.getName() == runfolderName + fileSuffix)
+      }
+
+      findFileFromRunfolderName().orElse(findFileFromFlowcellName())
+
+    }
+
+    /**
+     * Convert a runfolder to it's flowcell name, based on
+     * the directory name of the runfolder.
+     * @param runfolder
+     * @return the name of the flowcell of the runfolder.
+     */
+    def runfolder2flowcell(runfolder: File): String = {
+      // The runfolder contains the name of the flowcell,
+      // but for HiSeq and HiSeqX it also contains the position on the
+      // instrument, i.e. 'A' or 'B', this needs to be dropped.
+      val flowcellAndPossiblePosition = runfolder.getName().split("_")(3)
+
+      val flowcellName = getMachineTypeFromRunParametersXML(runfolder) match {
+        case Constants.MISEQ_CONTROL_SOFTWARE => flowcellAndPossiblePosition
+        case _                                => flowcellAndPossiblePosition.drop(1)
+      }
+
+      flowcellName
+    }
+
+    /**
      * Search for a samplesheet matching the found runfolder.
      */
     def searchForSamplesheet(runfolder: File): Option[File] = {
@@ -141,20 +190,8 @@ class IlluminaProcessingUnitFetcher() extends ProcessingUnitFetcher {
         config.sampleSheetRoot.exists(),
         s"${config.sampleSheetRoot} does not exist! Create it or provide a valid value in application.conf")
 
-      val runfolderName = runfolder.getName()
-
-      // The runfolder contains the name of the flowcell,
-      // but for HiSeq and HiSeqX it also contains the position on the
-      // instrument, i.e. 'A' or 'B', this needs to be dropped.
-      val flowcellAndPossiblePosition = runfolderName.split("_")(3)
-
-      val flowcellName = getMachineTypeFromRunParametersXML(runfolder) match {
-        case Constants.MISEQ_CONTROL_SOFTWARE => flowcellAndPossiblePosition
-        case _                                => flowcellAndPossiblePosition.drop(1)
-      }
-
-      val samplesheet = config.sampleSheetRoot.listFiles().
-        find(p => p.getName() == flowcellName + "_samplesheet.csv")
+      val samplesheet: Option[File] =
+        findFileFromRunfolderOrFlowcell(config.sampleSheetRoot, runfolder, "_samplesheet.csv")
 
       if (samplesheet.isDefined)
         log.debug("Found matching samplesheet for: " + runfolder.getName())
@@ -182,10 +219,7 @@ class IlluminaProcessingUnitFetcher() extends ProcessingUnitFetcher {
       require(config.customQCConfigRoot.exists() && config.customQCConfigRoot.isDirectory(),
         config.customQCConfigRoot.getAbsolutePath() + " does not exist!")
 
-      val customFile =
-        config.customQCConfigRoot.listFiles().
-          find(qcFile =>
-            qcFile.getName().startsWith(runfolder.getName() + "_qc.xml"))
+      val customFile = findFileFromRunfolderOrFlowcell(config.customQCConfigRoot, runfolder, "_qc.xml")
 
       if (customFile.isDefined) {
         log.debug("Found custom qc config file for: " + runfolder.getName())
@@ -219,10 +253,7 @@ class IlluminaProcessingUnitFetcher() extends ProcessingUnitFetcher {
       require(config.customProgramConfigRoot.exists() && config.customProgramConfigRoot.isDirectory(),
         config.customProgramConfigRoot.getAbsolutePath() + " does not exist!")
 
-      val customFile =
-        config.customProgramConfigRoot.listFiles().
-          find(programFile =>
-            programFile.getName().startsWith(runfolder.getName() + "_sisyphus.yml"))
+      val customFile = findFileFromRunfolderOrFlowcell(config.customProgramConfigRoot, runfolder, "_sisyphus.yml")
 
       if (customFile.isDefined) {
         log.debug("Found custom program config file for: " + runfolder.getName())

@@ -360,4 +360,40 @@ class IlluminaProcessingUnitFetcherTest extends FlatSpec with Matchers with Befo
 
   }
 
+  it should "get files (samplesheet, program configs and qc configs) based on the runfolder names first, and if " +
+    "no runfolder is available, skip to using the flowcell name" in {
+
+      val runfolderNamedSampleSheet =
+        new File(sampleSheetRoot + "/140806_D00457_0045_AC47TFACXX_samplesheet.csv")
+      runfolderNamedSampleSheet.createNewFile()
+
+      val runfolderNamedProgramConfig = new File(customProgramConfigRoot + "/140806_D00457_0045_AC47TFACXX_sisyphus.yml")
+      runfolderNamedProgramConfig.createNewFile()
+
+      val runfolderNamedQCConfig = new File(customQCConfigRoot + "/140806_D00457_0045_AC47TFACXX_qc.xml")
+      runfolderNamedQCConfig.createNewFile()
+
+      val expected =
+        List(
+          HiSeqProcessingUnit(
+            IlluminaProcessingUnitConfig(
+              runfolderNamedSampleSheet,
+              runfolderNamedQCConfig,
+              Some(runfolderNamedProgramConfig)),
+            new File("test_runfolders/140806_D00457_0045_AC47TFACXX/").toURI),
+          HiSeqProcessingUnit(
+            IlluminaProcessingUnitConfig(
+              new File(sampleSheetRoot + "/C48R0ACXX_samplesheet.csv"),
+              new File("default_qc_config"),
+              Some(new File("default_program_config"))),
+            new File("test_runfolders/140806_D00457_0046_BC48R0ACXX/").toURI)
+        )
+
+      val fetcher = new IlluminaProcessingUnitFetcher()
+      val actual = fetcher.checkForReadyProcessingUnits(fetcherConfig)
+
+      assert(actual(0) === expected(0))
+
+    }
+
 }
