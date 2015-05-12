@@ -8,7 +8,7 @@ import akka.util.Timeout
 import com.wordnik.swagger.annotations._
 import hercules.actors.masters.state.MasterState
 
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ Future, Promise, ExecutionContext }
 
 import spray.http.StatusCodes.InternalServerError
 import hercules.protocols.HerculesMainProtocol.RequestMasterState
@@ -63,25 +63,26 @@ trait StatusService extends HerculesService {
          */
         detach() {
 
-          /**
-           * Request the state of the active master
-           */
-          val request =
-            clusterClient.ask(
-              SendToAll(
-                "/user/master/active",
-                RequestMasterState())
-            )
+          complete {
+            val masterState: Promise[MasterState] = Promise()
+            /**
+             * Request the state of the active master
+             */
+            val request =
+              clusterClient.ask(
+                SendToAll(
+                  "/user/master/active",
+                  RequestMasterState())
+              )
 
-          /**
-           * Take the response from master and map it to a StatusCode
-           */
+            /**
+             * Take the response from master and map it to a StatusCode
+             */
 
-          import hercules.actors.masters.state.MasterStateJsonProtocol._
+            import hercules.actors.masters.state.MasterStateJsonProtocol._
+            masterState.tryCompleteWith(request.mapTo[MasterState])
 
-          onComplete(request) {
-            case Success(state) => complete(state.asInstanceOf[MasterState])
-            case Failure(_)     => complete(InternalServerError)
+            masterState.future
           }
 
         }

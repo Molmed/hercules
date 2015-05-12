@@ -77,19 +77,13 @@ class IlluminaProcessingUnitFetcher() extends ProcessingUnitFetcher {
   def searchForProcessingUnitName(
     unitName: String,
     config: IlluminaProcessingUnitFetcherConfig): Option[IlluminaProcessingUnit] = {
-    getProcessingUnits(config).find { _.name == unitName }
+    getProcessingUnits(config, filter = _ => true).find { _.name == unitName }
   }
 
   /**
    * Checks runfolders (IlluminaProcessingUnits) which are ready to be processed
    * It will delagate and return the correct sub type (MiSeq, or HiSeq) processing unit.
-   * @param runfolderRoot
-   * @param sampleSheetRoot
-   * @param customQCConfigRoot
-   * @param defaultQCConfigFile
-   * @param customProgramConfigRoot
-   * @param defaultProgramConfigFile
-   * @param log
+   * @param config
    * @return A sequence of Illumina processingUnit which are ready to be
    * processed
    */
@@ -105,13 +99,16 @@ class IlluminaProcessingUnitFetcher() extends ProcessingUnitFetcher {
   }
 
   /**
-   *  Get all available ProcessingUnits, regardless if they are ready for processing
+   *  Get all available ProcessingUnits
    *
    *  @param config
+   *  @param filter to apply to the processing - will by default exclude any
+   *                runfolders already found.
    *  @return All IlluminaProcessingUnits
    */
   private def getProcessingUnits(
-    config: IlluminaProcessingUnitFetcherConfig): Seq[IlluminaProcessingUnit] = {
+    config: IlluminaProcessingUnitFetcherConfig,
+    filter: File => Boolean = isReadyForProcessing): Seq[IlluminaProcessingUnit] = {
 
     val log = config.log
 
@@ -314,7 +311,7 @@ class IlluminaProcessingUnitFetcher() extends ProcessingUnitFetcher {
 
     for {
       runfolder <- searchForRunfolders()
-      if isReadyForProcessing(runfolder)
+      if filter(runfolder)
       samplesheet <- searchForSamplesheet(runfolder)
       qcConfig <- getQCConfig(runfolder)
       programConfig <- getProgramConfig(runfolder)

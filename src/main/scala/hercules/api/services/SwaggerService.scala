@@ -15,8 +15,9 @@ trait SwaggerService extends SwaggerHttpService {
    */
   override def apiTypes =
     Seq(
-      typeOf[StatusService],
-      typeOf[DemultiplexingService]
+      typeOf[StatusService]
+    // Temporarily removed. /JD 20150507
+    //typeOf[DemultiplexingService]
     )
   override def apiVersion = "2.0"
   override def baseUrl = "http://localhost:8001"
