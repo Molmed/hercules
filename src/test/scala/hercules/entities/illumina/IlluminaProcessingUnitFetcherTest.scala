@@ -392,7 +392,7 @@ class IlluminaProcessingUnitFetcherTest extends FlatSpec with Matchers with Befo
       val fetcher = new IlluminaProcessingUnitFetcher()
       val actual = fetcher.checkForReadyProcessingUnits(fetcherConfig)
 
-      assert(actual(0) === expected(0))
+      assert(actual.sortBy(x => x.name) === expected.sortBy(x => x.name))
 
     }
 
