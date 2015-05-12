@@ -105,6 +105,12 @@ class IlluminaProcessingUnitFetcherTest extends FlatSpec with Matchers with Befo
 
   }
 
+  def runfolderName2FlowcellName(x: String): String =
+    if (x.contains("M00485"))
+      x.split("_")(3)
+    else
+      x.split("_")(3).drop(1) // The first letter (A or B) is not a part of the flowcell name.
+
   def createRunFolders(takeXFirst: Int = 2): Seq[File] = {
 
     defaultQCConfigFile.createNewFile()
@@ -112,7 +118,10 @@ class IlluminaProcessingUnitFetcherTest extends FlatSpec with Matchers with Befo
 
     val created = runfolders.take(takeXFirst).map(x => {
       x.mkdirs()
-      (new File(sampleSheetRoot + "/" + x.getName() + "_samplesheet.csv")).createNewFile()
+
+      val flowCellName = runfolderName2FlowcellName(x.getName)
+
+      (new File(sampleSheetRoot + "/" + flowCellName + "_samplesheet.csv")).createNewFile()
       (new File(x + "/RTAComplete.txt")).createNewFile()
       createMinimalRunParametersXml(x)
       x
@@ -127,7 +136,7 @@ class IlluminaProcessingUnitFetcherTest extends FlatSpec with Matchers with Befo
 
       val expectedConfig =
         new IlluminaProcessingUnitConfig(
-          sampleSheet = new File(sampleSheetRoot + "/" + f.getName() + "_samplesheet.csv"),
+          sampleSheet = new File(sampleSheetRoot + "/" + runfolderName2FlowcellName(f.getName()) + "_samplesheet.csv"),
           QCConfig = defaultQCConfigFile,
           programConfig = Some(defaultProgramConfigFile))
 
@@ -321,7 +330,7 @@ class IlluminaProcessingUnitFetcherTest extends FlatSpec with Matchers with Befo
       Some(
         HiSeqProcessingUnit(
           IlluminaProcessingUnitConfig(
-            new File("test_samplesheets/140806_D00457_0045_AC47TFACXX_samplesheet.csv"),
+            new File("test_samplesheets/C47TFACXX_samplesheet.csv"),
             new File("default_qc_config"),
             Some(new File("default_program_config"))),
           new File("test_runfolders/140806_D00457_0045_AC47TFACXX/").toURI))
@@ -342,7 +351,7 @@ class IlluminaProcessingUnitFetcherTest extends FlatSpec with Matchers with Befo
       Some(
         HiSeqProcessingUnit(
           IlluminaProcessingUnitConfig(
-            new File("test_samplesheets/140806_D00457_0045_AC47TFACXX_samplesheet.csv"),
+            new File("test_samplesheets/C47TFACXX_samplesheet.csv"),
             new File("default_qc_config"),
             Some(new File("default_program_config"))),
           new File("test_runfolders/140806_D00457_0045_AC47TFACXX/").toURI))

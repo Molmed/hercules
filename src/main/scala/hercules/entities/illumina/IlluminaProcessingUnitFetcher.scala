@@ -4,6 +4,7 @@ import java.io.File
 import java.io.FileNotFoundException
 import java.net.URI
 import com.typesafe.config.ConfigFactory
+import hercules.utils.Constants
 import scala.Option.option2Iterable
 import akka.event.LoggingAdapter
 import hercules.config.processingunit.IlluminaProcessingUnitConfig
@@ -142,8 +143,18 @@ class IlluminaProcessingUnitFetcher() extends ProcessingUnitFetcher {
 
       val runfolderName = runfolder.getName()
 
+      // The runfolder contains the name of the flowcell,
+      // but for HiSeq and HiSeqX it also contains the position on the
+      // instrument, i.e. 'A' or 'B', this needs to be dropped.
+      val flowcellAndPossiblePosition = runfolderName.split("_")(3)
+
+      val flowcellName = getMachineTypeFromRunParametersXML(runfolder) match {
+        case Constants.MISEQ_CONTROL_SOFTWARE => flowcellAndPossiblePosition
+        case _                                => flowcellAndPossiblePosition.drop(1)
+      }
+
       val samplesheet = config.sampleSheetRoot.listFiles().
-        find(p => p.getName() == runfolderName + "_samplesheet.csv")
+        find(p => p.getName() == flowcellName + "_samplesheet.csv")
 
       if (samplesheet.isDefined)
         log.debug("Found matching samplesheet for: " + runfolder.getName())
@@ -300,11 +311,11 @@ class IlluminaProcessingUnitFetcher() extends ProcessingUnitFetcher {
         new IlluminaProcessingUnitConfig(samplesheet, qcConfig, Some(programConfig))
 
       getMachineTypeFromRunParametersXML(runfolder) match {
-        case "MiSeq Control Software" => Some(new MiSeqProcessingUnit(unitConfig, runfolder.toURI(),
+        case Constants.MISEQ_CONTROL_SOFTWARE => Some(new MiSeqProcessingUnit(unitConfig, runfolder.toURI(),
           getManifestFilesFromRunParametersXML(runfolder).size > 0))
-        case "HiSeq Control Software"   => Some(new HiSeqProcessingUnit(unitConfig, runfolder.toURI()))
-        case "HiSeq X Control Software" => Some(new HiSeqProcessingUnit(unitConfig, runfolder.toURI()))
-        case s: String                  => throw new Exception(s"Unrecognized type string:  $s")
+        case Constants.HISEQ_CONTROL_SOFTWARE   => Some(new HiSeqProcessingUnit(unitConfig, runfolder.toURI()))
+        case Constants.HISEQ_X_CONTROL_SOFTWARE => Some(new HiSeqProcessingUnit(unitConfig, runfolder.toURI()))
+        case s: String                          => throw new Exception(s"Unrecognized type string:  $s")
       }
 
     }
