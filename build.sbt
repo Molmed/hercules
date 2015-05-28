@@ -6,7 +6,7 @@ import scalariform.formatter.preferences._
 
 name := """hercules"""
 
-version := "0.1"
+version := "0.1.1"
 
 scalaVersion := "2.10.2"
 
