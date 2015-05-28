@@ -3,6 +3,7 @@ package hercules.external.program
 import java.io.File
 import java.io.FileWriter
 import java.io.PrintWriter
+import java.net.InetAddress
 import java.util.Date
 
 import scala.concurrent._
@@ -50,12 +51,10 @@ class Sisyphus() extends Demultiplexer with ExternalProgram {
         case e: Exception =>
           throw HerculesExceptions.ExternalProgramException(e.getMessage(), unit)
       }
-      val logText =
-        if (logFile.exists())
-          Source.fromFile(logFile).getLines.mkString
-        else
-          ""
-      new DemultiplexingResult(unit, success, Some(logText))
+      new DemultiplexingResult(
+        unit,
+        success,
+        Some(s"Demultiplexer failure, see log at - host: ${InetAddress.getLocalHost().getHostName()}, file: ${logFile.getAbsolutePath}}"))
     }
   }
 
